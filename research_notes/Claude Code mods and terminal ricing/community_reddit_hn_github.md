@@ -138,7 +138,7 @@ On Reddit, mods are the biggest customization story of 2026. r/ClaudeCode's "Int
 
   — [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1sh0x1r/)
 - **Terminal-only commands.** `/statusline` and `/add-dir` are terminal-only, so the desktop app lacked a configurable status line, according to a highly upvoted reply in a 1,002-pt tips thread. — [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1tbwwel/)
-  - Mods now bring status-style bands to desktop: "these mods bring the statusline to shame". — [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1wv8glc/)
+  - Mods now bring status-style bands to desktop. One commenter said the mods "bring the statusline to shame" (their typo corrected). — [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1wv8glc/)
 
 #### Setup showcases and tips
 - **"Claude Code tips for terminal users (from a senior dev)" (May 13; 1,002/89).** The tips were `@` (file references), `!` (bash), `/btw`, `/statusline` and `/add-dir`; the auto-generated thread summary called the consensus "hell yeah". — [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1tbwwel/)
@@ -677,7 +677,7 @@ Pure eye candy without function drew "looks cool but no real use case".
 5. **"I coded terminal manager for ADHD brains. 100% Opensource." — r/ClaudeCode, Aug 8, 2026, 894/167; also r/ClaudeAI, 685/206.**
    - A native terminal manager for multiple and SSH projects with git built in.
    - Users loved the UI and "finally a use for the notch!"
-   - One complaint about text crispness on Retina was fixed by switching to GPU rendering per terminal.
+   - One complaint was that text looked soft on Retina screens; the author suggested switching to GPU rendering per terminal (whether that fixed it was not confirmed).
 
    — [Reddit](https://www.reddit.com/r/ClaudeCode/comments/1vj5ktu/); [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1vqx297/)
 6. **"I turned my Claude Code agents into Tamagotchis so I can monitor them from tmux" (Recon) — r/ClaudeAI, Mar 15, 2026, 691/76.** Rust + Ratatui, tmux-native. Praised as "the kind of monitoring I actually want": glanceable state instead of 50-chart dashboards. — [Reddit](https://www.reddit.com/r/ClaudeAI/comments/1ru9yda/)
