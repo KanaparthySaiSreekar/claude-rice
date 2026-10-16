@@ -1,0 +1,103 @@
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/tab-title.mjs\""
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/tab-title.mjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/tab-title.mjs\""
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/claude-hud/statusline.cmd\""
+  },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Pondering",
+      "Noodling",
+      "Cogitating",
+      "Percolating",
+      "Ruminating",
+      "Mulling it over",
+      "Untangling",
+      "Cross-referencing",
+      "Reading the room",
+      "Spelunking the codebase",
+      "Connecting the dots",
+      "Following the thread",
+      "Weighing options",
+      "Sketching it out",
+      "Tidying up",
+      "Almost there"
+    ]
+  },
+  "spinnerTipsOverride": {
+    "excludeDefault": true,
+    "tips": [
+      "Ctrl+J inserts a newline without sending",
+      "Ctrl+O then [ dumps the chat into native scrollback",
+      "claude --safe-mode starts a session with every mod switched off"
+    ]
+  },
+  "maxProseWidth": 100,
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "theme": "custom:claude",
+  "enabledPlugins": {
+    "claude-hud@kasasree-mods": true,
+    "token-weather@kasasree-mods": false,
+    "flightdeck@kasasree-mods": true,
+    "skins@kasasree-mods": true,
+    "image-view@kasasree-mods": true,
+    "filetree@kasasree-mods": true
+  },
+  "extraKnownMarketplaces": {
+    "kasasree-mods": {
+      "source": {
+        "source": "directory",
+        "path": "C:\\Users\\Kasasree\\Projects\\claude-mods-local"
+      }
+    }
+  },
+  "pluginConfigs": {
+    "flightdeck@kasasree-mods": {
+      "options": {
+        "openOnStart": true,
+        "statusLine": false
+      }
+    },
+    "filetree@kasasree-mods": {
+      "options": {
+        "start": "off"
+      }
+    }
+  }
+}

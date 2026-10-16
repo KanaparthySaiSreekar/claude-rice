@@ -4,6 +4,9 @@ Deep-dive research into **Claude Code mods** and everything the community does t
 
 **Start here → [Mods Turn Claude Code Into a Canvas](reports/Claude%20Code%20mods%20and%20terminal%20ricing.md)**, the full report (about 7,850 words, about 250 inline citations).
 
+- **Second report:** [Ricing Claude Code in October 2026](reports/Ricing%20Claude%20Code%20in%20October%202026.md) is an independent write-up of the same topic (about 40 KB, 67 numbered sources). It is shorter, leans on catalogs and secondary coverage, and ends with a curated **Linux** setup (Ghostty or kitty). Read it as a cross-check on the first.
+- **Applied:** [`v1-win/`](v1-win/) is the first setup actually built from these reports, on Windows 11 with Windows Terminal. It has the config files, the two local patches to pinned mods, and a note on where the build deliberately departs from the reports, and why. It is also tagged `v1-win`.
+
 ## TL;DR
 
 - **Mods are the new extension type that can draw on Claude Code itself.** They launched on October 1, 2026 in v2.1.287, on by default. A mod is a plugin whose JavaScript or TypeScript "hooks module" runs inside Claude Code's process. It can draw panes, a band above the prompt, toasts and a status line, restyle the spinner, tool rows and messages, draw pixel graphics and real images (kitty or Ghostty), play audio, and rewrite or answer events such as tool calls and prompts.
@@ -93,6 +96,13 @@ Mods aren't sandboxed. They run inside Claude Code with your permissions, can se
 ```
 README.md                                         ← you are here
 reports/Claude Code mods and terminal ricing.md   ← the full report
+reports/Ricing Claude Code in October 2026.md     ← second, independent report (Linux-focused setup)
+v1-win/                                           ← checkpoint of the setup applied on Windows 11
+  ├── README.md                                   what runs, deviations from the reports, rebuild steps
+  ├── config/                                     Claude Code, claude-hud, skin, Windows Terminal, Rio
+  ├── patches/                                    the two local patches to pinned mods
+  ├── marketplace/                                the pinned-marketplace manifest and provenance table
+  └── scripts/setup-rio.ps1
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

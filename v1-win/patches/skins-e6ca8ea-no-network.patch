@@ -1,0 +1,23 @@
+diff --git a/hooks/register.tsx b/hooks/register.tsx
+index 7d2f743..33c58f7 100644
+--- a/hooks/register.tsx
++++ b/hooks/register.tsx
+@@ -476,6 +476,9 @@ async function tickCountdowns($: EngineInterface): Promise<void> {
+ 
+ // True when it showed the update notice, so the star ask can keep out of its way.
+ async function checkForUpdate($: EngineInterface): Promise<boolean> {
++  // LOCAL PATCH (kasasree-mods): update check disabled. This marketplace is pinned to a reviewed
++  // commit, so the daily network call to raw.githubusercontent.com is unnecessary. See README.md.
++  return false
+   const now = await $.clock.now()
+ 
+   if (!isDue(await $.store.get('updateCheck'), now)) {
+@@ -503,6 +506,8 @@ async function checkForUpdate($: EngineInterface): Promise<boolean> {
+ }
+ 
+ async function askForStar($: EngineInterface): Promise<void> {
++  // LOCAL PATCH (kasasree-mods): star-request toast disabled. See README.md.
++  return
+   const step = starStep(await $.store.get('star'), await $.clock.now())
+ 
+   if (step.save !== undefined) {

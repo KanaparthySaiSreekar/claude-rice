@@ -1,0 +1,80 @@
+{
+  "_note": "Exact state of the 'claude-warm' skin (skins mod, read back with mcp__skins__design action=show on 2026-10-16). Replay: action=save with name/base/palette/spinner/done, then action=settings with 'settings'. All 15 palette slots are set, so 'base' only matters as a starting point.",
+  "save": {
+    "action": "save",
+    "name": "claude-warm",
+    "base": "noir",
+    "palette": {
+      "user": "#d97757",
+      "fg": "#f5e6d3",
+      "muted": "#a89f91",
+      "surface": "#36332e",
+      "zebra": "#302e2a",
+      "ok": "#a3b18a",
+      "err": "#f28482",
+      "warn": "#ffd166",
+      "read": "#8aa9c9",
+      "write": "#e8a87c",
+      "run": "#ffd166",
+      "search": "#94c5cc",
+      "web": "#b48ead",
+      "mcp": "#e6a1b8",
+      "other": "#c4a484"
+    },
+    "spinner": [
+      "Pondering",
+      "Noodling",
+      "Cogitating",
+      "Percolating",
+      "Ruminating",
+      "Untangling",
+      "Spelunking",
+      "Sketching"
+    ],
+    "done": [
+      "Pondered",
+      "Noodled",
+      "Cogitated",
+      "Percolated",
+      "Untangled",
+      "Sketched"
+    ]
+  },
+  "settings": {
+    "action": "settings",
+    "settings": {
+      "rail": false,
+      "band": false,
+      "shimmer": true,
+      "tables": "on",
+      "icons": "unicode",
+      "markdown": true,
+      "quiet": false,
+      "charts": true
+    }
+  },
+  "stored_settings_at_checkpoint": {
+    "skin": "claude-warm",
+    "icons": "unicode",
+    "prompt": "left",
+    "words": "skin",
+    "rail": false,
+    "tables": "on",
+    "shimmer": true,
+    "band": false,
+    "countdown": false,
+    "clipOutput": false,
+    "markdown": true,
+    "quiet": false,
+    "charts": true,
+    "math": true,
+    "commands": true,
+    "shell": true,
+    "highlight": true,
+    "hints": true,
+    "links": true,
+    "copy": true,
+    "fold": true,
+    "calm": null
+  }
+}

@@ -1,0 +1,2 @@
+# Keep patch files byte-exact: git must not apply autocrlf to them.
+v1-win/patches/*.patch -text

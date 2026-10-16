@@ -1,0 +1,25 @@
+diff --git a/hooks/token-weather.mjs b/hooks/token-weather.mjs
+index 6aee1c3..04c1d12 100644
+--- a/hooks/token-weather.mjs
++++ b/hooks/token-weather.mjs
+@@ -46,12 +46,17 @@ export function register(on) {
+     return result;
+   });
+ 
+-  on("ui.render", { component: "AbovePrompt" }, ($, e, next) => {
++  // LOCAL PATCH (kasasree-mods): the upstream handler answered without calling next(e), which
++  // replaces whatever other mods (image-view, skins) or Claude Code itself draw in this band.
++  // This version awaits next(e) first and stacks the forecast above it. See README.md.
++  on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
++    const below = await next(e);
+     if (e.hasSurvey || readings.length === 0) {
+-      return next(e);
++      return below;
+     }
+     const { Box, Text } = $.ui.resolve(e);
+-    return band(Box, Text, e.bodyColumns ?? 80);
++    const line = band(Box, Text, e.bodyColumns ?? 80);
++    return Box({ flexDirection: "column", children: below ? [line, below] : [line] });
+   });
+ }
+ 
