@@ -104,3 +104,50 @@ test("OKLab ramps are continuous (no seams) and the ends are exact", () => {
   for (let i = 1; i <= 200; i++) { const c = ramp(p.ramp, i / 200); assert.ok(Math.hypot(...c.map((v, k) => v - prev[k])) < 14, `jump at ${i / 200}`); prev = c }
   assert.equal(toHex(mix([0, 0, 0], [255, 255, 255], 0)), "#000000")
 })
+
+// ---------------------------------------------------------------------------------------------
+// the plain palettes: black with one warm accent, no picture behind the text
+// ---------------------------------------------------------------------------------------------
+import fs from "node:fs"
+import { bridgePalette } from "../tools/build.mjs"
+
+const PLAIN = ["ember", "amber", "crimson"]
+
+test("ember, amber and crimson pass the audit, are complete, and are near-black", () => {
+  for (const name of PLAIN) {
+    const q = getPalette(PAL, name)
+    assert.deepEqual(audit(q), [], name)
+    for (const group of ["base", "accent", "ansi", "tool"]) for (const [k, v] of Object.entries(p[group])) assert.ok(k in q[group] || group === "tool", `${name} lacks ${group}.${k}`)
+    for (const k of Object.keys(p.accent)) assert.match(q.accent[k], HEX, `${name} accent.${k}`)
+    const [r, g, b] = parseHex(q.base.bg); assert.ok(Math.max(r, g, b) < 24, `${name} background ${q.base.bg} is near-black`)
+    assert.equal(q.art, null, `${name} has no background art`)
+  }
+  assert.equal(loadPalettes(PAL).default, "ember")
+})
+
+test("a palette without art produces no background-image settings, one with art still does", () => {
+  const q = getPalette(PAL, "ember")
+  const d = wtProfileDefaults(q, "C:\\x\\assets")
+  for (const k of ["backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]) assert.ok(!(k in d), k)
+  assert.equal(d["experimental.pixelShaderPath"], "C:\\x\\assets\\shaders\\glow.hlsl")
+  assert.ok("backgroundImage" in wtProfileDefaults(p, "C:\\x\\assets"), "aurora keeps its art")
+})
+
+test("the bridge palette is complete, valid hex, and carries every kind of tool", () => {
+  for (const name of PLAIN) {
+    const b = bridgePalette(getPalette(PAL, name))
+    for (const k of ["bg", "surface", "raised", "line", "dim", "faint", "muted", "fg", "ok", "warn", "err", "coral"]) assert.match(b[k], HEX, `${name}.${k}`)
+    assert.ok(b.ramp.length >= 2 && b.ramp.every((c) => HEX.test(c)))
+    for (const k of ["read", "write", "run", "search", "web", "mcp", "agent", "other"]) assert.match(b.tool[k], HEX, `${name}.tool.${k}`)
+    assert.doesNotThrow(() => JSON.parse(JSON.stringify(b)))
+  }
+})
+
+test("the mod's built-in defaults are the ember palette (so it looks right with no option set)", () => {
+  const src = fs.readFileSync(path.join(path.dirname(PAL), "..", "mods", "aurora-bridge", "hooks", "palette.ts"), "utf8")
+  const lit = src.slice(src.indexOf("export const EMBER"))
+  const b = bridgePalette(getPalette(PAL, "ember"))
+  for (const k of ["bg", "surface", "raised", "line", "dim", "faint", "muted", "fg", "ok", "warn", "err", "coral"]) assert.ok(lit.includes(`${k}: '${b[k]}'`), `EMBER.${k} should be ${b[k]}`)
+  for (const [k, v] of Object.entries(b.tool)) assert.ok(lit.includes(`${k}: '${v}'`), `EMBER.tool.${k} should be ${v}`)
+  assert.ok(lit.includes(`ramp: [${b.ramp.map((c) => `'${c}'`).join(", ")}]`), "EMBER.ramp")
+})

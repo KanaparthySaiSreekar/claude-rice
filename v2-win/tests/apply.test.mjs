@@ -7,7 +7,8 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { getPalette } from "../tools/lib/palette.mjs"
 import { writeBuild } from "../tools/build.mjs"
-import { apply, revert, status, locations, mergeClaudeSettings, mergeWtSettings, mergeSkinsStore, FLIGHTDECK, HUD, PANELS } from "../tools/apply.mjs"
+import { apply, revert, status, locations, mergeClaudeSettings, mergeWtSettings, mergeSkinsStore, FLIGHTDECK, HUD, BRIDGE, PANELS } from "../tools/apply.mjs"
+import { bridgePalette } from "../tools/build.mjs"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const p = getPalette(path.join(ROOT, "palette", "palettes.json"), "aurora")
@@ -158,5 +159,34 @@ test("the pure merges do not mutate their input and tolerate missing keys", () =
 test("revert with no backup says so instead of guessing", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rice-sandbox-")); const L = locations(dir)
   assert.throws(() => revert(L), /no backup/)
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test("with the Bridge installed it replaces flightdeck and gets the palette as its option", () => {
+  const withBridge = structuredClone(SETTINGS); withBridge.enabledPlugins[BRIDGE] = true
+  withBridge.pluginConfigs[BRIDGE] = { options: { width: 64, demo: "off" } }
+  for (const name of ["aurora", "ember"]) {
+    const q = getPalette(path.join(ROOT, "palette", "palettes.json"), name)
+    const out = mergeClaudeSettings(withBridge, q, { shim: "C:\\a\\b.cmd" })
+    assert.equal(out.enabledPlugins[BRIDGE], true); assert.equal(out.enabledPlugins[FLIGHTDECK], false, "flightdeck stays installed but off")
+    assert.deepEqual(JSON.parse(out.pluginConfigs[BRIDGE].options.palette), bridgePalette(q))
+    assert.equal(out.pluginConfigs[BRIDGE].options.width, 64, "the user's own option survives"); assert.equal(out.pluginConfigs[BRIDGE].options.demo, "off")
+    assert.equal(out.pluginConfigs[BRIDGE].options.openOnStart, true)
+    assert.ok(!(PANELS in (out.pluginConfigs[FLIGHTDECK]?.options ?? {})) && out.pluginConfigs[FLIGHTDECK]?.options.panels === undefined, "flightdeck's panels are no longer managed")
+  }
+  assert.deepEqual(withBridge.enabledPlugins[FLIGHTDECK], true, "input not mutated")
+})
+
+test("applying a palette with no art takes a previous palette's background picture away", () => {
+  const { dir, L } = sandbox()
+  const ember = getPalette(path.join(ROOT, "palette", "palettes.json"), "ember")
+  const wt = json(L.wtSettings); wt.profiles.defaults.backgroundImage = "C:\\old\\bg.png"; wt.profiles.defaults.backgroundImageOpacity = 0.42
+  fs.writeFileSync(L.wtSettings, JSON.stringify(wt))
+  const emberBuild = path.join(L.rice, "builds", "ember"); writeBuild(ember, emberBuild, { assetsDir: emberBuild, pwshPath: "C:\\pwsh.exe", repoRoot: ROOT })
+  apply(ember, L, { buildDir: emberBuild })
+  const d = json(L.wtSettings).profiles.defaults
+  assert.ok(!("backgroundImage" in d) && !("backgroundImageOpacity" in d), JSON.stringify(d))
+  assert.equal(d.colorScheme, "Claude Ember"); assert.equal(d.opacity, 100)
+  assert.ok(!fs.existsSync(path.join(emberBuild, "art")), "no art folder is built for a plain palette")
   fs.rmSync(dir, { recursive: true, force: true })
 })

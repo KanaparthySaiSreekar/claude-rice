@@ -44,13 +44,16 @@ export function wtProfileDefaults(p, assets, opts = {}) {
     cursorShape: "bar",
     useAcrylic: false,
     opacity: 100,
+    "experimental.useBackgroundImageForWindow": false,
+    font: { face: "JetBrainsMono NFM", size: 11, weight: "medium", features: { calt: 1, liga: 1 } },
+  }
+  // a palette with `art: null` is a plain colour: no picture behind the text
+  if (p.art) Object.assign(d, {
     backgroundImage: win("art\\bg.png"),
     backgroundImageOpacity: opts.imageOpacity ?? 0.42,
     backgroundImageStretchMode: "uniformToFill",
     backgroundImageAlignment: "center",
-    "experimental.useBackgroundImageForWindow": false,
-    font: { face: "JetBrainsMono NFM", size: 11, weight: "medium", features: { calt: 1, liga: 1 } },
-  }
+  })
   if (opts.shader !== false) d["experimental.pixelShaderPath"] = win("shaders\\glow.hlsl")
   return d
 }
@@ -114,6 +117,19 @@ export function skin(p) {
     spinner: ["Pondering", "Noodling", "Cogitating", "Percolating", "Ruminating", "Untangling", "Spelunking", "Sketching"],
     done: ["Pondered", "Noodled", "Cogitated", "Percolated", "Untangled", "Sketched"],
     settings: { rail: true, band: false, shimmer: true, tables: "on", icons: "unicode", markdown: true, quiet: false, charts: true },
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// aurora-bridge mod: the colours it draws with, as the JSON its `palette` option takes
+// ---------------------------------------------------------------------------------------------
+export function bridgePalette(p) {
+  const b = p.base, a = p.accent
+  return {
+    bg: b.bg, surface: b.surface, raised: b.raised, line: b.line, dim: b.dim, faint: b.faint, muted: b.muted, fg: b.fg,
+    ok: p.semantic.ok, warn: p.semantic.warn, err: p.semantic.err, coral: a.coral,
+    ramp: p.ramp,
+    tool: { ...p.tool, agent: p.tool.agent ?? a.coralLight },
   }
 }
 
@@ -309,7 +325,7 @@ function ls {
 // ---------------------------------------------------------------------------------------------
 // the writer
 // ---------------------------------------------------------------------------------------------
-export function writeBuild(p, outDir, { assetsDir, pwshPath, art = true, repoRoot }) {
+export function writeBuild(p, outDir, { assetsDir, pwshPath, art = Boolean(p.art), repoRoot }) {
   const w = (rel, text) => { const f = path.join(outDir, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f }
   const out = {}
   out.scheme = w("wt/scheme.json", j(wtScheme(p)))

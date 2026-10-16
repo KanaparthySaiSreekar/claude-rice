@@ -1,0 +1,18 @@
+{
+  "name": "Claude Crimson",
+  "window": {
+    "applicationTheme": "dark",
+    "useMica": false,
+    "frame": "#FF4040",
+    "unfocusedFrame": "#3D3232"
+  },
+  "tabRow": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#131010"
+  },
+  "tab": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#131010",
+    "showCloseButton": "hover"
+  }
+}

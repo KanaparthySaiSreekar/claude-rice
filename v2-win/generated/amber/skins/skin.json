@@ -1,0 +1,49 @@
+{
+  "name": "claude-amber",
+  "base": "noir",
+  "palette": {
+    "user": "#FFD60A",
+    "fg": "#F7F4E6",
+    "muted": "#BEBBA4",
+    "surface": "#1B1B14",
+    "zebra": "#12120D",
+    "ok": "#A5DE72",
+    "err": "#FF5A4D",
+    "warn": "#FF9F1C",
+    "read": "#FFF3B0",
+    "write": "#FFD60A",
+    "run": "#FF9F1C",
+    "search": "#E8E0BE",
+    "web": "#E0C25C",
+    "mcp": "#FF6A5C",
+    "other": "#B3AF98"
+  },
+  "spinner": [
+    "Pondering",
+    "Noodling",
+    "Cogitating",
+    "Percolating",
+    "Ruminating",
+    "Untangling",
+    "Spelunking",
+    "Sketching"
+  ],
+  "done": [
+    "Pondered",
+    "Noodled",
+    "Cogitated",
+    "Percolated",
+    "Untangled",
+    "Sketched"
+  ],
+  "settings": {
+    "rail": true,
+    "band": false,
+    "shimmer": true,
+    "tables": "on",
+    "icons": "unicode",
+    "markdown": true,
+    "quiet": false,
+    "charts": true
+  }
+}

@@ -12,7 +12,8 @@ param(
   [Parameter(Mandatory)][string]$Out,
   [int]$Cols = 120, [int]$Rows = 34, [int]$Wait = 3,
   [string]$Profile = '',
-  [int]$X = 60, [int]$Y = 40
+  [int]$X = 60, [int]$Y = 40,
+  [int]$Burst = 1, [int]$BurstMs = 600      # Burst > 1 takes that many captures of the same window, BurstMs apart: <Out>-1.png, -2.png ... (to see animation)
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -78,7 +79,11 @@ $new = $null
 for ($i = 0; $i -lt 60 -and -not $new; $i++) { Start-Sleep -Milliseconds 250; $new = [Cap]::Terminals() | Where-Object { $_ -notin $before } | Select-Object -First 1 }
 if (-not $new) { throw 'preview window never appeared' }
 Start-Sleep -Seconds $Wait
-$r = Save-Shot $new $Out
-"{0}x{1}  mean brightness {2:N1}  ->  {3}" -f $r.Width, $r.Height, $r.Brightness, $Out
+for ($k = 1; $k -le $Burst; $k++) {
+  $file = if ($Burst -gt 1) { [IO.Path]::ChangeExtension($Out, $null).TrimEnd('.') + "-$k.png" } else { $Out }
+  $r = Save-Shot $new $file
+  "{0}x{1}  mean brightness {2:N1}  ->  {3}" -f $r.Width, $r.Height, $r.Brightness, $file
+  if ($k -lt $Burst) { Start-Sleep -Milliseconds $BurstMs }
+}
 [Cap]::Close($new)
 if ($r.Brightness -lt 2) { throw 'PrintWindow returned a black image. Not falling back to a screen capture (it would also record what is behind the window).' }

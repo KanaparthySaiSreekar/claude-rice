@@ -1,0 +1,20 @@
+{
+  "colorScheme": "Claude Ember",
+  "antialiasingMode": "grayscale",
+  "padding": "18, 12, 18, 12",
+  "tabColor": "#FF7A1A",
+  "cursorShape": "bar",
+  "useAcrylic": false,
+  "opacity": 100,
+  "experimental.useBackgroundImageForWindow": false,
+  "font": {
+    "face": "JetBrainsMono NFM",
+    "size": 11,
+    "weight": "medium",
+    "features": {
+      "calt": 1,
+      "liga": 1
+    }
+  },
+  "experimental.pixelShaderPath": "C:\\Users\\Kasasree\\.rice\\builds\\ember\\shaders\\glow.hlsl"
+}

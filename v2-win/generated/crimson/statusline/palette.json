@@ -1,0 +1,39 @@
+{
+  "key": "crimson",
+  "label": "Claude Crimson",
+  "base": {
+    "bg": "#0A0808",
+    "surface": "#131010",
+    "raised": "#1C1818",
+    "hover": "#271F1F",
+    "line": "#3D3232",
+    "selection": "#4D2323",
+    "fg": "#F6EEEE",
+    "muted": "#BFB0B0",
+    "faint": "#9E8F8F",
+    "dim": "#807272"
+  },
+  "accent": {
+    "coral": "#FF4040",
+    "coralLight": "#FF7B73",
+    "pink": "#FF5C8A",
+    "violet": "#F1E2E2",
+    "blue": "#F6EEEE",
+    "cyan": "#E0A8A8",
+    "mint": "#86D99C",
+    "amber": "#FFB347",
+    "red": "#FF5C5C"
+  },
+  "ramp": [
+    "#FFD0C8",
+    "#FF7B73",
+    "#FF4040",
+    "#B01E2A"
+  ],
+  "semantic": {
+    "ok": "#86D99C",
+    "warn": "#FFB347",
+    "err": "#FF5C5C",
+    "info": "#F6EEEE"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "aurora-bridge",
+  "private": true,
+  "type": "module",
+  "description": "Unit tests for the pane's pure modules. The mod itself needs no build and no dependencies.",
+  "scripts": {
+    "test": "node --import ./tests/ts-resolve.mjs --test \"tests/*.test.mjs\""
+  }
+}

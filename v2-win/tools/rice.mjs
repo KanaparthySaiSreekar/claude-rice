@@ -85,9 +85,10 @@ function backupFile(file, tag) {
 function cmdPreviewInstall(name) {
   const p = loadChecked(name)
   const dir = path.join(RICE, "builds", p.key)
-  if (!fs.existsSync(path.join(dir, "art", "bg.png"))) cmdBuild(name)
+  if (!fs.existsSync(path.join(dir, p.art ? "art/bg.png" : "wt/scheme.json"))) cmdBuild(name)
   const bk = backupFile(WT_SETTINGS, "before-preview")
   const defaults = wtProfileDefaults(p, dir, { shader: !flag("no-shader"), imageOpacity: flagValue("image") ? Number(flagValue("image")) : undefined })
+  if (!p.art) defaults.backgroundImage = "none"   // the preview profile inherits profiles.defaults, which may still hold another palette's picture
   writeWt(addPreviewProfile(readWt(), { scheme: wtScheme(p), defaults, pwsh: PWSH }))
   console.log(`added hidden profile "rice-preview" (backup: ${bk})`)
 }

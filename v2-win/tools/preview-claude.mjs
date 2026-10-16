@@ -3,13 +3,13 @@
 //   node tools/preview-claude.mjs restore           put the skins store back exactly as it was
 //
 // The preview process is then started with:  claude --resume <demo session> --settings <printed path>
-// `--settings` overrides theme, status line and flightdeck panels for that process only. The skins mod keeps its
+// `--settings` overrides theme, status line and the Bridge pane (with demo data) for that process only. The skins mod keeps its
 // state in a JSON file, so `seed` edits it (with a backup) and `restore` undoes that.
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { getPalette } from "./lib/palette.mjs"
-import { skin as buildSkin, claudeTheme } from "./build.mjs"
+import { skin as buildSkin, claudeTheme, bridgePalette } from "./build.mjs"
 import { PALETTES, RICE, repoRoot } from "./rice.mjs"
 
 const STORE = path.join(os.homedir(), ".claude", "plugins", "store", "skins_kasasree-mods-2f16574f50f4.json")
@@ -39,7 +39,8 @@ function seed(paletteName) {
   const settings = {
     theme: `custom:${p.key}`,
     statusLine: { type: "command", command: `exec "${shim.replace(/\\/g, "/")}"`, refreshInterval: 60 },
-    pluginConfigs: { "flightdeck@kasasree-mods": { options: { openOnStart: true, statusLine: false, panels: "architect,gate,agents,loops,receipt,log" } } },
+    enabledPlugins: { "flightdeck@kasasree-mods": false, "aurora-bridge@kasasree-mods": true },
+    pluginConfigs: { "aurora-bridge@kasasree-mods": { options: { openOnStart: true, demo: "on", palette: JSON.stringify(bridgePalette(p)) } } },
   }
   const settingsFile = path.join(PREVIEW, "settings.preview.json")
   fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2))

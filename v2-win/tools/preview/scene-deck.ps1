@@ -7,7 +7,7 @@ $env:COLUMNS = [string]$Host.UI.RawUI.WindowSize.Width
 function Show($variant, $title) {
   $payload = Join-Path $env:TEMP "rice-payload-$variant.json"
   & node $maker $payload $variant
-  Write-Host ("`e[38;2;111;106;156m  -- {0} --`e[0m" -f $title)
+  Write-Host ("`e[38;2;158;148;138m  -- {0} --`e[0m" -f $title)
   Get-Content -Raw $payload | & node $deck
 }
 Write-Host ''

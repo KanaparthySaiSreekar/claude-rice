@@ -6,10 +6,6 @@
   "cursorShape": "bar",
   "useAcrylic": false,
   "opacity": 100,
-  "backgroundImage": "C:\\Users\\Kasasree\\.rice\\builds\\aurora\\art\\bg.png",
-  "backgroundImageOpacity": 0.42,
-  "backgroundImageStretchMode": "uniformToFill",
-  "backgroundImageAlignment": "center",
   "experimental.useBackgroundImageForWindow": false,
   "font": {
     "face": "JetBrainsMono NFM",
@@ -20,5 +16,9 @@
       "liga": 1
     }
   },
+  "backgroundImage": "C:\\Users\\Kasasree\\.rice\\builds\\aurora\\art\\bg.png",
+  "backgroundImageOpacity": 0.42,
+  "backgroundImageStretchMode": "uniformToFill",
+  "backgroundImageAlignment": "center",
   "experimental.pixelShaderPath": "C:\\Users\\Kasasree\\.rice\\builds\\aurora\\shaders\\glow.hlsl"
 }

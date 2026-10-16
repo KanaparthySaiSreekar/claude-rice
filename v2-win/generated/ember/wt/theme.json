@@ -1,0 +1,18 @@
+{
+  "name": "Claude Ember",
+  "window": {
+    "applicationTheme": "dark",
+    "useMica": false,
+    "frame": "#FF7A1A",
+    "unfocusedFrame": "#3B352F"
+  },
+  "tabRow": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#121110"
+  },
+  "tab": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#121110",
+    "showCloseButton": "hover"
+  }
+}

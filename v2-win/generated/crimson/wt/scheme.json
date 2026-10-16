@@ -1,0 +1,23 @@
+{
+  "name": "Claude Crimson",
+  "background": "#0A0808",
+  "foreground": "#F6EEEE",
+  "cursorColor": "#FF4040",
+  "selectionBackground": "#4D2323",
+  "black": "#1C1818",
+  "red": "#FF5C5C",
+  "green": "#86D99C",
+  "yellow": "#FFB347",
+  "blue": "#A9B9D6",
+  "purple": "#CBA9D6",
+  "cyan": "#8FCFC8",
+  "white": "#DAD0D0",
+  "brightBlack": "#8C7E7E",
+  "brightRed": "#FF8D8D",
+  "brightGreen": "#B2EBC0",
+  "brightYellow": "#FFD08A",
+  "brightBlue": "#C8D4E8",
+  "brightPurple": "#E2CBEA",
+  "brightCyan": "#B8E4DF",
+  "brightWhite": "#FFFFFF"
+}

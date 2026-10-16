@@ -1,0 +1,23 @@
+{
+  "name": "Claude Amber",
+  "background": "#0A0A07",
+  "foreground": "#F7F4E6",
+  "cursorColor": "#FFD60A",
+  "selectionBackground": "#4A4520",
+  "black": "#1B1B14",
+  "red": "#FF6A5C",
+  "green": "#A5DE72",
+  "yellow": "#FFD60A",
+  "blue": "#A9BCD9",
+  "purple": "#CBB0D9",
+  "cyan": "#8FD0C0",
+  "white": "#DAD6C2",
+  "brightBlack": "#8C8972",
+  "brightRed": "#FF9188",
+  "brightGreen": "#C4EE9D",
+  "brightYellow": "#FFE766",
+  "brightBlue": "#C8D6EA",
+  "brightPurple": "#E0CDEA",
+  "brightCyan": "#B6E4D8",
+  "brightWhite": "#FFFFFF"
+}

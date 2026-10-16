@@ -1,0 +1,18 @@
+{
+  "name": "Claude Amber",
+  "window": {
+    "applicationTheme": "dark",
+    "useMica": false,
+    "frame": "#FFD60A",
+    "unfocusedFrame": "#3C3B29"
+  },
+  "tabRow": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#12120D"
+  },
+  "tab": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#12120D",
+    "showCloseButton": "hover"
+  }
+}

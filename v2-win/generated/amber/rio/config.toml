@@ -1,0 +1,37 @@
+# Rio, the optional "pixel" terminal. Windows Terminal stays the daily driver.
+# Colours generated from the "Claude Amber" palette so both terminals match.
+
+# Claude Code only sends real pictures to terminals it recognises by name, and Rio is not one yet.
+# Forced on HERE ONLY: in a terminal without kitty-graphics support this prints stray characters.
+env-vars = ["CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1"]
+
+[shell]
+program = "C:\\Users\\Kasasree\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.exe"
+args = []
+
+[fonts]
+size = 14
+family = "JetBrainsMono NFM"
+
+[colors]
+background = "#0A0A07"
+foreground = "#F7F4E6"
+cursor = "#FFD60A"
+selection-background = "#4A4520"
+selection-foreground = "#F7F4E6"
+black = "#1B1B14"
+red = "#FF6A5C"
+green = "#A5DE72"
+yellow = "#FFD60A"
+blue = "#A9BCD9"
+magenta = "#CBB0D9"
+cyan = "#8FD0C0"
+white = "#DAD6C2"
+light-black = "#8C8972"
+light-red = "#FF9188"
+light-green = "#C4EE9D"
+light-yellow = "#FFE766"
+light-blue = "#C8D6EA"
+light-magenta = "#E0CDEA"
+light-cyan = "#B6E4D8"
+light-white = "#FFFFFF"

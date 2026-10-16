@@ -11,7 +11,7 @@ import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { stripJsonc } from "./lib/wt.mjs"
-import { claudeTheme, skin as buildSkin, wtScheme, wtTheme, wtProfileDefaults, rioConfig, powershellProfile, statusPalette } from "./build.mjs"
+import { claudeTheme, skin as buildSkin, wtScheme, wtTheme, wtProfileDefaults, rioConfig, powershellProfile, statusPalette, bridgePalette } from "./build.mjs"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
@@ -36,6 +36,7 @@ const exists = (f) => fs.existsSync(f)
 const PREVIEW_GUID = "{7b1c9f10-0a15-4c0e-9e2b-0c1a55e5a001}"
 export const FLIGHTDECK = "flightdeck@kasasree-mods"
 export const HUD = "claude-hud@kasasree-mods"
+export const BRIDGE = "aurora-bridge@kasasree-mods"
 export const PANELS = "architect,gate,agents,loops,receipt,log"
 
 // ---------------------------------------------------------------------------------------------
@@ -46,8 +47,18 @@ export function mergeClaudeSettings(s, p, { shim }) {
   out.theme = `custom:${p.key}`
   out.statusLine = { type: "command", command: `exec "${shim.replace(/\\/g, "/")}"`, refreshInterval: 60 }
   out.pluginConfigs = { ...(out.pluginConfigs ?? {}) }
-  out.pluginConfigs[FLIGHTDECK] = { ...(out.pluginConfigs[FLIGHTDECK] ?? {}), options: { ...(out.pluginConfigs[FLIGHTDECK]?.options ?? {}), openOnStart: true, statusLine: false, panels: PANELS } }
-  if (out.enabledPlugins && HUD in out.enabledPlugins) out.enabledPlugins = { ...out.enabledPlugins, [HUD]: false }   // the new status line replaces claude-hud
+  const enabled = { ...(out.enabledPlugins ?? {}) }
+  if (HUD in enabled) enabled[HUD] = false   // the new status line replaces claude-hud
+  if (BRIDGE in enabled) {
+    // the right-hand pane is our own Bridge, drawn in the palette; flightdeck stays installed but off
+    enabled[BRIDGE] = true
+    if (FLIGHTDECK in enabled) enabled[FLIGHTDECK] = false
+    out.pluginConfigs[BRIDGE] = { ...(out.pluginConfigs[BRIDGE] ?? {}), options: { ...(out.pluginConfigs[BRIDGE]?.options ?? {}), openOnStart: true, palette: JSON.stringify(bridgePalette(p)) } }
+  } else {
+    // Bridge not installed: keep flightdeck, recoloured through the theme
+    out.pluginConfigs[FLIGHTDECK] = { ...(out.pluginConfigs[FLIGHTDECK] ?? {}), options: { ...(out.pluginConfigs[FLIGHTDECK]?.options ?? {}), openOnStart: true, statusLine: false, panels: PANELS } }
+  }
+  if (out.enabledPlugins || Object.keys(enabled).length) out.enabledPlugins = enabled
   return out
 }
 
@@ -56,7 +67,10 @@ export function mergeWtSettings(s, p, assets) {
   out.schemes = (out.schemes ?? []).filter((x) => x.name !== p.label).concat(wtScheme(p))
   out.themes = (out.themes ?? []).filter((x) => x.name !== p.label).concat(wtTheme(p))
   out.theme = p.label
-  out.profiles = { ...out.profiles, defaults: { ...(out.profiles?.defaults ?? {}), ...wtProfileDefaults(p, assets) } }
+  const defaults = { ...(out.profiles?.defaults ?? {}), ...wtProfileDefaults(p, assets) }
+  // switching from a palette that had art to one that has none must take the picture away again
+  if (!p.art) for (const k of ["backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]) delete defaults[k]
+  out.profiles = { ...out.profiles, defaults }
   out.profiles.list = (out.profiles.list ?? []).filter((x) => x.guid !== PREVIEW_GUID)
   return out
 }

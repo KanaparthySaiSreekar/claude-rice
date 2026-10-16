@@ -1,0 +1,49 @@
+{
+  "name": "claude-crimson",
+  "base": "noir",
+  "palette": {
+    "user": "#FF4040",
+    "fg": "#F6EEEE",
+    "muted": "#BFB0B0",
+    "surface": "#1C1818",
+    "zebra": "#131010",
+    "ok": "#86D99C",
+    "err": "#FF5C5C",
+    "warn": "#FFB347",
+    "read": "#F6EEEE",
+    "write": "#FF4040",
+    "run": "#FFB347",
+    "search": "#E0A8A8",
+    "web": "#FF7B73",
+    "mcp": "#FF5C8A",
+    "other": "#B3A4A4"
+  },
+  "spinner": [
+    "Pondering",
+    "Noodling",
+    "Cogitating",
+    "Percolating",
+    "Ruminating",
+    "Untangling",
+    "Spelunking",
+    "Sketching"
+  ],
+  "done": [
+    "Pondered",
+    "Noodled",
+    "Cogitated",
+    "Percolated",
+    "Untangled",
+    "Sketched"
+  ],
+  "settings": {
+    "rail": true,
+    "band": false,
+    "shimmer": true,
+    "tables": "on",
+    "icons": "unicode",
+    "markdown": true,
+    "quiet": false,
+    "charts": true
+  }
+}

@@ -7,7 +7,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
 - **Second report:** [Ricing Claude Code in October 2026](reports/Ricing%20Claude%20Code%20in%20October%202026.md) is an independent write-up of the same topic (about 40 KB, 67 numbered sources). It is shorter, leans on catalogs and secondary coverage, and ends with a curated **Linux** setup (Ghostty or kitty). Read it as a cross-check on the first.
 - **Applied:** [`v1-win/`](v1-win/) is the first setup actually built from these reports, on Windows 11 with Windows Terminal. It has the config files, the two local patches to pinned mods, and a note on where the build deliberately departs from the reports, and why. It is also tagged `v1-win`.
 - **Refined:** [`v1.1-win/`](v1.1-win/) is the same setup after a round of fixes: no overlap between the status line and the flightdeck pane, the git branch in the tab title, the PowerShell profile that v1 missed, a tab-title test suite, and the cause of the "Update available" banner. Tagged `v1.1-win`.
-- **Rebuilt:** [`v2-win/`](v2-win/) ("Claude Aurora") is a from-scratch visual rice with screenshots: one palette drives Windows Terminal (an aurora background, a bloom shader, themed chrome), a rebuilt Claude Code theme, the transcript skin with a one-row-per-call rail, a two-row gradient status line, flightdeck, PowerShell and Rio. It has an `apply` that backs up and merges, a `revert`, 37 tests, and a findings file. Tagged `v2-win`.
+- **Rebuilt:** [`v2-win/`](v2-win/) is a from-scratch visual rice with screenshots: one palette drives Windows Terminal (flat near-black, a glow on bright text, themed chrome), a rebuilt Claude Code theme, the transcript skin with a one-row-per-call rail, a two-row gradient status line, a first-party **Bridge** pane (heartbeat, per-call timeline, permission gate, agents, hot files), PowerShell and Rio. Palettes: `ember` (orange/white/black, default), `amber` (yellow/black), `crimson` (red/black) and the original `aurora`. It has an `apply` that backs up and merges, a `revert`, 43 rice tests plus 39 for the mod, and a findings file. Tagged `v2-win` (the aurora version) and `v2.1-win` (Ember and the Bridge).
 
 ## TL;DR
 
@@ -108,7 +108,7 @@ v1-win/                                           ← checkpoint of the setup ap
   └── full/                                       complete unredacted mirror: full settings, all mod source,
                                                   marketplace git history, working folder (see full/README.md)
 v1.1-win/                                         ← v1 plus refinements (config, tests, tools, backups, reasons)
-v2-win/                                           ← Claude Aurora: one palette, generators, apply/revert, tests, screenshots
+v2-win/                                           ← Claude Ember: one palette (4 to pick from), generators, the Bridge pane mod, apply/revert, tests, screenshots
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

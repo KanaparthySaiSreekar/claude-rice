@@ -1,0 +1,43 @@
+{
+  "name": "aurora-bridge",
+  "version": "0.1.0",
+  "description": "Bridge: a right-hand pane with a live heartbeat, a one-dot-per-tool-call activity timeline, the permission gate, subagents, the hottest files and a receipt for the last turn, all drawn in your own palette",
+  "author": { "name": "Kasasree" },
+  "license": "MIT",
+  "keywords": ["claude-code", "claude-code-mod", "dashboard", "pane", "tui"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "palette": {
+      "title": "Palette",
+      "description": "Colours as a JSON object (bg, surface, raised, line, dim, faint, muted, fg, ok, warn, err, coral, ramp[], tool{}). Written by the rice's apply step; empty uses the built-in Ember colours",
+      "type": "string",
+      "default": ""
+    },
+    "width": {
+      "title": "Width",
+      "description": "Columns the pane asks for when docked (40-100)",
+      "type": "number",
+      "default": 58
+    },
+    "animate": {
+      "title": "Animate",
+      "description": "on: the heartbeat moves (fast while Claude works, slow when idle). off: draw once per event",
+      "type": "string",
+      "options": ["on", "off"],
+      "default": "on"
+    },
+    "openOnStart": {
+      "title": "Open on start",
+      "description": "Open the pane when a session starts (it seats from 144 columns; /bridge opens it at any width)",
+      "type": "boolean",
+      "default": true
+    },
+    "demo": {
+      "title": "Demo data",
+      "description": "Fill the pane with a made-up mid-session state, for screenshots",
+      "type": "string",
+      "options": ["off", "on"],
+      "default": "off"
+    }
+  }
+}

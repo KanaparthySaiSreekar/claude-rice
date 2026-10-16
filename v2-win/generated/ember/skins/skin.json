@@ -1,0 +1,49 @@
+{
+  "name": "claude-ember",
+  "base": "noir",
+  "palette": {
+    "user": "#FF7A1A",
+    "fg": "#F8F4EE",
+    "muted": "#BFB5AA",
+    "surface": "#1B1917",
+    "zebra": "#121110",
+    "ok": "#8ED69B",
+    "err": "#FF4D4D",
+    "warn": "#FFC53D",
+    "read": "#FFF6E8",
+    "write": "#FF7A1A",
+    "run": "#FFC53D",
+    "search": "#E6D8C3",
+    "web": "#FFA55C",
+    "mcp": "#E8553C",
+    "other": "#B3A99E"
+  },
+  "spinner": [
+    "Pondering",
+    "Noodling",
+    "Cogitating",
+    "Percolating",
+    "Ruminating",
+    "Untangling",
+    "Spelunking",
+    "Sketching"
+  ],
+  "done": [
+    "Pondered",
+    "Noodled",
+    "Cogitated",
+    "Percolated",
+    "Untangled",
+    "Sketched"
+  ],
+  "settings": {
+    "rail": true,
+    "band": false,
+    "shimmer": true,
+    "tables": "on",
+    "icons": "unicode",
+    "markdown": true,
+    "quiet": false,
+    "charts": true
+  }
+}
