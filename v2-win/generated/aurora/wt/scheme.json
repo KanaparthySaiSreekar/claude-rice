@@ -1,0 +1,23 @@
+{
+  "name": "Claude Aurora",
+  "background": "#0C0A18",
+  "foreground": "#ECE8FA",
+  "cursorColor": "#FF8F66",
+  "selectionBackground": "#3B3478",
+  "black": "#1A1633",
+  "red": "#FF6B88",
+  "green": "#62EBB0",
+  "yellow": "#FFC857",
+  "blue": "#5BA8FF",
+  "purple": "#A78BFA",
+  "cyan": "#4DE3D8",
+  "white": "#D8D3F0",
+  "brightBlack": "#7A74AD",
+  "brightRed": "#FF93A8",
+  "brightGreen": "#9AF5CC",
+  "brightYellow": "#FFDC8A",
+  "brightBlue": "#8FC4FF",
+  "brightPurple": "#C3B1FF",
+  "brightCyan": "#8EF0E8",
+  "brightWhite": "#FFFFFF"
+}

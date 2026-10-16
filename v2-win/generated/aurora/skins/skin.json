@@ -1,0 +1,49 @@
+{
+  "name": "claude-aurora",
+  "base": "noir",
+  "palette": {
+    "user": "#FF8F66",
+    "fg": "#ECE8FA",
+    "muted": "#A29DC8",
+    "surface": "#1B1740",
+    "zebra": "#14112B",
+    "ok": "#62EBB0",
+    "err": "#FF6B88",
+    "warn": "#FFC857",
+    "read": "#5BA8FF",
+    "write": "#FFB08F",
+    "run": "#FFC857",
+    "search": "#4DE3D8",
+    "web": "#A78BFA",
+    "mcp": "#FF5FA2",
+    "other": "#C3B1FF"
+  },
+  "spinner": [
+    "Pondering",
+    "Noodling",
+    "Cogitating",
+    "Percolating",
+    "Ruminating",
+    "Untangling",
+    "Spelunking",
+    "Sketching"
+  ],
+  "done": [
+    "Pondered",
+    "Noodled",
+    "Cogitated",
+    "Percolated",
+    "Untangled",
+    "Sketched"
+  ],
+  "settings": {
+    "rail": true,
+    "band": false,
+    "shimmer": true,
+    "tables": "on",
+    "icons": "unicode",
+    "markdown": true,
+    "quiet": false,
+    "charts": true
+  }
+}

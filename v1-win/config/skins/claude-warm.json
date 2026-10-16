@@ -1,9 +1,9 @@
 {
-  "_note": "Exact state of the 'claude-warm' skin (skins mod, read back with mcp__skins__design action=show on 2026-10-16). Replay: action=save with name/base/palette/spinner/done, then action=settings with 'settings'. All 15 palette slots are set, so 'base' only matters as a starting point.",
+  "_note": "Exact state of the 'claude-warm' skin (skins mod, read back with mcp__skins__design action=show on 2026-10-16). Replay: action=save with name/base/palette/spinner/done, then action=settings with 'settings'. All 15 palette slots are set, so 'base' only matters as a starting point. Corrected in v2: this file first said \"noir\" (a guess); the live skins store has \"gruvbox\".",
   "save": {
     "action": "save",
     "name": "claude-warm",
-    "base": "noir",
+    "base": "gruvbox",
     "palette": {
       "user": "#d97757",
       "fg": "#f5e6d3",

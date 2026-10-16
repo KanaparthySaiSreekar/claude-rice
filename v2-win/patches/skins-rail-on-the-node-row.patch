@@ -1,0 +1,97 @@
+From c61bd3df79e4d47759e3f29c8660d74d68c43a26 Mon Sep 17 00:00:00 2001
+From: KanaparthySaiSreekar <kanapasai@gmail.com>
+Date: Fri, 16 Oct 2026 22:27:16 +0530
+Subject: [PATCH] skins: draw the timeline rail on the tool node's own row (one
+ row per call)
+
+With rail on, a tool call used to cost two rows: a connector row above the
+node. The rail glyph and its branch (a heavy tee and bar) are now drawn at
+the start of the node's own row, so a call is one row and consecutive rows
+still form an unbroken vertical rail. Adds icons.stub for the glyph pair.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ plugins/skins/hooks/rows.tsx | 23 ++++++++++-------------
+ plugins/skins/hooks/skin.ts  |  4 +++-
+ 2 files changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/plugins/skins/hooks/rows.tsx b/plugins/skins/hooks/rows.tsx
+index ea47d34..1f7d2c0 100644
+--- a/plugins/skins/hooks/rows.tsx
++++ b/plugins/skins/hooks/rows.tsx
+@@ -107,15 +107,19 @@ function railLine(look: Look) {
+   return <Text color={look.skin.palette.user}>{look.icons.rail}</Text>
+ }
+ 
++// LOCAL PATCH (kasasree-mods): with the rail on, the rail glyph and its branch (`┣━`) are drawn at the start
++// of the node's own row, so a tool call costs one row (`┣━● Run 1`) instead of two (a `┃` connector row
++// above it). Consecutive rows stack their `┣` into one unbroken vertical line. See README.md.
+ function node(look: Look, calls: readonly Call[]) {
+   const { Text } = look.ui
+   const { glyph, color } = status(look, calls)
+-  const branch = look.prefs.rail && look.surface === 'terminal' ? look.icons.branch : ''
++  const rail = look.prefs.rail && look.surface === 'terminal'
+ 
+   return (
+     <Text color={color}>
++      {rail ? <Text color={look.skin.palette.user}>{look.icons.stub}</Text> : null}
+       {`${glyph}`}
+-      <Text color={look.skin.palette.muted}>{`${branch} `}</Text>
++      <Text color={look.skin.palette.muted}>{' '}</Text>
+     </Text>
+   )
+ }
+@@ -170,17 +174,10 @@ function withMeta(look: Look, main: ReturnType<Ui['Text']>, meta: Meta) {
+ }
+ 
+ function stack(look: Look, line: ReturnType<Ui['Text']>) {
+-  const { Box } = look.ui
+-
+-  // Box-drawing rails need a monospace font, which only the terminal draws mod text in.
+-  return look.prefs.rail && look.surface === 'terminal' ? (
+-    <Box flexDirection="column">
+-      {railLine(look)}
+-      {line}
+-    </Box>
+-  ) : (
+-    line
+-  )
++  // LOCAL PATCH (kasasree-mods): the rail now lives on the node's own row (see node()), so there is no
++  // separate connector row to stack above the line. Box-drawing rails still only appear on the terminal.
++  void railLine
++  return line
+ }
+ 
+ // On a surface with vector icons, the icon leads the row in place of the status glyph.
+diff --git a/plugins/skins/hooks/skin.ts b/plugins/skins/hooks/skin.ts
+index fe7b69b..1fde787 100644
+--- a/plugins/skins/hooks/skin.ts
++++ b/plugins/skins/hooks/skin.ts
+@@ -26,7 +26,7 @@ export type Skin = {
+ export type IconSet = 'unicode' | 'ascii'
+ 
+ export type Icons = Readonly<
+-  Record<'running' | 'ok' | 'err' | 'interrupted' | 'done' | 'rail' | 'branch' | 'prompt', string>
++  Record<'running' | 'ok' | 'err' | 'interrupted' | 'done' | 'rail' | 'branch' | 'stub' | 'prompt', string>
+ > & { readonly frames: readonly string[] }
+ 
+ // Single-cell glyphs with no emoji presentation; each status has its own shape, not only a colour.
+@@ -39,6 +39,7 @@ export const ICONS: Readonly<Record<IconSet, Icons>> = {
+     done: '◆',
+     rail: '┃',
+     branch: '─',
++    stub: '┣━', // LOCAL PATCH (kasasree-mods): the rail and its branch in one piece, drawn on the node's own row
+     prompt: '▍',
+     frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
+   },
+@@ -50,6 +51,7 @@ export const ICONS: Readonly<Record<IconSet, Icons>> = {
+     done: '>',
+     rail: '|',
+     branch: '-',
++    stub: '|-',
+     prompt: '>',
+     frames: ['|', '/', '-', '\\'],
+   },
+-- 
+2.55.0.windows.3
+

@@ -1,0 +1,45 @@
+{
+  "$comment": "One palette drives every surface: Windows Terminal, the Claude Code theme, the skins mod, the status line, Rio, PowerShell, the shader tint and the background art. Add a palette here and `node tools/rice.mjs build <name>` produces all of it.",
+  "default": "aurora",
+  "palettes": {
+    "aurora": {
+      "label": "Claude Aurora",
+      "mood": "midnight indigo with Claude coral and a cyan-to-pink aurora",
+      "base": {
+        "bg": "#0C0A18",
+        "surface": "#14112B",
+        "raised": "#1B1740",
+        "hover": "#241F52",
+        "line": "#332D66",
+        "selection": "#3B3478",
+        "fg": "#ECE8FA",
+        "muted": "#A29DC8",
+        "faint": "#8A84B8",
+        "dim": "#6C66A3"
+      },
+      "accent": {
+        "coral": "#FF8F66",
+        "coralLight": "#FFB08F",
+        "pink": "#FF5FA2",
+        "violet": "#A78BFA",
+        "blue": "#5BA8FF",
+        "cyan": "#4DE3D8",
+        "mint": "#62EBB0",
+        "amber": "#FFC857",
+        "red": "#FF6B88"
+      },
+      "ansi": {
+        "black": "#1A1633", "red": "#FF6B88", "green": "#62EBB0", "yellow": "#FFC857",
+        "blue": "#5BA8FF", "purple": "#A78BFA", "cyan": "#4DE3D8", "white": "#D8D3F0",
+        "brightBlack": "#7A74AD", "brightRed": "#FF93A8", "brightGreen": "#9AF5CC", "brightYellow": "#FFDC8A",
+        "brightBlue": "#8FC4FF", "brightPurple": "#C3B1FF", "brightCyan": "#8EF0E8", "brightWhite": "#FFFFFF"
+      },
+      "tool": {
+        "read": "#5BA8FF", "write": "#FFB08F", "run": "#FFC857", "search": "#4DE3D8",
+        "web": "#A78BFA", "mcp": "#FF5FA2", "other": "#C3B1FF"
+      },
+      "ramp": ["#4DE3D8", "#5BA8FF", "#A78BFA", "#FF5FA2", "#FF8F66"],
+      "art": { "seed": 7, "intensity": 1.0, "curtains": 3, "stars": 1.0 }
+    }
+  }
+}

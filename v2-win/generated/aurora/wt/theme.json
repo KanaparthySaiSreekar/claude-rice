@@ -1,0 +1,18 @@
+{
+  "name": "Claude Aurora",
+  "window": {
+    "applicationTheme": "dark",
+    "useMica": false,
+    "frame": "#FF8F66",
+    "unfocusedFrame": "#332D66"
+  },
+  "tabRow": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#14112B"
+  },
+  "tab": {
+    "background": "terminalBackground",
+    "unfocusedBackground": "#14112B",
+    "showCloseButton": "hover"
+  }
+}

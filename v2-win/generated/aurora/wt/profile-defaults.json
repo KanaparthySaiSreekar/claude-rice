@@ -1,0 +1,24 @@
+{
+  "colorScheme": "Claude Aurora",
+  "antialiasingMode": "grayscale",
+  "padding": "18, 12, 18, 12",
+  "tabColor": "#FF8F66",
+  "cursorShape": "bar",
+  "useAcrylic": false,
+  "opacity": 100,
+  "backgroundImage": "C:\\Users\\Kasasree\\.rice\\builds\\aurora\\art\\bg.png",
+  "backgroundImageOpacity": 0.42,
+  "backgroundImageStretchMode": "uniformToFill",
+  "backgroundImageAlignment": "center",
+  "experimental.useBackgroundImageForWindow": false,
+  "font": {
+    "face": "JetBrainsMono NFM",
+    "size": 11,
+    "weight": "medium",
+    "features": {
+      "calt": 1,
+      "liga": 1
+    }
+  },
+  "experimental.pixelShaderPath": "C:\\Users\\Kasasree\\.rice\\builds\\aurora\\shaders\\glow.hlsl"
+}

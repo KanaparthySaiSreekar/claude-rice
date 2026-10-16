@@ -1,0 +1,16 @@
+{
+  "name": "claude-aurora-rice",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "v2 of the Windows Claude Code rice: one palette drives Windows Terminal, the Claude Code theme, the skins mod, the status line, Rio and PowerShell. No dependencies.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "audit": "node tools/rice.mjs audit",
+    "build": "node tools/rice.mjs build",
+    "apply": "node tools/rice.mjs apply",
+    "revert": "node tools/rice.mjs revert",
+    "status": "node tools/rice.mjs status"
+  },
+  "engines": { "node": ">=22" }
+}
