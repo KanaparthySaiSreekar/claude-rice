@@ -6,6 +6,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
 
 - **Second report:** [Ricing Claude Code in October 2026](reports/Ricing%20Claude%20Code%20in%20October%202026.md) is an independent write-up of the same topic (about 40 KB, 67 numbered sources). It is shorter, leans on catalogs and secondary coverage, and ends with a curated **Linux** setup (Ghostty or kitty). Read it as a cross-check on the first.
 - **Applied:** [`v1-win/`](v1-win/) is the first setup actually built from these reports, on Windows 11 with Windows Terminal. It has the config files, the two local patches to pinned mods, and a note on where the build deliberately departs from the reports, and why. It is also tagged `v1-win`.
+- **Refined:** [`v1.1-win/`](v1.1-win/) is the same setup after a round of fixes: no overlap between the status line and the flightdeck pane, the git branch in the tab title, the PowerShell profile that v1 missed, a tab-title test suite, and the cause of the "Update available" banner. Tagged `v1.1-win`.
 
 ## TL;DR
 
@@ -105,6 +106,7 @@ v1-win/                                           ← checkpoint of the setup ap
   ├── scripts/setup-rio.ps1
   └── full/                                       complete unredacted mirror: full settings, all mod source,
                                                   marketplace git history, working folder (see full/README.md)
+v1.1-win/                                         ← v1 plus refinements (config, tests, tools, backups, reasons)
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md
