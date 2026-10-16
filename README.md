@@ -102,7 +102,9 @@ v1-win/                                           ← checkpoint of the setup ap
   ├── config/                                     Claude Code, claude-hud, skin, Windows Terminal, Rio
   ├── patches/                                    the two local patches to pinned mods
   ├── marketplace/                                the pinned-marketplace manifest and provenance table
-  └── scripts/setup-rio.ps1
+  ├── scripts/setup-rio.ps1
+  └── full/                                       complete unredacted mirror: full settings, all mod source,
+                                                  marketplace git history, working folder (see full/README.md)
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

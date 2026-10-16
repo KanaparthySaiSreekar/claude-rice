@@ -1,0 +1,45 @@
+{
+  "name": "kasasree-mods",
+  "owner": { "name": "Kasasree" },
+  "metadata": {
+    "description": "Personal pinned marketplace: every plugin here was source-reviewed and copied at a recorded commit (see README.md)."
+  },
+  "plugins": [
+    {
+      "name": "claude-hud",
+      "source": "./plugins/claude-hud",
+      "description": "Statusline HUD (jarrodwatts/claude-hud) pinned at 02d73c4",
+      "category": "monitoring"
+    },
+    {
+      "name": "token-weather",
+      "source": "./plugins/token-weather",
+      "description": "Context-window forecast band (anthropics/claude-code-playground) pinned at 569c528",
+      "category": "monitoring"
+    },
+    {
+      "name": "flightdeck",
+      "source": "./plugins/flightdeck",
+      "description": "Read-only live dashboard pane (scasella/claude-flightdeck) pinned at 6150b9f",
+      "category": "monitoring"
+    },
+    {
+      "name": "skins",
+      "source": "./plugins/skins",
+      "description": "Transcript skins (hellosverre/claude-skins) pinned at e6ca8ea, update check + star toast patched out",
+      "category": "interface"
+    },
+    {
+      "name": "image-view",
+      "source": "./plugins/image-view",
+      "description": "Pasted-image thumbnails (jarrodwatts/claude-image-view) pinned at 370b8e7",
+      "category": "interface"
+    },
+    {
+      "name": "filetree",
+      "source": "./plugins/filetree",
+      "description": "File tree pane with git status (data-goblin/claude-code-filetree) pinned at 44d4a62",
+      "category": "interface"
+    }
+  ]
+}

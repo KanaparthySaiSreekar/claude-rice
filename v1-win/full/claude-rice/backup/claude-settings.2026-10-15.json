@@ -1,0 +1,26 @@
+{
+  "model": "sonnet",
+  "enabledPlugins": {
+    "getlayers@getlayers": true
+  },
+  "extraKnownMarketplaces": {
+    "getlayers": {
+      "source": {
+        "source": "github",
+        "repo": "textura-agency/getlayers-plugin"
+      }
+    }
+  },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "agentPushNotifEnabled": true
+}

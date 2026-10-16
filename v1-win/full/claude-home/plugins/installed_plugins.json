@@ -1,0 +1,74 @@
+{
+  "version": 2,
+  "plugins": {
+    "getlayers@getlayers": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\getlayers\\getlayers\\0.1.0",
+        "version": "0.1.0",
+        "installedAt": "2026-10-02T12:17:33.961Z",
+        "lastUpdated": "2026-10-02T12:17:33.961Z",
+        "gitCommitSha": "e7434430ce69c6e1e1903ddc56b2dea9fddbc2a2"
+      }
+    ],
+    "claude-hud@kasasree-mods": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\kasasree-mods\\claude-hud\\0.11.2",
+        "version": "0.11.2",
+        "installedAt": "2026-10-15T15:08:21.461Z",
+        "lastUpdated": "2026-10-15T15:08:21.461Z"
+      }
+    ],
+    "token-weather@kasasree-mods": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\kasasree-mods\\token-weather\\0.1.0",
+        "version": "0.1.0",
+        "installedAt": "2026-10-15T15:13:17.907Z",
+        "lastUpdated": "2026-10-15T15:13:17.907Z",
+        "gitCommitSha": "c1e8a83508dc2f236b9b9062e7a46bf0047bba3a"
+      }
+    ],
+    "flightdeck@kasasree-mods": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\kasasree-mods\\flightdeck\\0.4.0",
+        "version": "0.4.0",
+        "installedAt": "2026-10-15T15:13:18.682Z",
+        "lastUpdated": "2026-10-15T15:13:18.682Z",
+        "gitCommitSha": "c1e8a83508dc2f236b9b9062e7a46bf0047bba3a"
+      }
+    ],
+    "skins@kasasree-mods": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\kasasree-mods\\skins\\0.5.7",
+        "version": "0.5.7",
+        "installedAt": "2026-10-15T15:13:19.517Z",
+        "lastUpdated": "2026-10-15T15:13:19.517Z",
+        "gitCommitSha": "c1e8a83508dc2f236b9b9062e7a46bf0047bba3a"
+      }
+    ],
+    "image-view@kasasree-mods": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\kasasree-mods\\image-view\\0.2.0",
+        "version": "0.2.0",
+        "installedAt": "2026-10-15T15:13:20.275Z",
+        "lastUpdated": "2026-10-15T15:13:20.275Z",
+        "gitCommitSha": "c1e8a83508dc2f236b9b9062e7a46bf0047bba3a"
+      }
+    ],
+    "filetree@kasasree-mods": [
+      {
+        "scope": "user",
+        "installPath": "C:\\Users\\Kasasree\\.claude\\plugins\\cache\\kasasree-mods\\filetree\\0.2.26",
+        "version": "0.2.26",
+        "installedAt": "2026-10-15T15:13:21.058Z",
+        "lastUpdated": "2026-10-15T15:13:21.058Z",
+        "gitCommitSha": "c1e8a83508dc2f236b9b9062e7a46bf0047bba3a"
+      }
+    ]
+  }
+}

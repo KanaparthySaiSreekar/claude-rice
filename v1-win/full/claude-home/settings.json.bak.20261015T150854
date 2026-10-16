@@ -1,0 +1,63 @@
+{
+  "model": "sonnet",
+  "enabledPlugins": {
+    "getlayers@getlayers": true,
+    "claude-hud@kasasree-mods": true
+  },
+  "extraKnownMarketplaces": {
+    "getlayers": {
+      "source": {
+        "source": "github",
+        "repo": "textura-agency/getlayers-plugin"
+      }
+    },
+    "kasasree-mods": {
+      "source": {
+        "source": "directory",
+        "path": "C:\\Users\\Kasasree\\Projects\\claude-mods-local"
+      }
+    }
+  },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Pondering",
+      "Noodling",
+      "Cogitating",
+      "Percolating",
+      "Ruminating",
+      "Mulling it over",
+      "Untangling",
+      "Cross-referencing",
+      "Reading the room",
+      "Spelunking the codebase",
+      "Connecting the dots",
+      "Following the thread",
+      "Weighing options",
+      "Sketching it out",
+      "Tidying up",
+      "Almost there"
+    ]
+  },
+  "spinnerTipsOverride": {
+    "excludeDefault": true,
+    "tips": [
+      "Ctrl+J inserts a newline without sending",
+      "Ctrl+O then [ dumps the chat into native scrollback",
+      "claude --safe-mode starts a session with every mod switched off"
+    ]
+  },
+  "maxProseWidth": 100,
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "custom:claude",
+  "agentPushNotifEnabled": true
+}

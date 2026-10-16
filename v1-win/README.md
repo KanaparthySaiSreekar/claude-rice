@@ -5,7 +5,8 @@ A checkpoint of the setup that was built from the two research reports in this r
 - **Machine:** Windows 11, Windows Terminal 1.24, PowerShell 7.6, JetBrainsMono Nerd Font.
 - **Claude Code:** the native 2.1.300 build (`~\.local\bin\claude.exe`), on the `latest` update channel.
 - **Not a tested installer.** These files are copied from the live setup, and the two patches are verified to reproduce the patched files from the pinned upstream commits. The rebuild steps below are written from what was done by hand, not run end to end as a script.
-- **No third-party mod source is stored here.** The mods are pinned by commit, and the only local changes to them are two small patches.
+- **Two layers.** `config/`, `patches/`, `marketplace/` and `scripts/` are the readable summary. [`full/`](full/) is a complete, unredacted mirror: the full settings, the install state, all six plugins' source, the marketplace's git history and the `claude-rice` working folder. Its README lists what is in it and the few things that are deliberately not (credentials and private history).
+- **The mods are pinned by commit,** and the only local changes to them are two small patches (`patches/`).
 
 ## What is running
 

@@ -1,0 +1,428 @@
+commit 0994545cdd181ec97df22cbde295ce494ada70b4
+Author:     Kasasree <kanapasai@gmail.com>
+AuthorDate: Thu Oct 15 23:17:32 2026 +0530
+Commit:     Kasasree <kanapasai@gmail.com>
+CommitDate: Thu Oct 15 23:17:32 2026 +0530
+
+    Note claude-powerline is installed but unused; status line is claude-hud compact
+    
+    Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+ README.md | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit e3bf254225452904da8d2c2038a3b865f80586da
+Author:     Kasasree <kanapasai@gmail.com>
+AuthorDate: Thu Oct 15 21:38:37 2026 +0530
+Commit:     Kasasree <kanapasai@gmail.com>
+CommitDate: Thu Oct 15 21:38:37 2026 +0530
+
+    Add claude-powerline 1.32.3 (npm tarball, pinned) as tools/claude-powerline
+    
+    Reviewed shipped src: zero runtime deps, no credential access, one data-only network call
+    reachable only via cost segments (not enabled). Runs from this path, never via npx.
+    
+    Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+ README.md                                          |   14 +
+ tools/claude-powerline/LICENSE                     |   21 +
+ tools/claude-powerline/bin/claude-powerline        |    2 +
+ tools/claude-powerline/dist/browser.d.ts           |  823 +++++++++
+ tools/claude-powerline/dist/browser.js             |    3 +
+ tools/claude-powerline/dist/index.mjs              |   47 +
+ tools/claude-powerline/package.json                |   81 +
+ tools/claude-powerline/src/browser.ts              |  211 +++
+ tools/claude-powerline/src/config/defaults.ts      |   98 ++
+ tools/claude-powerline/src/config/loader.ts        |  477 +++++
+ tools/claude-powerline/src/index.ts                |   90 +
+ tools/claude-powerline/src/powerline.ts            | 1148 ++++++++++++
+ tools/claude-powerline/src/segments/block.ts       |   31 +
+ tools/claude-powerline/src/segments/cacheTimer.ts  |  108 ++
+ tools/claude-powerline/src/segments/context.ts     |  232 +++
+ tools/claude-powerline/src/segments/git.ts         |  526 ++++++
+ tools/claude-powerline/src/segments/index.ts       |   32 +
+ tools/claude-powerline/src/segments/metrics.ts     |  175 ++
+ tools/claude-powerline/src/segments/month.ts       |   25 +
+ tools/claude-powerline/src/segments/pricing.ts     |  527 ++++++
+ tools/claude-powerline/src/segments/renderer.ts    | 1068 +++++++++++
+ tools/claude-powerline/src/segments/session.ts     |  146 ++
+ tools/claude-powerline/src/segments/tmux.ts        |   35 +
+ tools/claude-powerline/src/segments/today.ts       |   16 +
+ .../src/segments/transcript-totals.ts              |  249 +++
+ .../claude-powerline/src/segments/usage-window.ts  |  254 +++
+ tools/claude-powerline/src/themes/dark.ts          |   67 +
+ tools/claude-powerline/src/themes/gruvbox.ts       |   67 +
+ tools/claude-powerline/src/themes/index.ts         |  166 ++
+ tools/claude-powerline/src/themes/light.ts         |   67 +
+ tools/claude-powerline/src/themes/nord.ts          |   67 +
+ tools/claude-powerline/src/themes/rose-pine.ts     |   67 +
+ tools/claude-powerline/src/themes/tokyo-night.ts   |   67 +
+ tools/claude-powerline/src/tui/grid.ts             |  712 ++++++++
+ tools/claude-powerline/src/tui/index.ts            |    4 +
+ tools/claude-powerline/src/tui/layouts.ts          |  323 ++++
+ tools/claude-powerline/src/tui/primitives.ts       |  184 ++
+ tools/claude-powerline/src/tui/renderer.ts         |  212 +++
+ tools/claude-powerline/src/tui/sections.ts         | 1849 ++++++++++++++++++++
+ tools/claude-powerline/src/tui/types.ts            |  224 +++
+ tools/claude-powerline/src/utils/budget.ts         |  116 ++
+ tools/claude-powerline/src/utils/cache.ts          |  339 ++++
+ tools/claude-powerline/src/utils/claude.ts         |  650 +++++++
+ tools/claude-powerline/src/utils/color-support.ts  |  118 ++
+ tools/claude-powerline/src/utils/colors.ts         |  120 ++
+ tools/claude-powerline/src/utils/constants.ts      |  190 ++
+ tools/claude-powerline/src/utils/formatters.ts     |  215 +++
+ .../claude-powerline/src/utils/icon-visibility.ts  |   31 +
+ tools/claude-powerline/src/utils/logger.ts         |    5 +
+ tools/claude-powerline/src/utils/terminal-width.ts |  229 +++
+ tools/claude-powerline/src/utils/terminal.ts       |   11 +
+ 51 files changed, 12539 insertions(+)
+
+commit e5b6e74b9bed8ff1bd14db1ed489d7d3d6117f56
+Author:     Kasasree <kanapasai@gmail.com>
+AuthorDate: Thu Oct 15 20:48:37 2026 +0530
+Commit:     Kasasree <kanapasai@gmail.com>
+CommitDate: Thu Oct 15 20:48:37 2026 +0530
+
+    Record rejected/held-back mods: intermission (unverified native engine download), show-your-work
+    
+    Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+ README.md | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit 8d35cbeb5a11e22d9d6cfee775784dd77721f5e2
+Author:     Kasasree <kanapasai@gmail.com>
+AuthorDate: Thu Oct 15 20:44:03 2026 +0530
+Commit:     Kasasree <kanapasai@gmail.com>
+CommitDate: Thu Oct 15 20:44:03 2026 +0530
+
+    Patch token-weather to stack in the AbovePrompt band (await next(e)); document tamper check
+    
+    Upstream answered the band without calling next(e), replacing other mods' output and Claude Code's own.
+    
+    Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+ README.md                                     |  9 +++++++++
+ plugins/token-weather/hooks/token-weather.mjs | 11 ++++++++---
+ 2 files changed, 17 insertions(+), 3 deletions(-)
+
+commit c1e8a83508dc2f236b9b9062e7a46bf0047bba3a
+Author:     Kasasree <kanapasai@gmail.com>
+AuthorDate: Thu Oct 15 20:43:17 2026 +0530
+Commit:     Kasasree <kanapasai@gmail.com>
+CommitDate: Thu Oct 15 20:43:17 2026 +0530
+
+    Pin reviewed Claude Code mods: claude-hud, token-weather, flightdeck, skins, image-view, filetree
+    
+    Each plugin was source-reviewed and copied at the commit recorded in README.md.
+    skins carries two local patches (update check and star toast disabled).
+    blast-radius rejected: needs bash/sleep, no Windows branch.
+    
+    Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+ .claude-plugin/marketplace.json                    |   45 +
+ README.md                                          |   51 +
+ plugins/claude-hud/.claude-plugin/marketplace.json |   20 +
+ plugins/claude-hud/.claude-plugin/plugin.json      |   17 +
+ plugins/claude-hud/.editorconfig                   |   12 +
+ plugins/claude-hud/.github/CODEOWNERS              |    1 +
+ .../.github/ISSUE_TEMPLATE/bug_report.md           |   21 +
+ .../claude-hud/.github/ISSUE_TEMPLATE/config.yml   |    5 +
+ .../.github/ISSUE_TEMPLATE/feature_request.md      |   15 +
+ plugins/claude-hud/.github/dependabot.yml          |    7 +
+ .../claude-hud/.github/pull_request_template.md    |   11 +
+ .../claude-hud/.github/workflows/build-dist.yml    |   42 +
+ plugins/claude-hud/.github/workflows/ci.yml        |   49 +
+ plugins/claude-hud/.github/workflows/release.yml   |   40 +
+ plugins/claude-hud/.gitignore                      |   59 +
+ plugins/claude-hud/CHANGELOG.md                    |  541 +++++
+ plugins/claude-hud/CLAUDE.md                       |   36 +
+ plugins/claude-hud/CODE_OF_CONDUCT.md              |   31 +
+ plugins/claude-hud/CONTRIBUTING.md                 |   37 +
+ plugins/claude-hud/LICENSE                         |   21 +
+ plugins/claude-hud/README.md                       |  300 +++
+ plugins/claude-hud/README.zh.md                    |  300 +++
+ plugins/claude-hud/RELEASING.md                    |   28 +
+ plugins/claude-hud/SECURITY.md                     |   13 +
+ plugins/claude-hud/claude-hud-preview-16-9.png     |  Bin 0 -> 217787 bytes
+ plugins/claude-hud/claude-hud-preview-5-2.png      |  Bin 0 -> 121477 bytes
+ plugins/claude-hud/commands/configure.md           |   77 +
+ plugins/claude-hud/commands/setup.md               |  102 +
+ plugins/claude-hud/package-lock.json               | 1158 +++++++++++
+ plugins/claude-hud/package.json                    |   39 +
+ plugins/claude-hud/scripts/clean-dist.mjs          |    7 +
+ plugins/claude-hud/scripts/setup.mjs               |  110 +
+ plugins/claude-hud/scripts/statusline.mjs          |   44 +
+ plugins/claude-hud/src/auth.ts                     |  149 ++
+ plugins/claude-hud/src/claude-config-dir.ts        |   32 +
+ plugins/claude-hud/src/config-reader.ts            |  131 ++
+ plugins/claude-hud/src/config.ts                   |  541 +++++
+ plugins/claude-hud/src/cost.ts                     |   23 +
+ plugins/claude-hud/src/daily-cost.ts               |  236 +++
+ plugins/claude-hud/src/debug.ts                    |    8 +
+ plugins/claude-hud/src/effort.ts                   |   26 +
+ plugins/claude-hud/src/external-usage.ts           |  181 ++
+ plugins/claude-hud/src/extra-cmd.ts                |   55 +
+ plugins/claude-hud/src/git-runner.ts               |  184 ++
+ plugins/claude-hud/src/git.ts                      |  252 +++
+ plugins/claude-hud/src/i18n/en.ts                  |   45 +
+ plugins/claude-hud/src/i18n/index.ts               |   56 +
+ plugins/claude-hud/src/i18n/types.ts               |   42 +
+ plugins/claude-hud/src/i18n/zh-Hans.ts             |   45 +
+ plugins/claude-hud/src/i18n/zh-Hant.ts             |   45 +
+ plugins/claude-hud/src/index.ts                    |  114 +
+ plugins/claude-hud/src/jj.ts                       |  118 ++
+ plugins/claude-hud/src/memory.ts                   |   93 +
+ plugins/claude-hud/src/model-source.ts             |   17 +
+ plugins/claude-hud/src/render/activity.ts          |  148 ++
+ plugins/claude-hud/src/render/ansi.ts              |  197 ++
+ plugins/claude-hud/src/render/colors.ts            |  197 ++
+ plugins/claude-hud/src/render/compact.ts           |   62 +
+ plugins/claude-hud/src/render/context.ts           |   42 +
+ plugins/claude-hud/src/render/derive.ts            |   24 +
+ plugins/claude-hud/src/render/expanded.ts          |  151 ++
+ plugins/claude-hud/src/render/frame.ts             |   18 +
+ plugins/claude-hud/src/render/index.ts             |   21 +
+ plugins/claude-hud/src/render/labels.ts            |   22 +
+ plugins/claude-hud/src/render/lines.ts             |   99 +
+ plugins/claude-hud/src/render/order.ts             |   29 +
+ plugins/claude-hud/src/render/parts.ts             |  206 ++
+ plugins/claude-hud/src/render/time.ts              |   99 +
+ plugins/claude-hud/src/render/usage.ts             |  147 ++
+ plugins/claude-hud/src/render/vcs.ts               |  104 +
+ plugins/claude-hud/src/speed.ts                    |   78 +
+ plugins/claude-hud/src/stdin.ts                    |  215 ++
+ plugins/claude-hud/src/transcript.ts               |  384 ++++
+ plugins/claude-hud/src/types.ts                    |  200 ++
+ plugins/claude-hud/src/usage-pace.ts               |   97 +
+ plugins/claude-hud/src/utils/format.ts             |   29 +
+ plugins/claude-hud/src/utils/hyperlinks.ts         |   24 +
+ plugins/claude-hud/src/utils/sanitize.ts           |   11 +
+ plugins/claude-hud/src/utils/terminal.ts           |   13 +
+ plugins/claude-hud/src/utils/truncate.ts           |    5 +
+ plugins/claude-hud/src/windows-git-worker.ts       |   27 +
+ plugins/claude-hud/tests/ansi.test.js              |  109 +
+ plugins/claude-hud/tests/auth.test.js              |  213 ++
+ plugins/claude-hud/tests/build-output.test.js      |   31 +
+ plugins/claude-hud/tests/claude-config-dir.test.js |   51 +
+ plugins/claude-hud/tests/config-reader.test.js     |  518 +++++
+ plugins/claude-hud/tests/config.test.js            |  345 +++
+ plugins/claude-hud/tests/daily-cost.test.js        |  297 +++
+ plugins/claude-hud/tests/effort.test.js            |   21 +
+ plugins/claude-hud/tests/external-usage.test.js    |  446 ++++
+ plugins/claude-hud/tests/extra-cmd.test.js         |   51 +
+ .../tests/fixtures/expected/render-basic.txt       |    2 +
+ .../tests/fixtures/transcript-render.jsonl         |   11 +
+ .../tests/fixtures/transcript-ultracode.jsonl      |    3 +
+ plugins/claude-hud/tests/format-reset-time.test.js |   76 +
+ plugins/claude-hud/tests/git-runner.test.js        |  156 ++
+ plugins/claude-hud/tests/git.test.js               |  329 +++
+ plugins/claude-hud/tests/golden.test.js            |  137 ++
+ plugins/claude-hud/tests/golden/cases.mjs          |  252 +++
+ plugins/claude-hud/tests/golden/expected.txt       |  583 ++++++
+ plugins/claude-hud/tests/golden/freeze-time.mjs    |   13 +
+ .../tests/golden/transcript-activity.jsonl         |    9 +
+ plugins/claude-hud/tests/golden/transcript.jsonl   |   21 +
+ plugins/claude-hud/tests/i18n.test.js              |   39 +
+ plugins/claude-hud/tests/index.test.js             |   57 +
+ plugins/claude-hud/tests/integration.test.js       |  555 +++++
+ plugins/claude-hud/tests/jj.test.js                |  267 +++
+ plugins/claude-hud/tests/memory-coverage.test.js   |  126 ++
+ plugins/claude-hud/tests/memory.test.js            |  108 +
+ plugins/claude-hud/tests/prompt-cache.test.js      |   47 +
+ plugins/claude-hud/tests/readme-options.test.js    |   20 +
+ plugins/claude-hud/tests/render.test.js            |  395 ++++
+ plugins/claude-hud/tests/setup-command.test.js     |  151 ++
+ plugins/claude-hud/tests/speed.test.js             |   32 +
+ plugins/claude-hud/tests/stdin.test.js             |  139 ++
+ plugins/claude-hud/tests/terminal.test.js          |   49 +
+ plugins/claude-hud/tests/transcript.test.js        |  271 +++
+ plugins/claude-hud/tests/usage-pace.test.js        |   61 +
+ plugins/claude-hud/tsconfig.json                   |   19 +
+ plugins/filetree/.claude-plugin/marketplace.json   |   16 +
+ plugins/filetree/.claude-plugin/plugin.json        |   89 +
+ plugins/filetree/.githooks/pre-commit              |   10 +
+ plugins/filetree/.github/workflows/platforms.yml   |   79 +
+ plugins/filetree/.gitignore                        |    3 +
+ plugins/filetree/ACKNOWLEDGEMENTS.md               |    6 +
+ plugins/filetree/LICENSE                           |   21 +
+ plugins/filetree/README.md                         |  113 +
+ plugins/filetree/hooks/button.tsx                  |   18 +
+ plugins/filetree/hooks/git.ts                      |  271 +++
+ plugins/filetree/hooks/hooks.json                  |    1 +
+ plugins/filetree/hooks/icons.ts                    |  140 ++
+ plugins/filetree/hooks/open.ts                     |  109 +
+ plugins/filetree/hooks/register.tsx                | 1641 +++++++++++++++
+ plugins/filetree/hooks/rows.tsx                    |  165 ++
+ plugins/filetree/hooks/tree.ts                     |  354 ++++
+ plugins/filetree/media/filetree-ask.gif            |  Bin 0 -> 2211529 bytes
+ plugins/filetree/media/filetree-git.gif            |  Bin 0 -> 730376 bytes
+ plugins/filetree/media/filetree-read.gif           |  Bin 0 -> 1239097 bytes
+ plugins/filetree/media/filetree-resize.gif         |  Bin 0 -> 1009654 bytes
+ plugins/filetree/media/filetree-shimmer.gif        |  Bin 0 -> 318027 bytes
+ plugins/filetree/scripts/check-open.ts             |  101 +
+ plugins/filetree/tests/open.test.ts                |   40 +
+ plugins/filetree/tests/surfaces.test.tsx           | 1371 ++++++++++++
+ plugins/filetree/types/index.d.ts                  |   75 +
+ plugins/flightdeck/.claude-plugin/marketplace.json |   17 +
+ plugins/flightdeck/.claude-plugin/plugin.json      |  111 +
+ plugins/flightdeck/.gitignore                      |    4 +
+ plugins/flightdeck/CHANGELOG.md                    |   31 +
+ plugins/flightdeck/CONTRIBUTING.md                 |   33 +
+ plugins/flightdeck/LICENSE                         |   21 +
+ plugins/flightdeck/README.md                       |  189 ++
+ plugins/flightdeck/SECURITY.md                     |    5 +
+ plugins/flightdeck/docs/media/demo.gif             |  Bin 0 -> 2444983 bytes
+ plugins/flightdeck/docs/media/docked-pane.png      |  Bin 0 -> 277935 bytes
+ plugins/flightdeck/docs/media/docked-session.png   |  Bin 0 -> 558849 bytes
+ plugins/flightdeck/docs/media/inline-mini.png      |  Bin 0 -> 51989 bytes
+ plugins/flightdeck/docs/media/social-preview.png   |  Bin 0 -> 161757 bytes
+ plugins/flightdeck/hooks/core.ts                   |  526 +++++
+ plugins/flightdeck/hooks/elapsed.tsx               |   37 +
+ plugins/flightdeck/hooks/hooks.json                |    1 +
+ plugins/flightdeck/hooks/rail.tsx                  |   74 +
+ plugins/flightdeck/hooks/register.tsx              | 1129 ++++++++++
+ plugins/flightdeck/tests/flightdeck.test.ts        |  497 +++++
+ plugins/flightdeck/tsconfig.json                   |    3 +
+ plugins/flightdeck/types/index.d.ts                |  121 ++
+ plugins/image-view/.claude-plugin/marketplace.json |   26 +
+ plugins/image-view/.claude-plugin/plugin.json      |   14 +
+ plugins/image-view/.gitignore                      |    5 +
+ plugins/image-view/LICENSE                         |   21 +
+ plugins/image-view/README.md                       |  131 ++
+ plugins/image-view/claude-image-view.png           |  Bin 0 -> 370142 bytes
+ plugins/image-view/hooks/hooks.json                |    1 +
+ plugins/image-view/hooks/layout.ts                 |  131 ++
+ plugins/image-view/hooks/png.ts                    |  288 +++
+ plugins/image-view/hooks/register.tsx              |  204 ++
+ plugins/image-view/tests/claude-image-view.test.ts |  370 ++++
+ plugins/image-view/types/index.d.ts                |   13 +
+ plugins/skins/.claude-plugin/marketplace.json      |   39 +
+ plugins/skins/.claude-plugin/plugin.json           |    9 +
+ plugins/skins/.github/ISSUE_TEMPLATE/bug.yml       |   78 +
+ plugins/skins/.github/ISSUE_TEMPLATE/config.yml    |    8 +
+ plugins/skins/.github/ISSUE_TEMPLATE/feature.yml   |   41 +
+ plugins/skins/.github/workflows/ci.yml             |   70 +
+ plugins/skins/.github/workflows/label-issues.yml   |   51 +
+ plugins/skins/.gitignore                           |    4 +
+ plugins/skins/LICENSE                              |   21 +
+ plugins/skins/README.md                            |  263 +++
+ plugins/skins/ROADMAP.md                           |   34 +
+ plugins/skins/bench/render.bench.tsx               |  185 ++
+ plugins/skins/docs/brand/banner-dark.svg           |    5 +
+ plugins/skins/docs/brand/banner-light.svg          |    5 +
+ plugins/skins/docs/compat.md                       |   96 +
+ plugins/skins/docs/demo.gif                        |  Bin 0 -> 5656465 bytes
+ plugins/skins/docs/previews/code-dark.svg          |    1 +
+ plugins/skins/docs/previews/code-light.svg         |    1 +
+ plugins/skins/docs/previews/hero-dark.svg          |    1 +
+ plugins/skins/docs/previews/hero-light.svg         |    1 +
+ plugins/skins/docs/previews/index.html             |    1 +
+ plugins/skins/docs/previews/spinners-dark.svg      |    1 +
+ plugins/skins/docs/previews/spinners-light.svg     |    1 +
+ plugins/skins/docs/previews/terminal-dark.svg      |    1 +
+ plugins/skins/docs/previews/terminal-light.svg     |    1 +
+ plugins/skins/docs/previews/usage-dark.svg         |    1 +
+ plugins/skins/docs/previews/usage-light.svg        |    1 +
+ plugins/skins/hooks/art-canvas.ts                  |  222 ++
+ plugins/skins/hooks/blocks.ts                      |  252 +++
+ plugins/skins/hooks/chart-art-data.ts              |  218 ++
+ plugins/skins/hooks/chart-art-shape.ts             |  480 +++++
+ plugins/skins/hooks/chart-art-system.ts            |  429 ++++
+ plugins/skins/hooks/chart-art-xy.ts                |  171 ++
+ plugins/skins/hooks/chart-art.ts                   |  475 +++++
+ plugins/skins/hooks/chart-rows.tsx                 |  242 +++
+ plugins/skins/hooks/code-rows.tsx                  |   51 +
+ plugins/skins/hooks/command-output.ts              |   74 +
+ plugins/skins/hooks/command.ts                     |  219 ++
+ plugins/skins/hooks/custom.ts                      |  184 ++
+ plugins/skins/hooks/designer.ts                    |  140 ++
+ plugins/skins/hooks/detail-rows.tsx                |  157 ++
+ plugins/skins/hooks/detail.ts                      |  255 +++
+ plugins/skins/hooks/diff-fence.tsx                 |  164 ++
+ plugins/skins/hooks/fold.tsx                       |   33 +
+ plugins/skins/hooks/folders.ts                     |   20 +
+ plugins/skins/hooks/format.ts                      |   84 +
+ plugins/skins/hooks/gallery.tsx                    |  112 +
+ plugins/skins/hooks/highlight.ts                   |  761 +++++++
+ plugins/skins/hooks/hooks.json                     |    3 +
+ plugins/skins/hooks/icons.ts                       |   88 +
+ plugins/skins/hooks/light.ts                       |   99 +
+ plugins/skins/hooks/links.ts                       |   79 +
+ plugins/skins/hooks/markdown.ts                    |  380 ++++
+ plugins/skins/hooks/math.ts                        | 1160 +++++++++++
+ plugins/skins/hooks/mermaid-art.ts                 |  451 ++++
+ plugins/skins/hooks/mermaid-data.ts                |  196 ++
+ plugins/skins/hooks/mermaid-lex.ts                 |   64 +
+ plugins/skins/hooks/mermaid-plan.ts                |  424 ++++
+ plugins/skins/hooks/mermaid-shape.ts               |  487 +++++
+ plugins/skins/hooks/mermaid-system.ts              |  644 ++++++
+ plugins/skins/hooks/mermaid.ts                     |  402 ++++
+ plugins/skins/hooks/prose.tsx                      |  149 ++
+ plugins/skins/hooks/quiet.ts                       |  259 +++
+ plugins/skins/hooks/register.tsx                   | 1226 +++++++++++
+ plugins/skins/hooks/reply.ts                       |   50 +
+ plugins/skins/hooks/rows.tsx                       |  950 +++++++++
+ plugins/skins/hooks/settings.tsx                   |  170 ++
+ plugins/skins/hooks/shell-rows.tsx                 |   72 +
+ plugins/skins/hooks/shell.ts                       |   86 +
+ plugins/skins/hooks/sightings.ts                   |   26 +
+ plugins/skins/hooks/skin.ts                        |   56 +
+ plugins/skins/hooks/svg-chart-data.ts              |  140 ++
+ plugins/skins/hooks/svg-chart-kit.ts               |   75 +
+ plugins/skins/hooks/svg-chart-plan.ts              |  370 ++++
+ plugins/skins/hooks/svg-chart-shape.ts             |  512 +++++
+ plugins/skins/hooks/svg-chart-system.ts            |  533 +++++
+ plugins/skins/hooks/svg-chart.ts                   |  477 +++++
+ plugins/skins/hooks/svg-code.ts                    |  114 +
+ plugins/skins/hooks/svg-diff.ts                    |  119 ++
+ plugins/skins/hooks/svg-kit.ts                     |  136 ++
+ plugins/skins/hooks/svg-math.ts                    |  524 +++++
+ plugins/skins/hooks/svg-table.ts                   |  194 ++
+ plugins/skins/hooks/svg-terminal.ts                |  102 +
+ plugins/skins/hooks/svg-usage.ts                   |  122 ++
+ plugins/skins/hooks/themes/ayu.ts                  |   44 +
+ plugins/skins/hooks/themes/catppuccin.ts           |   44 +
+ plugins/skins/hooks/themes/dracula.ts              |   27 +
+ plugins/skins/hooks/themes/everforest.ts           |   44 +
+ plugins/skins/hooks/themes/github.ts               |   44 +
+ plugins/skins/hooks/themes/gruvbox.ts              |   27 +
+ plugins/skins/hooks/themes/index.ts                |   35 +
+ plugins/skins/hooks/themes/kanagawa.ts             |   44 +
+ plugins/skins/hooks/themes/mono.ts                 |   28 +
+ plugins/skins/hooks/themes/night-owl.ts            |   27 +
+ plugins/skins/hooks/themes/noir.ts                 |   45 +
+ plugins/skins/hooks/themes/nord.ts                 |   27 +
+ plugins/skins/hooks/themes/one-dark.ts             |   44 +
+ plugins/skins/hooks/themes/rose-pine.ts            |   44 +
+ plugins/skins/hooks/themes/solarized.ts            |   44 +
+ plugins/skins/hooks/themes/tokyo-night.ts          |   44 +
+ plugins/skins/hooks/tools.ts                       |   86 +
+ plugins/skins/hooks/updates.ts                     |   66 +
+ plugins/skins/hooks/vendor/mermaid-ascii.d.ts      |   29 +
+ plugins/skins/hooks/vendor/mermaid-ascii.js        |   35 +
+ plugins/skins/scripts/bench.sh                     |   12 +
+ plugins/skins/scripts/compare-gif.md               |  115 +
+ plugins/skins/scripts/previews.ts                  |  132 ++
+ plugins/skins/scripts/vendor/build.mjs             |   99 +
+ plugins/skins/scripts/vendor/package-lock.json     |  530 +++++
+ plugins/skins/scripts/vendor/package.json          |   13 +
+ plugins/skins/skills/skin-designer/SKILL.md        |   50 +
+ plugins/skins/tests/detail.test.tsx                |  236 +++
+ plugins/skins/tests/highlight.test.tsx             |  237 +++
+ plugins/skins/tests/layout.test.tsx                |  199 ++
+ plugins/skins/tests/links.test.tsx                 |  238 +++
+ plugins/skins/tests/logic.test.ts                  | 1172 +++++++++++
+ plugins/skins/tests/math.test.ts                   |   94 +
+ plugins/skins/tests/rows.test.tsx                  | 2186 ++++++++++++++++++++
+ plugins/skins/tsconfig.json                        |   17 +
+ plugins/skins/types/index.d.ts                     |  134 ++
+ plugins/token-weather/.claude-plugin/plugin.json   |    8 +
+ plugins/token-weather/.gitignore                   |    2 +
+ plugins/token-weather/README.md                    |  133 ++
+ plugins/token-weather/hooks/hooks.json             |    5 +
+ plugins/token-weather/hooks/token-weather.mjs      |  122 ++
+ .../screenshots/token-weather-clear.png            |  Bin 0 -> 27185 bytes
+ .../screenshots/token-weather-showers.png          |  Bin 0 -> 55074 bytes
+ .../screenshots/token-weather-storm.png            |  Bin 0 -> 74840 bytes
+ 305 files changed, 46081 insertions(+)

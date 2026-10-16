@@ -1,0 +1,70 @@
+{
+  "theme": "custom",
+  "colors": {
+    "custom": {
+      "model": { "fg": "#D97757", "bold": true },
+      "directory": { "fg": "#E6D9C4" },
+      "git": { "fg": "#94C5CC" },
+      "context": { "fg": "#A3B18A" },
+      "contextWarning": { "fg": "#FFD166" },
+      "contextCritical": { "fg": "#F28482" },
+      "block": { "fg": "#8AA9C9" },
+      "weekly": { "fg": "#B48EAD" },
+      "metrics": { "fg": "#C4A484" },
+      "activity": { "fg": "#C4A484" }
+    }
+  },
+  "display": {
+    "style": "tui",
+    "charset": "unicode",
+    "colorCompatibility": "truecolor",
+    "autoWrap": true,
+    "tui": {
+      "fitContent": true,
+      "minWidth": 56,
+      "padding": { "horizontal": 1 },
+      "separator": { "column": "" },
+      "title": {
+        "left": "{model.icon}  {model.value}",
+        "right": "{dir}"
+      },
+      "footer": {
+        "left": "{git.head}",
+        "right": "{git.working}"
+      },
+      "segments": {
+        "context.icon": { "items": ["ctx"] },
+        "block.icon": { "items": ["5h"] },
+        "weekly.icon": { "items": ["wk"] }
+      },
+      "breakpoints": [
+        {
+          "minWidth": 0,
+          "areas": [
+            "context.icon  context.bar  context.bar  context.pct  context.tokens",
+            "block.icon    block.bar    block.bar    block.value  block.time",
+            "weekly.icon   weekly.bar   weekly.bar   weekly.pct   weekly.time"
+          ],
+          "columns": ["3", "1fr", "auto", "auto", "auto"],
+          "align": ["left", "left", "right", "right", "right"]
+        }
+      ]
+    },
+    "lines": [
+      {
+        "segments": {
+          "directory": { "enabled": true, "showBasename": true },
+          "git": { "enabled": true, "showAheadBehind": true },
+          "model": { "enabled": true },
+          "context": { "enabled": true, "autocompactBuffer": 0 },
+          "block": { "enabled": true, "type": "tokens" },
+          "weekly": { "enabled": true }
+        }
+      }
+    ]
+  },
+  "modelContextLimits": {
+    "sonnet": 1000000,
+    "opus": 200000
+  }
+}

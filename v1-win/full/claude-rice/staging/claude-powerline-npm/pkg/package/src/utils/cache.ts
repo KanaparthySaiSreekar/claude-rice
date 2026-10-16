@@ -1,0 +1,339 @@
+import fs from "node:fs";
+import path from "node:path";
+import { homedir } from "node:os";
+import { createHash } from "node:crypto";
+import { setTimeout } from "node:timers/promises";
+import { debug } from "./logger";
+import { formatLocalDate } from "./formatters";
+
+interface ErrnoError extends Error {
+  code?: string;
+}
+
+export interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  /** Day caches only: the local time zone the day was bucketed in. */
+  timeZone?: string;
+  /**
+   * Day caches only: always true now. Older versions also cached the current
+   * day, as false, and such a mid-day total must not pass for the whole day.
+   */
+  complete?: boolean;
+}
+
+/**
+ * Longer than the widest usage window (a calendar month plus one day of scan
+ * slack), so a cached day is never rebuilt while it can still be shown.
+ */
+const DAY_CACHE_RETENTION_DAYS = 45;
+/** Also matches the temp file of a save killed before its rename. */
+const DAY_CACHE_FILE = /^day-(\d{4}-\d{2}-\d{2})\.json(\.\d+\.tmp)?$/;
+
+const TOTALS_CACHE_RETENTION_DAYS = 14;
+const TOTALS_CACHE_FILE = /^totals-.+\.json(\.\d+\.tmp)?$/;
+
+export class CacheManager {
+  /** Resolved on every access so tests can point it at a temporary directory. */
+  private static get CACHE_DIR(): string {
+    return (
+      process.env.CLAUDE_POWERLINE_CACHE_DIR ||
+      path.join(homedir(), ".claude", "powerline")
+    );
+  }
+  private static get USAGE_CACHE_DIR(): string {
+    return path.join(this.CACHE_DIR, "usage");
+  }
+  private static get LOCKS_DIR(): string {
+    return path.join(this.CACHE_DIR, "locks");
+  }
+
+  private static isLocked(name: string): boolean {
+    const lockFile = path.join(this.LOCKS_DIR, name);
+    if (!fs.existsSync(lockFile)) {
+      return false;
+    }
+
+    try {
+      const lockContent = fs.readFileSync(lockFile, "utf-8");
+      const pid = parseInt(lockContent.trim(), 10);
+
+      if (isNaN(pid)) {
+        debug(`Invalid PID in lock file ${name}, removing stale lock`);
+        fs.unlinkSync(lockFile);
+        return false;
+      }
+
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch (error) {
+        if ((error as ErrnoError).code === "ESRCH") {
+          debug(`Removing stale lock file ${name} for dead process ${pid}`);
+          fs.unlinkSync(lockFile);
+          return false;
+        }
+        debug(`Error checking process ${pid} for lock ${name}:`, error);
+        return true;
+      }
+    } catch (error) {
+      debug(`Error reading lock file ${name}:`, error);
+      return true;
+    }
+  }
+
+  private static async acquireLock(
+    name: string,
+    timeout = 5000,
+  ): Promise<boolean> {
+    const RETRY_DELAY_MS = 50;
+    const FILE_CREATE_FLAG = "wx";
+
+    await this.ensureCacheDirectories();
+    const lockFile = path.join(this.LOCKS_DIR, name);
+    const startTime = Date.now();
+    const lockContent = String(process.pid);
+
+    while (Date.now() - startTime < timeout) {
+      try {
+        await fs.promises.writeFile(lockFile, lockContent, {
+          flag: FILE_CREATE_FLAG,
+        });
+        debug(`Lock acquired for ${name}`);
+        return true;
+      } catch (error) {
+        if ((error as ErrnoError).code !== "EEXIST") {
+          // An unwritable cache directory: the save is skipped.
+          debug(`Failed to create lock for ${name}:`, error);
+          return false;
+        }
+        await setTimeout(RETRY_DELAY_MS);
+      }
+    }
+    debug(`Failed to acquire lock for ${name} within ${timeout}ms`);
+    return false;
+  }
+
+  private static async releaseLock(name: string): Promise<void> {
+    const lockFile = path.join(this.LOCKS_DIR, name);
+    try {
+      await fs.promises.unlink(lockFile);
+      debug(`Lock released for ${name}`);
+    } catch (error) {
+      if ((error as ErrnoError).code !== "ENOENT") {
+        debug(`Error releasing lock for ${name}:`, error);
+      }
+    }
+  }
+
+  static async ensureCacheDirectories(): Promise<void> {
+    try {
+      await Promise.all([
+        fs.promises.mkdir(this.CACHE_DIR, { recursive: true }),
+        fs.promises.mkdir(this.USAGE_CACHE_DIR, { recursive: true }),
+        fs.promises.mkdir(this.LOCKS_DIR, { recursive: true }),
+      ]);
+    } catch (error) {
+      debug("Failed to create cache directories:", error);
+    }
+  }
+
+  static createProjectHash(projectPath: string): string {
+    return createHash("md5").update(projectPath).digest("hex").substring(0, 8);
+  }
+
+  /**
+   * Reads `<name>.json` from the usage cache directory. A missing directory or
+   * file is an ordinary miss, so nothing is created on the read path.
+   */
+  private static async readUsageCache(
+    name: string,
+    isValid: (entry: CacheEntry<unknown>) => boolean,
+  ): Promise<unknown> {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 75;
+
+    const cachePath = path.join(this.USAGE_CACHE_DIR, `${name}.json`);
+    const lockName = `${name}.usage.lock`;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      if (this.isLocked(lockName)) {
+        debug(`Cache for ${name} is locked, waiting...`);
+        await setTimeout(RETRY_DELAY_MS);
+        continue;
+      }
+
+      try {
+        const content = await fs.promises.readFile(cachePath, "utf-8");
+        const cached: CacheEntry<unknown> = JSON.parse(content);
+
+        if (isValid(cached)) {
+          debug(`[CACHE-HIT] ${name} disk cache: found`);
+          return this.deserializeDates(cached.data);
+        }
+        debug(`${name} cache outdated`);
+        return null;
+      } catch (error) {
+        if ((error as ErrnoError).code === "ENOENT") {
+          debug(`No ${name} usage cache found`);
+          return null;
+        }
+        debug(
+          `Attempt ${attempt + 1} failed to read ${name} cache: ${(error as Error).message}. Retrying...`,
+        );
+        await setTimeout(RETRY_DELAY_MS);
+      }
+    }
+
+    debug(`Failed to read ${name} cache after ${MAX_RETRIES} attempts.`);
+    return null;
+  }
+
+  private static async writeUsageCache(
+    name: string,
+    entry: CacheEntry<unknown>,
+  ): Promise<void> {
+    const lockName = `${name}.usage.lock`;
+    if (!(await this.acquireLock(lockName))) {
+      debug(`Could not acquire lock to set usage cache for ${name}`);
+      return;
+    }
+
+    const cachePath = path.join(this.USAGE_CACHE_DIR, `${name}.json`);
+    // Written aside and renamed over, so a reader that does not wait for the
+    // lock still sees either the old file or the new one, never a torn one.
+    const tempPath = `${cachePath}.${process.pid}.tmp`;
+    try {
+      await fs.promises.writeFile(tempPath, JSON.stringify(entry), "utf-8");
+      await fs.promises.rename(tempPath, cachePath);
+      debug(`[CACHE-SET] ${name} disk cache stored`);
+    } catch (error) {
+      debug(`Failed to save ${name} usage cache:`, error);
+      await fs.promises.rm(tempPath, { force: true }).catch(() => {});
+    } finally {
+      await this.releaseLock(lockName);
+    }
+  }
+
+  private static deserializeDates(data: unknown): unknown {
+    if (Array.isArray(data)) {
+      return data.map((entry) => ({
+        ...entry,
+        timestamp: new Date(entry.timestamp),
+      }));
+    }
+    return data;
+  }
+
+  static getUsageCache(
+    cacheType: "block" | "pricing",
+    latestMtime?: number,
+  ): Promise<unknown> {
+    return this.readUsageCache(
+      cacheType,
+      (entry) => !latestMtime || entry.timestamp >= latestMtime,
+    );
+  }
+
+  static setUsageCache(
+    cacheType: "block" | "pricing",
+    data: unknown,
+    latestMtime?: number,
+  ): Promise<void> {
+    return this.writeUsageCache(cacheType, {
+      data,
+      timestamp: latestMtime || Date.now(),
+    });
+  }
+
+  /**
+   * Usage totals for one completed local calendar day. A time zone mismatch
+   * invalidates, because the day boundaries move.
+   */
+  static getDayUsageCache(dateStr: string, timeZone: string): Promise<unknown> {
+    return this.readUsageCache(
+      `day-${dateStr}`,
+      (entry) => entry.timeZone === timeZone && entry.complete === true,
+    );
+  }
+
+  static async setDayUsageCache(
+    dateStr: string,
+    data: unknown,
+    timeZone: string,
+  ): Promise<void> {
+    await this.writeUsageCache(`day-${dateStr}`, {
+      data,
+      timestamp: Date.now(),
+      timeZone,
+      complete: true,
+    });
+    await this.pruneDayUsageCache();
+  }
+
+  private static async pruneDayUsageCache(): Promise<void> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - DAY_CACHE_RETENTION_DAYS);
+    const cutoffDateStr = formatLocalDate(cutoff);
+
+    try {
+      const files = await fs.promises.readdir(this.USAGE_CACHE_DIR);
+      const stale = files.filter((file) => {
+        const dateStr = DAY_CACHE_FILE.exec(file)?.[1];
+        return dateStr !== undefined && dateStr < cutoffDateStr;
+      });
+
+      await Promise.all(
+        stale.map((file) =>
+          fs.promises.unlink(path.join(this.USAGE_CACHE_DIR, file)),
+        ),
+      );
+      if (stale.length > 0) {
+        debug(`Pruned ${stale.length} day usage cache file(s)`);
+      }
+    } catch (error) {
+      debug("Failed to prune day usage cache:", error);
+    }
+  }
+
+  /**
+   * Transcript totals and read offsets, from transcript-totals.ts. Always valid
+   * when present: the caller checks the offsets against the transcripts.
+   */
+  static getTotalsCache(name: string): Promise<unknown> {
+    return this.readUsageCache(`totals-${name}`, () => true);
+  }
+
+  static setTotalsCache(name: string, data: unknown): Promise<void> {
+    return this.writeUsageCache(`totals-${name}`, {
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Session totals accumulate one per session, so drop those not written for
+   * a while. Resuming such a session costs one full read of its transcripts.
+   */
+  static async pruneTotalsCache(): Promise<void> {
+    const cutoff = Date.now() - TOTALS_CACHE_RETENTION_DAYS * 86_400_000;
+
+    try {
+      const files = await fs.promises.readdir(this.USAGE_CACHE_DIR);
+      let pruned = 0;
+      for (const file of files) {
+        if (!TOTALS_CACHE_FILE.test(file)) continue;
+        const filePath = path.join(this.USAGE_CACHE_DIR, file);
+        if ((await fs.promises.stat(filePath)).mtimeMs < cutoff) {
+          await fs.promises.unlink(filePath);
+          pruned++;
+        }
+      }
+      if (pruned > 0) {
+        debug(`Pruned ${pruned} totals cache file(s)`);
+      }
+    } catch (error) {
+      debug("Failed to prune totals cache:", error);
+    }
+  }
+}
