@@ -1,13 +1,14 @@
 # v7-win: Six tabs
 
-v7 puts six right-hand panes side by side as tabs, on the v2 Ember rice (palette, theme, skins, status line). Claude Code
-draws every open pane as a tab of one sidebar ("With several panes open, each gets a tab that shows its title",
-[mods interface docs](https://code.claude.com/docs/en/plugins/mods/interface)), so v7 just switches on six pane mods and makes each
-one open its pane on start.
+v7 puts six right-hand panes side by side as tabs, on the v2 Ember rice (palette, theme, status line). Claude Code draws every
+open pane as a tab of one sidebar ("With several panes open, each gets a tab that shows its title",
+[mods interface docs](https://code.claude.com/docs/en/plugins/mods/interface)), so v7 switches on six pane mods and makes each one
+open its pane on start. Since round 2, [prismantis](https://github.com/NahumLitvin/prismantis) draws the chat (instead of skins),
+with every tool call as one dim row on the right and nothing under it.
 
-![Claude Code 2.1.302 at 210 columns: the transcript on the left; on the right the tab row Flightdeck, Session, Files, Bridge, Cockpit, cctop with cctop's Overview showing context 287k of 1M, 5h 80%, 7d 35%](docs/screenshots/six-tabs.png)
+![Claude Code 2.1.302 at 210 columns. Left: the prompt with an orange bar, tool calls as dim rows on the right ("Read statusline\deck.mjs · Searched . for gradientBar", "Edited statusline\deck.mjs", "Run the status line tests · node · Apply a palette…" with only the failure's last line under it), the edit's diff card, an orange "Done" heading, a table and a warning. Right: the tab row Flightdeck, Bridge, Session, Files, Cockpit, cctop. One near-black (#121110) behind both](docs/screenshots/six-tabs-prismantis.png)
 
-*The real Claude Code resuming a synthetic demo session with v7 live (no model turn). cctop is in front because it opens last.*
+*The real Claude Code resuming a synthetic demo session with v7 live (no model turn). Round 1 looked like [this](docs/screenshots/six-tabs.png).*
 
 | Tab | Mod | What it shows | Where from |
 |---|---|---|---|
@@ -23,53 +24,62 @@ closes the tab in front.
 
 ## What I changed
 
-The three new mods are pinned unmodified in `claude-mods-local` (`cd510b1`), then patched (`0ceeccc`, `f167d8b`). Diffs in [`patches/`](patches/).
+Mods are pinned unmodified in `claude-mods-local` (`cd510b1` for the three new ones), then patched. Every patch is an option whose
+default is upstream's behaviour; v7 turns it on. Diffs in [`patches/`](patches/).
 
 | | Upstream | v7 |
 |---|---|---|
-| paneline | restyles every message, tool row and the band above the prompt, and adds a render hint to the prompt | a `chat` option (default on). v7 turns it off: only the pane, so the Ember skin keeps the chat |
-| cctop | the pane opens only on `/cctop`, or when it was open at the last reload | an `openOnStart` option (default off). v7 turns it on |
-| cctop | reads `HOME`, which native Windows does not set: the self-check printed a failure into the transcript on every start | falls back to `USERPROFILE` |
+| The chat | skins (v2's renderer) | prismantis in the Ember preset (as v3 had it): `▍` orange headings, an accent bar on your prompts, tool rows dim on the right (`toolStyle: chat`) |
+| prismantis tool output | `full`: what Claude Code shows; `quiet`: plain-words rows, but a shell command still shows its first lines | `toolOutput: rows` (new): nothing under a call that worked, in a group too; a failure keeps its last line, an edit keeps its diff, Ctrl+O on a group shows everything |
+| prismantis copy | a toast, which Claude Code always labels with the mod's name ("prismantis: Copied") | `copyFeedback: button` (new): the button itself reads `✓ copied` for 1.5 s; a failed copy still toasts its reason |
+| prismantis diffs | the Ember preset's mint and red | retro green `#98C25B` and the Ember orange-red `#E8553C` |
+| paneline | restyles every message, tool row and the band above the prompt | `chat` option (new), off: only the pane |
+| cockpit | a band above the prompt whenever its panel is not the tab in front, and a `◆ ctx · 5h · tools` status line (both showing `ctx —` until the first reply of a new process) | `band` and `statusLine` options (new), off: only the panel |
+| cctop | opens only on `/cctop`; reads `HOME` (absent on Windows, so a "self-check failed" line every start); a "loaded" line in the transcript every start | `openOnStart` and `announce` options (new), a `USERPROFILE` fallback; the "loaded" line goes to the debug log |
+| Background | the terminal on `#0A0908`, the panel on `#121110` | both on `#121110`: v2's palette `base.bg` moved there, and [`tools/background.mjs`](tools/background.mjs) rebuilt the theme, the Windows Terminal scheme and the status line palette from it |
+| Spinner words | v2's list ("Pondering", "Noodling", "Spelunking the codebase", ...) | plain ones: Thinking, Reading, Working on it, Checking, Looking into it, Writing, Putting it together, Testing, Tidying up |
 
-Options only, nothing patched: flightdeck `openOnStart` with all seven panels and its status line off (the Ember deck has the
-numbers), filetree `start: on`, Bridge as in v2. cockpit has no options and opens itself.
+The kit (`v3-win/tools/kit.mjs`) gained a `settings` field for top-level `settings.json` keys like `spinnerVerbs`, with the same revert
+(byte for byte if untouched, otherwise only its keys).
 
 ## Use it
 
 ```
-node v7-win/tools/rice.mjs apply ember     # switch the six on (settings.json backed up first)
+node v7-win/tools/rice.mjs apply ember     # switch it all on (settings.json backed up first)
 node v7-win/tools/rice.mjs revert          # put settings.json back as it was
-node v7-win/tools/rice.mjs status
+node v7-win/tools/background.mjs ember     # after a palette change: rebuild theme, terminal scheme and deck palette (backed up)
 ```
 
-Restart Claude Code after either. The panes dock beside the chat in the fullscreen layout from 110 columns (Bridge from 144);
-narrower, they open above the prompt.
+Restart Claude Code after apply or revert. The panes dock beside the chat in the fullscreen layout from 110 columns (Bridge from
+144); narrower, they open above the prompt. The background change shows at once (Windows Terminal reloads its settings); to undo
+it, put back `"bg": "#0A0908"` in `v2-win/palette/palettes.json` and run `background.mjs` again, or restore the snapshot
+`before-v7-six-tabs`.
 
 ## Worth knowing
 
 - **cctop without its binary.** The pane's context, cost and limits come from Claude Code itself. Tool timings, files, agents and
   the Advisor need the `cctop` program (Homebrew or cargo only, not installed here), so those views say "needs the cctop binary".
-  It also logs one line into the transcript at every start (`cctop: plugin 0.10.0 ... self-check ok`).
 - **cockpit's guard is on by default.** Before a Bash command it calls risky it asks Run it / Block it. `/cockpit-guard off` turns it
-  off. It also puts a `◆ ctx · 5h · tools` line under the prompt; the "Status line" button in its panel turns that off.
-- **cctop and cockpit ship skills/commands.** cctop adds two skills (`cctop`, `cctop-insights`) to the skill list.
+  off. Its panel shows `ctx —` until the first reply of a newly started Claude Code: Claude Code only reports context after a reply.
+- **Edits keep their diff card**; everything else is a single row.
 - **Tab order** follows the order the mods open their panes at start, which v7 does not control.
 
 ## Is it safe
 
-None of the six makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's
+None of the mods makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's
 reach is in `claude-mods-local/README.md`). Processes started: read-only `git` (cockpit, paneline, filetree), `grep` (paneline; not on
 Windows PATH, so it fails quietly), `du`/`find` (filetree), and `cctop` (absent, detected as missing).
 
 ## Verified, and not
 
-- `node --test v7-win/tests/*.test.mjs`: 5/5 (all six on, each told to open, every option exists in that mod's manifest, apply and
-  revert byte-exact).
-- paneline: `claude plugin test` with the new `chat-option.test.tsx` (3/3). The suite fails the same 28 tests on Windows as
-  unmodified upstream (POSIX path fixtures, one timeout).
-- cctop: upstream's harness (outside `plugin/`) with two new tests, 127/129; the same 2 failures as upstream (CRLF snapshots).
-- Live: the screenshot above, at 210 columns. Not seen yet: each tab during a real turn, and how the six together feel over a session.
+- `node --test v7-win/tests/*.test.mjs`: 8/8 (every mod on and told to open, prismantis replacing skins with rows and button copy,
+  cockpit panel-only, plain spinner words, every option declared in its mod's manifest, apply and revert byte-exact and key-wise).
+- prismantis 559/559 (8 new), cockpit 15/15 (3 new), aurora-bridge 8/8, v2 52/52, v3 to v6 kit tests still pass.
+- paneline: the new `chat-option.test.tsx` 3/3; the suite fails the same 28 tests on Windows as unmodified upstream.
+- cctop: upstream's harness (outside `plugin/`) with three new tests, 128/130; the same 2 failures as upstream (CRLF snapshots).
+- Live: the screenshot above, at 210 columns. Not seen yet: a real turn with this setup, and the `✓ copied` flip under a real click.
 
 ## Layout
 
-`version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tests/`, `patches/`, `docs/screenshots/`.
+`version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tools/background.mjs`, `tests/`, `patches/`,
+`docs/screenshots/`.

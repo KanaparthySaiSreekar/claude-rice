@@ -4,7 +4,8 @@
 //
 //   { "tag": "v3", "label": "...", "plugins": { "<name>@kasasree-mods": true | false },
 //     "first": ["<name>@kasasree-mods"],                  (optional) plugins moved to the front of enabledPlugins
-//     "options": { "<name>@kasasree-mods": { "<option>": <value> } } }
+//     "options": { "<name>@kasasree-mods": { "<option>": <value> } },
+//     "settings": { "<top-level settings.json key>": <value> } }  (optional, v7) each key replaced whole, put back on revert
 //
 // A string value "{palette}" becomes the palette name, "{palette:<builder>}" the JSON a builder below makes for it.
 //
@@ -17,7 +18,8 @@
 //                                                     with "first", "on" reorders settings.json's enabledPlugins (values kept,
 //                                                     original saved) and "off" puts the file back byte for byte
 //
-// Only enabledPlugins and pluginConfigs.<plugin>.options keys named in version.json are touched; every other key survives.
+// Only enabledPlugins, pluginConfigs.<plugin>.options, env and top-level keys named in version.json are touched; every
+// other key survives.
 import fs from "node:fs"
 import crypto from "node:crypto"
 import os from "node:os"
@@ -71,7 +73,7 @@ export function resolve(spec, paletteName) {
   const env = Object.fromEntries(Object.entries(spec.env ?? {}).map(([k, v]) => [k, String(fill(v))]))
   // "files": [{ "from": <path relative to the version folder>, "to": "~/<path under the home folder>" }]
   const files = (spec.files ?? []).map((f) => ({ from: path.resolve(spec.dir ?? ".", f.from), to: path.join(home(), String(f.to).replace(/^~[\\/]/, "")) }))
-  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], options, env, files }
+  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], options, env, files, settings: { ...(spec.settings ?? {}) } }
 }
 
 /** settings.json text with the version merged in. Pure, so it can be tested on any input. */
@@ -88,11 +90,12 @@ export function merged(text, version) {
     s.pluginConfigs[plugin] = { ...(s.pluginConfigs[plugin] ?? {}), options: { ...(s.pluginConfigs[plugin]?.options ?? {}), ...o } }
   }
   if (Object.keys(version.env ?? {}).length) s.env = { ...(s.env ?? {}), ...version.env }
+  for (const [k, v] of Object.entries(version.settings ?? {})) s[k] = v
   return JSON.stringify(s, null, 2) + "\n"
 }
 
 const sha = (text) => crypto.createHash("sha256").update(text).digest("hex")
-const touched = (version) => ({ plugins: Object.keys(version.plugins), options: Object.fromEntries(Object.entries(version.options).map(([k, o]) => [k, Object.keys(o)])), env: Object.keys(version.env ?? {}) })
+const touched = (version) => ({ plugins: Object.keys(version.plugins), options: Object.fromEntries(Object.entries(version.options).map(([k, o]) => [k, Object.keys(o)])), env: Object.keys(version.env ?? {}), settings: Object.keys(version.settings ?? {}) })
 
 /** Copy each version file over its target, saving the target first. A target that does not exist (that part of the v2 rice is not applied) is skipped. */
 function copyFiles(version, backup, log) {
@@ -124,6 +127,7 @@ export function apply(spec, paletteName, { dryRun = false, log = console.log } =
   for (const [plugin, o] of Object.entries(version.options))
     for (const [k, v] of Object.entries(o)) if (JSON.stringify(was.pluginConfigs?.[plugin]?.options?.[k]) !== JSON.stringify(v)) changes.push(`${plugin} ${k} = ${typeof v === "string" && v.length > 40 ? v.slice(0, 37) + "..." : JSON.stringify(v)}`)
   for (const [k, v] of Object.entries(version.env)) if (was.env?.[k] !== v) changes.push(`env ${k} = ${v}`)
+  for (const [k, v] of Object.entries(version.settings)) if (JSON.stringify(was[k]) !== JSON.stringify(v)) changes.push(`setting ${k}`)
   const stale = version.files.filter((f) => fs.existsSync(f.to) && !fs.readFileSync(f.to).equals(fs.readFileSync(f.from)))
   for (const f of stale) changes.push(`update ${f.to}`)
   if (dryRun) { log(`${version.tag} (${version.palette.key}) would change:\n  ${changes.join("\n  ") || "nothing"}`); return { changes, dryRun: true } }
@@ -161,6 +165,7 @@ export function revert({ log = console.log } = {}) {
       else if (s.pluginConfigs[plugin]) { delete s.pluginConfigs[plugin].options; if (!Object.keys(s.pluginConfigs[plugin]).length) delete s.pluginConfigs[plugin] }
     }
     for (const k of last.touched.env ?? []) put((s.env ??= {}), k, b.env?.[k])
+    for (const k of last.touched.settings ?? []) put(s, k, b[k])
     if (s.env && !Object.keys(s.env).length && !b.env) delete s.env
     fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2) + "\n")
     how = "only the keys it set (settings.json had other changes since; those stay)"

@@ -1,0 +1,113 @@
+diff --git a/plugins/cockpit/.claude-plugin/plugin.json b/plugins/cockpit/.claude-plugin/plugin.json
+index 5c75df1..5d400ec 100644
+--- a/plugins/cockpit/.claude-plugin/plugin.json
++++ b/plugins/cockpit/.claude-plugin/plugin.json
+@@ -6,5 +6,19 @@
+     "name": "drkokorev"
+   },
+   "license": "MIT",
+-  "types": "./types/index.d.ts"
++  "types": "./types/index.d.ts",
++  "userConfig": {
++    "band": {
++      "type": "boolean",
++      "title": "Band above the prompt",
++      "description": "Show the Cockpit band above the prompt when the panel is not in front (or always, with its own toggle). Off: never (local patch)",
++      "default": true
++    },
++    "statusLine": {
++      "type": "boolean",
++      "title": "Status line",
++      "description": "Show the ◆ ctx · 5h · tools line under the prompt (the panel's Status line button still toggles it). Off: never (local patch)",
++      "default": true
++    }
++  }
+ }
+diff --git a/plugins/cockpit/hooks/register.tsx b/plugins/cockpit/hooks/register.tsx
+index 0cf2fb8..1fe1bb3 100644
+--- a/plugins/cockpit/hooks/register.tsx
++++ b/plugins/cockpit/hooks/register.tsx
+@@ -219,7 +219,7 @@ type CockpitElements = Pick<Elements['terminal'] | Elements['desktop'], 'Box' |
+ 
+ const pushStatus = async ($: Dollar) => {
+   const p = await read($, prefs)
+-  if (!p.isStatusOn) {
++  if (!showStatus || !p.isStatusOn) {
+     $.ui.status(undefined)
+     return
+   }
+@@ -1405,6 +1405,10 @@ const demoStats = (cur: CockpitStats, now: number): CockpitStats => {
+ 
+ let isInteractive = true
+ let isPlanStored = false
++// LOCAL PATCH (kasasree-mods): the `band` and `statusLine` options. Off, the panel is the only place Cockpit draws:
++// no band above the prompt (upstream shows it whenever the panel is not the tab in front) and no status line.
++let showBand = true
++let showStatus = true
+ let ticker: Timer | undefined
+ let idleTicker: Timer | undefined
+ 
+@@ -1435,7 +1439,9 @@ const openPane = async ($: Dollar) => {
+   return opened
+ }
+ 
+-export const register: Register = on => {
++export const register: Register = (on, options) => {
++  showBand = options?.band !== false
++  showStatus = options?.statusLine !== false
+ 
+   on('session.start', async ($, e, next) => {
+     const started = await next(e)
+@@ -1872,7 +1878,7 @@ export const register: Register = on => {
+   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+     const p = await read($, prefs)
+     const where = await read($, pane)
+-    if (e.props.hasSurvey || (where.isPlaced && !p.isBandOn)) return next(e)
++    if (!showBand || e.props.hasSurvey || (where.isPlaced && !p.isBandOn)) return next(e)
+     const { Box, Text, Button } = $.ui.resolve(e)
+     const s = await read($, stats)
+     const now = await $.clock.now()
+diff --git a/plugins/cockpit/tests/kasasree.test.tsx b/plugins/cockpit/tests/kasasree.test.tsx
+new file mode 100644
+index 0000000..9027dbd
+--- /dev/null
++++ b/plugins/cockpit/tests/kasasree.test.tsx
+@@ -0,0 +1,38 @@
++// LOCAL PATCH (kasasree-mods) tests: the `band` and `statusLine` options.
++import { expect, mock, test } from 'claude-code/testing'
++
++const BAND = {
++  plugin: 'cockpit',
++  surface: 'terminal',
++  component: 'AbovePrompt',
++  props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} },
++} as const
++
++test('band off: nothing above the prompt, even with the panel not in front', { options: { band: false } }, async ($, on) => {
++  mock.clock(on, { now: 1_800_000_000_000 })
++  mock.store(on)
++  on('ui.render', ($, e) => {
++    const { Text } = $.ui.resolve(e)
++    return <Text>engine</Text>
++  })
++  const ui = await $.ui.mount(BAND)
++  expect(await ui.find({ type: 'Text', text: /^engine$/ })).toBeDefined()
++  expect(await ui.find({ type: 'Text', text: /Cockpit/ })).toBeUndefined()
++  expect(await ui.find({ type: 'Button', text: /Panel/ })).toBeUndefined()
++  await ui.unmount()
++})
++
++for (const statusLine of [true, false]) {
++  test(`statusLine ${statusLine ? 'left on pins' : 'off never pins'} the ◆ line under the prompt`, { options: { statusLine } }, async ($, on) => {
++    mock.clock(on, { now: 1_800_000_000_000 })
++    mock.store(on)
++    const statuses: (string | undefined)[] = []
++    on('ui.status', (_, e) => {
++      statuses.push(e.text)
++      return { value: undefined }
++    })
++    on('ui.toast', () => ({ value: undefined }))
++    await $.command.run({ command: 'cockpit-demo', args: '' } as Parameters<typeof $.command.run>[0])
++    expect(statuses.filter(Boolean).length > 0).toBe(statusLine)
++  })
++}

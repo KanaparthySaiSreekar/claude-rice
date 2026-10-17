@@ -75,7 +75,7 @@
       "label": "Claude Ember",
       "mood": "near-black with hot orange and warm white, nothing else",
       "base": {
-        "bg": "#0A0908",
+        "bg": "#121110",
         "surface": "#121110",
         "raised": "#1B1917",
         "hover": "#25221F",

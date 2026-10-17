@@ -1,8 +1,8 @@
 diff --git a/plugins/cctop/.claude-plugin/plugin.json b/plugins/cctop/.claude-plugin/plugin.json
-index 6f9ae59..f195186 100644
+index 6f9ae59..85b5f72 100644
 --- a/plugins/cctop/.claude-plugin/plugin.json
 +++ b/plugins/cctop/.claude-plugin/plugin.json
-@@ -5,5 +5,13 @@
+@@ -5,5 +5,19 @@
    "author": { "name": "Thomas Stagl" },
    "homepage": "https://github.com/tomstagl/cctop",
    "skills": "./skills/",
@@ -14,23 +14,30 @@ index 6f9ae59..f195186 100644
 +      "title": "Open on start",
 +      "description": "Open the pane on every interactive session start, not only when it was open at the last reload (local patch)",
 +      "default": false
++    },
++    "announce": {
++      "type": "boolean",
++      "title": "Say it loaded",
++      "description": "On: a line in the transcript at every start says the plugin loaded and its self-check passed. Off: that line goes to the debug log; a failed self-check still shows (local patch)",
++      "default": true
 +    }
 +  }
  }
 diff --git a/plugins/cctop/hooks/pane.tsx b/plugins/cctop/hooks/pane.tsx
-index 9590887..3b26118 100644
+index 9590887..17389f8 100644
 --- a/plugins/cctop/hooks/pane.tsx
 +++ b/plugins/cctop/hooks/pane.tsx
-@@ -88,6 +88,8 @@ let hiddenTimer: Timer | null = null;
+@@ -88,6 +88,9 @@ let hiddenTimer: Timer | null = null;
  let renderWaiters: (() => void)[] = [];
  // Whether HIDDEN_STATUS is pinned under the prompt right now.
  let statusPinned = false;
-+// LOCAL PATCH (kasasree-mods): the `openOnStart` option, read at register.
++// LOCAL PATCH (kasasree-mods): the `openOnStart` and `announce` options, read at register.
 +let openOnStart = false;
++let announceOk = true;
  
  // Asks for a redraw as of `now` (the clock's answer, or the trailing timer's
  // due time) and arms the hidden watch.
-@@ -325,7 +327,7 @@ async function selfCheck($: EngineInterface): Promise<SelfCheck> {
+@@ -325,7 +328,7 @@ async function selfCheck($: EngineInterface): Promise<SelfCheck> {
      problems.push(`$.clock.now() failed: ${message(err)}`);
    }
    try {
@@ -39,7 +46,19 @@ index 9590887..3b26118 100644
      if (typeof home !== 'string' || home === '') problems.push('$.env.get("HOME") is unset: no marker can be written');
    } catch (err) {
      problems.push(`$.env.get("HOME") failed: ${message(err)}`);
-@@ -372,10 +374,17 @@ function pollerEngine($: EngineInterface): PollerEngine {
+@@ -358,7 +361,10 @@ export function selfCheckLine(version: string | null, check: SelfCheck): string
+ // read lost the race), then the line, then the marker through noteSession.
+ function announce($: EngineInterface, check: SelfCheck): Promise<void> {
+   return readVersion($).then(() => {
+-    $.ui.log(selfCheckLine(model.version, check));
++    // LOCAL PATCH (kasasree-mods): `announce` off sends a passing self-check to the debug log, not the transcript.
++    const line = selfCheckLine(model.version, check);
++    if (announceOk || check.problems.length > 0) $.ui.log(line);
++    else $.ui.log(line, { to: 'debug' });
+     noteSession($);
+   });
+ }
+@@ -372,10 +378,17 @@ function pollerEngine($: EngineInterface): PollerEngine {
      session: { id: () => $.session.id() },
      fs: { write: (path, text) => $.fs.write(path, text) },
      ui: { log: (text) => $.ui.log(text) },
@@ -58,7 +77,7 @@ index 9590887..3b26118 100644
  function makePoller($: EngineInterface): Poller {
    return createPoller(
      pollerEngine($),
-@@ -417,14 +426,16 @@ function readVersion($: EngineInterface): Promise<void> {
+@@ -417,14 +430,16 @@ function readVersion($: EngineInterface): Promise<void> {
  // Reopens the pane a reload closed: `$.store` holds `{ open: true, view }`
  // from the last persistPane. Only where a person is at the prompt, and only
  // after the binary check, so the poller starts with the pane.
@@ -78,13 +97,14 @@ index 9590887..3b26118 100644
        const known = VIEWS.find((v) => v.view === view);
        // A restore has nobody to answer; the outcome reaches the person
        // through the status line (hidden) or the pane itself.
-@@ -673,7 +684,8 @@ function viewBar(
+@@ -673,7 +688,9 @@ function viewBar(
  // The label before the first tab: whose bar this is.
  const BAR_LEAD = 'cctop';
  
 -export const register: Register = (on) => {
 +export const register: Register = (on, options) => {
 +  openOnStart = options?.openOnStart === true;
++  announceOk = options?.announce !== false;
    model = initialModel();
    stopUsageTimer();
    stopRenderTimer();

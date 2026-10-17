@@ -53,7 +53,7 @@ const Bg = (hex) => bgc(hexToRgb(hex))
 
 export const DEFAULT_PALETTE = {
   key: "ember", label: "Claude Ember",
-  base: { bg: "#0A0908", surface: "#121110", raised: "#1B1917", hover: "#25221F", line: "#3B352F", selection: "#4A3622", fg: "#F8F4EE", muted: "#BFB5AA", faint: "#9E948A", dim: "#80776D" },
+  base: { bg: "#121110", surface: "#121110", raised: "#1B1917", hover: "#25221F", line: "#3B352F", selection: "#4A3622", fg: "#F8F4EE", muted: "#BFB5AA", faint: "#9E948A", dim: "#80776D" },
   accent: { coral: "#FF7A1A", coralLight: "#FFA55C", pink: "#FF5A36", violet: "#FF8F70", blue: "#FFCBA4", cyan: "#FFE08A", mint: "#8ED69B", amber: "#FFC53D", red: "#FF4D4D" },
   ramp: ["#FFE3A3", "#FFC53D", "#FF7A1A", "#F0451E"],
   semantic: { ok: "#8ED69B", warn: "#FFC53D", err: "#FF4D4D", info: "#FFCBA4" },

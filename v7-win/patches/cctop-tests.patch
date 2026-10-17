@@ -1,5 +1,45 @@
+diff --git a/a/tests/pane/harness.ts b/b/tests/pane/harness.ts
+index 2f3b8cc..d60a803 100644
+--- a/a/tests/pane/harness.ts
++++ b/b/tests/pane/harness.ts
+@@ -156,6 +156,8 @@ export type FakeExtras = {
+     /** `$.ui.invalidate` calls, counted per event name. */
+     invalidates: Record<string, number>;
+     logs: string[];
++    /** Lines logged with `{ to: 'debug' }` (kasasree-mods): kept off the transcript. */
++    debugLogs: string[];
+     toasts: string[];
+     statuses: (string | undefined)[];
+     opens: PaneOpenArgs[];
+@@ -244,6 +246,7 @@ export function fakeEngine(opts: FakeEngineOptions = {}): FakeEngine {
+   const env = { ...(opts.env ?? {}) };
+   const registered: CommandSpec[] = [];
+   const logs: string[] = [];
++  const debugLogs: string[] = [];
+   const toasts: string[] = [];
+   const statuses: (string | undefined)[] = [];
+   const opens: PaneOpenArgs[] = [];
+@@ -256,6 +259,7 @@ export function fakeEngine(opts: FakeEngineOptions = {}): FakeEngine {
+     ui: {
+       invalidates,
+       logs,
++      debugLogs,
+       toasts,
+       statuses,
+       opens,
+@@ -279,8 +283,8 @@ export function fakeEngine(opts: FakeEngineOptions = {}): FakeEngine {
+         if (e.surface !== 'terminal') throw new Error(`fakeEngine: no element table for ${e.surface}`);
+         return elements as Elements[E['surface']];
+       },
+-      log: (text: string) => {
+-        logs.push(text);
++      log: (text: string, options?: { to?: string }) => {
++        (options?.to === 'debug' ? debugLogs : logs).push(text);
+       },
+       ask: () => Promise.reject(new Error('fakeEngine: ui.ask is not scripted')),
+       toast: (text: string) => {
 diff --git a/a/tests/pane/lifecycle.test.ts b/b/tests/pane/lifecycle.test.ts
-index 3a1bdc7..b25b8e8 100644
+index 3a1bdc7..4f81e2a 100644
 --- a/a/tests/pane/lifecycle.test.ts
 +++ b/b/tests/pane/lifecycle.test.ts
 @@ -34,7 +34,7 @@ const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -20,7 +60,7 @@ index 3a1bdc7..b25b8e8 100644
    const start = () =>
      dispatch(
        'session.start',
-@@ -399,3 +399,35 @@ test('self-check: HOME unset and a session without an id are named together', as
+@@ -399,3 +399,50 @@ test('self-check: HOME unset and a session without an id are named together', as
    assert.ok(line !== undefined, JSON.stringify($.ui.logs));
    assert.match(line, /self-check failed: \$\.env\.get\("HOME"\) is unset: no marker can be written; \$\.session\.id\(\) failed: no session — /);
  });
@@ -55,4 +95,19 @@ index 3a1bdc7..b25b8e8 100644
 +  const lines = $.ui.logs.filter((l) => l.startsWith('cctop: plugin '));
 +  assert.deepEqual(lines, [`cctop: plugin ${PLUGIN_VERSION} (hooks contract ${TESTED_WITH}) loaded; self-check ok`]);
 +  assert.ok($.fs.files.has(`C:/Users/u/.cctop/pane/${SESSION}.json`), JSON.stringify([...$.fs.files.keys()]));
++});
++
++// LOCAL PATCH (kasasree-mods): announce off keeps a passing self-check out of the transcript, never a failing one.
++test('announce off: a passing self-check goes to the debug log; a failing one still shows', async () => {
++  const { $, start } = boot({ options: { announce: false } });
++  await start();
++  await settle();
++  assert.equal($.ui.logs.filter((l) => l.startsWith('cctop: plugin ')).length, 0, JSON.stringify($.ui.logs));
++  assert.equal($.ui.debugLogs.filter((l) => l.includes('self-check ok')).length, 1, JSON.stringify($.ui.debugLogs));
++  const failing = fakeEngine({ now: T0, process: binaryScripts(), files: { [MANIFEST]: manifest } });
++  const { on, dispatch } = fakeOn(failing, { surface: SURFACE });
++  register(on, { announce: false });
++  await dispatch('session.start', { cwd: '/home/user/project', surface: 'terminal', isInteractive: true }, () => ({ cwd: '/home/user/project' }));
++  await settle();
++  assert.equal(failing.ui.logs.filter((l) => l.includes('self-check failed')).length, 1, JSON.stringify(failing.ui.logs));
 +});

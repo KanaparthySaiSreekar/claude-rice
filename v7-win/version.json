@@ -1,19 +1,40 @@
 {
   "tag": "v7",
-  "label": "Six-tab right panel on the v2 Ember rice: Bridge, flightdeck, filetree, cockpit, paneline and cctop each open their pane, and Claude Code shows them as tabs",
+  "label": "Six-tab right panel on the v2 Ember rice: Bridge, flightdeck, filetree, cockpit, paneline and cctop each open their pane, and Claude Code shows them as tabs; prismantis draws the chat with tool calls as collapsed rows on the right",
   "plugins": {
     "aurora-bridge@kasasree-mods": true,
     "flightdeck@kasasree-mods": true,
     "filetree@kasasree-mods": true,
     "cockpit@kasasree-mods": true,
     "paneline@kasasree-mods": true,
-    "cctop@kasasree-mods": true
+    "cctop@kasasree-mods": true,
+    "prismantis@kasasree-mods": true,
+    "skins@kasasree-mods": false
   },
   "options": {
     "aurora-bridge@kasasree-mods": { "openOnStart": true, "palette": "{palette:bridge}" },
     "flightdeck@kasasree-mods": { "openOnStart": true, "statusLine": false, "panels": "main,architect,gate,agents,loops,receipt,log" },
     "filetree@kasasree-mods": { "start": "on" },
     "paneline@kasasree-mods": { "autoOpen": true, "chat": false },
-    "cctop@kasasree-mods": { "openOnStart": true }
+    "cctop@kasasree-mods": { "openOnStart": true, "announce": false },
+    "cockpit@kasasree-mods": { "band": false, "statusLine": false },
+    "prismantis@kasasree-mods": {
+      "theme": "{palette}",
+      "headingStyle": "bar",
+      "promptStyle": "bar",
+      "toolStyle": "chat",
+      "toolOutput": "rows",
+      "copyButtonStyle": "hover",
+      "copyFeedback": "button",
+      "diffAddedColor": "#98C25B",
+      "diffRemovedColor": "#E8553C",
+      "diagramHints": false
+    }
+  },
+  "settings": {
+    "spinnerVerbs": {
+      "mode": "replace",
+      "verbs": ["Thinking", "Reading", "Working on it", "Checking", "Looking into it", "Writing", "Putting it together", "Testing", "Tidying up"]
+    }
   }
 }

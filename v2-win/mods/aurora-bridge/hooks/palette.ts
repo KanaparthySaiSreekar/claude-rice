@@ -24,7 +24,7 @@ export type Palette = {
 
 /** Claude Ember: near-black, hot orange, warm white. Keep in step with palette/palettes.json in the rice (a test there checks the colours agree). */
 export const EMBER: Palette = {
-  bg: '#0A0908',
+  bg: '#121110',
   surface: '#121110',
   raised: '#1B1917',
   line: '#3B352F',

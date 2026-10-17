@@ -1,0 +1,355 @@
+diff --git a/plugins/prismantis/.claude-plugin/plugin.json b/plugins/prismantis/.claude-plugin/plugin.json
+index 0feffe4..3803a9e 100644
+--- a/plugins/prismantis/.claude-plugin/plugin.json
++++ b/plugins/prismantis/.claude-plugin/plugin.json
+@@ -102,9 +102,9 @@
+     "toolOutput": {
+       "type": "string",
+       "title": "Tool output",
+-      "description": "How much of a tool call shows. full: what Claude Code shows. quiet: rows say in plain words what a call did, reads, searches and listings show only their row, other shell commands show their first lines, edits keep their diff, a failed call shows the last line of its error, and a refused call its full reason. Needs toolRows on.",
++      "description": "How much of a tool call shows. full: what Claude Code shows. quiet: rows say in plain words what a call did, reads, searches and listings show only their row, other shell commands show their first lines, edits keep their diff, a failed call shows the last line of its error, and a refused call its full reason. rows (local addition): quiet with nothing under a call that worked, shell commands included; expanding a group still shows everything. Needs toolRows on.",
+       "default": "full",
+-      "options": ["full", "quiet"]
++      "options": ["full", "quiet", "rows"]
+     },
+     "taskStyle": {
+       "type": "string",
+@@ -316,6 +316,13 @@
+       "default": "inline",
+       "options": ["inline", "hover"]
+     },
++    "copyFeedback": {
++      "type": "string",
++      "title": "Copy feedback",
++      "description": "toast: a copy says so in a toast, which Claude Code labels with this mod's name. button (local addition): the button itself reads ✓ copied for a moment; a failed copy still toasts its reason.",
++      "default": "toast",
++      "options": ["toast", "button"]
++    },
+     "diagramHints": {
+       "type": "boolean",
+       "title": "Diagram hints",
+diff --git a/plugins/prismantis/hooks/register.tsx b/plugins/prismantis/hooks/register.tsx
+index c168532..89b88b4 100644
+--- a/plugins/prismantis/hooks/register.tsx
++++ b/plugins/prismantis/hooks/register.tsx
+@@ -59,6 +59,9 @@ const columnsOf = (viewport?: { columns?: number }) => Math.max(20, (viewport?.c
+ const formulas = atom({ plugin: 'prismantis', key: 'formulas' } as const, {})
+ const latexDir = atom({ plugin: 'prismantis', key: 'dir' } as const, '')
+ const unfolded = atom({ plugin: 'prismantis', key: 'unfolded' } as const, [] as string[])
++// LOCAL PATCH (kasasree-mods): the copy button that just copied, for copyFeedback 'button' (empty: none).
++const copiedButton = atom({ plugin: 'prismantis', key: 'copied' } as const, '')
++const COPIED_MS = 1500
+ const sent = atom({ plugin: 'prismantis', key: 'sent' } as const, [])
+ const turnEnds = atom({ plugin: 'prismantis', key: 'turnEnds' } as const, [])
+ 
+@@ -250,9 +253,17 @@ const folder = ($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolv
+   return { folded, element: <el.Button key={key} variant="secondary" label={folded ? `+${hidden} more lines` : 'show less'} onPress={() => update($, unfolded, ids => (folded ? [...ids, id].slice(-500) : ids.filter(x => x !== id)))} /> }
+ }
+ 
+-const drawMarkdown = ($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, style: Style, blocks: ReturnType<typeof parse>, columns: number, math: Map<number, Typeset> = new Map(), pictures: Map<number, Picture> = new Map(), reply?: string, open?: string[], notes?: { id: string; press: boolean }): RenderElement[] => {
++const drawMarkdown = ($: EngineInterface, el: ReturnType<EngineInterface['ui']['resolve']>, style: Style, blocks: ReturnType<typeof parse>, columns: number, math: Map<number, Typeset> = new Map(), pictures: Map<number, Picture> = new Map(), reply?: string, open?: string[], notes?: { id: string; press: boolean }, copiedId = ''): RenderElement[] => {
+   const { Button } = el
+   const copy = (text: string | (() => string), key: string, label = '⧉ copy', html?: () => string) => {
++    // LOCAL PATCH (kasasree-mods): with copyFeedback 'button' a copy that worked shows on the button itself for a
++    // moment instead of in a toast, which Claude Code labels with the mod's name. A failed copy still toasts.
++    const id = `${notes?.id ?? ''}|${key}`
++    const said = async (message: string) => {
++      if (style.copyFeedback !== 'button' || !message.startsWith('Copied')) return $.ui.toast(message)
++      await update($, copiedButton, () => id)
++      $.clock.after(COPIED_MS, () => void update($, copiedButton, cur => (cur === id ? '' : cur)))
++    }
+     const copied = async (surface: RenderSurface): Promise<string> => {
+       const content = typeof text === 'function' ? text() : text
+       const backend = style.htmlCopy
+@@ -266,8 +277,8 @@ const drawMarkdown = ($: EngineInterface, el: ReturnType<EngineInterface['ui']['
+       <Button
+         key={key}
+         variant="primary"
+-        label={label}
+-        onPress={async press => $.ui.toast(await copied(press.surface).catch(() => 'Copy failed'))}
++        label={copiedId === id ? '✓ copied' : label}
++        onPress={async press => said(await copied(press.surface).catch(() => 'Copy failed'))}
+       />
+     ) : null
+   }
+@@ -357,7 +368,10 @@ export const register: Register = (on, options) => {
+   }
+   const fullWidth = (text: string) => (style.reorder && hasRtl(text) ? { width: '100%' as const } : {})
+ 
+-  const quiet = style.toolOutput === 'quiet'
++  const quiet = style.toolOutput !== 'full'
++  // LOCAL PATCH (kasasree-mods): toolOutput 'rows' is quiet with nothing under a call that worked: the row says
++  // what it did, a failure keeps its last line, an edit keeps its diff, and an expanded group still shows all.
++  const rowsOnly = style.toolOutput === 'rows'
+   const shellCommands = new Map<string, string>()
+   const noteCommand = (id: string | undefined, tool: string, input: unknown) => {
+     const command = tool === 'Bash' && input !== null && typeof input === 'object' ? (input as { command?: unknown }).command : undefined
+@@ -396,7 +410,7 @@ export const register: Register = (on, options) => {
+         await locate($, style)
+         const el = $.ui.resolve(e)
+         const output = withoutBashEdits(e.props.output)
+-        const above = !hasShellOutput(output) ? null : quiet ? renderShellResult(el, fit(e.viewport), output) : await next({ ...e, props: { ...e.props, output } })
++        const above = !hasShellOutput(output) || rowsOnly ? null : quiet ? renderShellResult(el, fit(e.viewport), output) : await next({ ...e, props: { ...e.props, output } })
+         firstEdit ??= e.props.tool_use_id
+         const notes = editNotes(edits, firstEdit === e.props.tool_use_id, shellCommands.get(e.props.tool_use_id))
+         const cards = renderBashEdits(el, fit(e.viewport), edits, folder($, el, await read($, unfolded)), e.props.tool_use_id, above !== null, notes)
+@@ -410,6 +424,7 @@ export const register: Register = (on, options) => {
+       if (shell && (out.backgroundTaskId || out.isImage || out.interrupted)) return next(e)
+       if (e.props.isErrored) return renderFailure(el, fit(e.viewport), e.props.output) ?? next(e)
+       if (readOnlyCalls.has(e.props.tool_use_id)) return <el.Box />
++      if (rowsOnly) return expandedCalls.has(e.props.tool_use_id) ? next(e) : <el.Box />
+       return shell ? renderShellResult(el, fit(e.viewport), e.props.output) : next(e)
+     })
+   }
+@@ -489,9 +504,10 @@ export const register: Register = (on, options) => {
+     const math = await mathOfBlocks($, latex, e.surface, blocks)
+     const pictures = await picturesOf($, style, probes, e.surface, blocks)
+     const open = await read($, unfolded)
++    const copiedId = await read($, copiedButton)
+     const reach = await linkReach($, probes)
+     const surfaceStyle = forSurface(fit(e.viewport), e.surface, reach)
+-    return <Box flexDirection="column" rowGap={1} {...fullWidth(e.props.text)}>{drawMarkdown($, el, surfaceStyle, blocks, columnsOf(e.viewport), math, pictures, undefined, open, { id: e.requestId, press: reach.marks })}</Box>
++    return <Box flexDirection="column" rowGap={1} {...fullWidth(e.props.text)}>{drawMarkdown($, el, surfaceStyle, blocks, columnsOf(e.viewport), math, pictures, undefined, open, { id: e.requestId, press: reach.marks }, copiedId)}</Box>
+   })
+ 
+   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+@@ -515,13 +531,14 @@ export const register: Register = (on, options) => {
+     const reach = await linkReach($, probes)
+     const surfaceStyle = forSurface(fit(e.viewport), e.surface, reach)
+     const open = await read($, unfolded)
++    const copiedId = await read($, copiedButton)
+     return (
+       <Box key="msg" flexDirection="row">
+         <Box width={2} flexShrink={0}>
+           <Text color={style.theme.accent}>{e.props.isFirstOfReply ? '●' : ' '}</Text>
+         </Box>
+         <Box flexDirection="column" rowGap={1} flexGrow={1}>
+-          {drawMarkdown($, el, narration ? { ...surfaceStyle, narration } : surfaceStyle, blocks, columnsOf(e.viewport), math, pictures, blocks.length > 1 || hasRtl(e.props.text) ? e.props.text : undefined, open, { id: e.requestId, press: reach.marks })}
++          {drawMarkdown($, el, narration ? { ...surfaceStyle, narration } : surfaceStyle, blocks, columnsOf(e.viewport), math, pictures, blocks.length > 1 || hasRtl(e.props.text) ? e.props.text : undefined, open, { id: e.requestId, press: reach.marks }, copiedId)}
+         </Box>
+       </Box>
+     )
+diff --git a/plugins/prismantis/hooks/render.tsx b/plugins/prismantis/hooks/render.tsx
+index c641f0d..4a829a7 100644
+--- a/plugins/prismantis/hooks/render.tsx
++++ b/plugins/prismantis/hooks/render.tsx
+@@ -1247,7 +1247,7 @@ const quietToolRow = (el: ElementTable, style: Style, row: ToolRow, columns: num
+ }
+ 
+ export const renderToolRow = (el: ElementTable, style: Style, row: ToolRow, columns = 100): RenderElement => {
+-  if (style.toolOutput === 'quiet') return quietToolRow(el, style, row, columns)
++  if (style.toolOutput !== 'full') return quietToolRow(el, style, row, columns)
+   const { Box, Text } = el
+   const t = style.theme
+   const isShell = row.tool === 'Bash' || row.tool === 'PowerShell'
+@@ -1579,7 +1579,8 @@ const quietToolGroup = (el: ElementTable, style: Style, calls: readonly (ToolRow
+   const label = labels.join(' · ')
+   const reasons = failed.map((c, i) => renderFailure(el, style, c.output, `r${i}`)).filter((r): r is RenderElement => r !== undefined)
+   const isShell = (c: ToolRow) => c.tool === 'Bash' || c.tool === 'PowerShell'
+-  const results = calls.flatMap((c, i) => (c.isErrored || c.output === undefined || !isShell(c) || isReadOnlyCall(c.tool, c.input) ? [] : [<el.Box key={`o${i}`}>{renderShellResult(el, style, c.output)}</el.Box>]))
++  // LOCAL PATCH (kasasree-mods): toolOutput 'rows' draws no output under a group's calls that worked.
++  const results = style.toolOutput === 'rows' ? [] : calls.flatMap((c, i) => (c.isErrored || c.output === undefined || !isShell(c) || isReadOnlyCall(c.tool, c.input) ? [] : [<el.Box key={`o${i}`}>{renderShellResult(el, style, c.output)}</el.Box>]))
+   const row = toolLayout(el, style, columns, label, dot, running, (
+     <el.Text wrap="truncate-end" dimColor={toolDim(style)}>{label}</el.Text>
+   ))
+@@ -1594,7 +1595,7 @@ const quietToolGroup = (el: ElementTable, style: Style, calls: readonly (ToolRow
+ }
+ 
+ export const renderToolGroup = (el: ElementTable, style: Style, calls: readonly (ToolRow & { output?: unknown })[], isActive: boolean, columns = 100): RenderElement => {
+-  if (style.toolOutput === 'quiet') return quietToolGroup(el, style, calls, isActive, columns)
++  if (style.toolOutput !== 'full') return quietToolGroup(el, style, calls, isActive, columns)
+   const { Box, Text } = el
+   const t = style.theme
+   const failed = calls.filter(c => c.isErrored).length
+diff --git a/plugins/prismantis/hooks/theme.ts b/plugins/prismantis/hooks/theme.ts
+index 21c5abc..ffd056f 100644
+--- a/plugins/prismantis/hooks/theme.ts
++++ b/plugins/prismantis/hooks/theme.ts
+@@ -24,7 +24,7 @@ export type Style = {
+   promptStyle: 'bubble' | 'bar' | 'chevron' | 'off'
+   clock: Clock
+   toolStyle: 'chat' | 'tree-dim' | 'tree-bold' | 'classic'
+-  toolOutput: 'full' | 'quiet'
++  toolOutput: 'full' | 'quiet' | 'rows'
+   narration?: boolean
+   inside?: 'quote' | 'alert'
+   noteKey?: string
+@@ -35,6 +35,7 @@ export type Style = {
+   mermaidAscii: boolean
+   copyButtons: boolean
+   copyButtonStyle: 'inline' | 'hover'
++  copyFeedback: 'toast' | 'button'
+   htmlCopy: ClipboardBackend | null
+   nativeCode?: boolean
+   httpLinks: boolean
+@@ -78,7 +79,7 @@ export const resolveStyle = (options: PluginOptions): Style => {
+     promptStyle: pick(options.promptStyle, ['bubble', 'bar', 'chevron', 'off'] as const, 'bubble'),
+     clock: pick(options.clock, ['off', '24h', '12h'] as const, 'off'),
+     toolStyle: pick(options.toolStyle, ['chat', 'tree-dim', 'tree-bold', 'classic'] as const, 'chat'),
+-    toolOutput: pick(options.toolOutput, ['full', 'quiet'] as const, 'full'),
++    toolOutput: pick(options.toolOutput, ['full', 'quiet', 'rows'] as const, 'full'),
+     diffStyle: pick(options.diffStyle, ['card', 'full', 'marks', 'bar'] as const, 'card'),
+     highlightNumbers: options.highlightNumbers !== false,
+     highlightPaths: options.highlightPaths !== false,
+@@ -86,6 +87,7 @@ export const resolveStyle = (options: PluginOptions): Style => {
+     mermaidAscii: options.mermaidAscii === true,
+     copyButtons: options.copyButtons !== false,
+     copyButtonStyle: pick(options.copyButtonStyle, ['inline', 'hover'] as const, 'inline'),
++    copyFeedback: pick(options.copyFeedback, ['toast', 'button'] as const, 'toast'),
+     htmlCopy: null,
+     httpLinks: false,
+     editorLinks: false,
+diff --git a/plugins/prismantis/tests/kasasree.test.tsx b/plugins/prismantis/tests/kasasree.test.tsx
+new file mode 100644
+index 0000000..4d8b4ad
+--- /dev/null
++++ b/plugins/prismantis/tests/kasasree.test.tsx
+@@ -0,0 +1,135 @@
++// LOCAL PATCH (kasasree-mods) tests: toolOutput 'rows' and copyFeedback 'button'.
++import type { On } from 'claude-code'
++import { expect, mock, test } from 'claude-code/testing'
++
++import { clipboardEnv, recordCopies, recordToasts, startSession } from './clipboard-env'
++
++const engine = (on: On) =>
++  on('ui.render', ($, e) => {
++    const { Text } = $.ui.resolve(e)
++    return <Text>engine</Text>
++  })
++
++const call = (tool: string, input: unknown, id: string) => ({ tool_use_id: id, tool, input, isRunning: false, isErrored: false, isInterrupted: false })
++const use = (tool: string, input: unknown, id: string) => ({ plugin: 'prismantis', surface: 'terminal' as const, component: 'ToolUse' as const, props: call(tool, input, id) })
++const result = (tool: string, id: string, output: unknown, isErrored = false) =>
++  ({ plugin: 'prismantis', surface: 'terminal' as const, component: 'ToolResult' as const, props: { tool_use_id: id, tool, output, isErrored } })
++
++test('toolOutput rows: a shell command or a fetch that worked shows its row and nothing under it', { options: { toolOutput: 'rows' } }, async ($, on) => {
++  engine(on)
++  for (const [tool, input, id, output] of [
++    ['Bash', { command: 'make test' }, 'r-1', { stdout: '42 passed\nall good', stderr: '' }],
++    ['PowerShell', { command: 'Get-ChildItem' }, 'r-2', { stdout: 'Mode  Name', stderr: '' }],
++    ['WebFetch', { url: 'https://example.com' }, 'r-3', 'page text'],
++  ] as const) {
++    const row = await $.ui.mount(use(tool, input, id))
++    const out = await $.ui.mount(result(tool, id, output))
++    expect(await out.find({ type: 'Text', text: /^engine$/ })).toBeUndefined()
++    expect(await out.find({ type: 'Text', text: /passed|Mode|page text/ })).toBeUndefined()
++    await out.unmount()
++    await row.unmount()
++  }
++})
++
++test('toolOutput rows: a failure keeps its last line, an edit keeps its diff, background and image results stay with the engine', { options: { toolOutput: 'rows' } }, async ($, on) => {
++  engine(on)
++  const failed = await $.ui.mount(result('Bash', 'f-1', 'Error: Exit code 1\ncat: missing.txt: No such file or directory', true))
++  expect(await failed.find({ type: 'Text', text: /No such file or directory$/ })).toBeDefined()
++  await failed.unmount()
++  const edit = await $.ui.mount(result('Edit', 'f-2', { stdout: 'not a diff' }))
++  expect(await edit.find({ type: 'Text', text: /^engine$/ })).toBeDefined()
++  await edit.unmount()
++  for (const [id, output] of [['f-3', { stdout: '', stderr: '', backgroundTaskId: 'task-7' }], ['f-4', { stdout: 'iVBORw0KGgo', stderr: '', isImage: true }]] as const) {
++    const out = await $.ui.mount(result('Bash', id, output))
++    expect(await out.find({ type: 'Text', text: /^engine$/ })).toBeDefined()
++    await out.unmount()
++  }
++})
++
++test('toolOutput rows: the row is the quiet one-liner, and an expanded group shows its results again', { options: { toolOutput: 'rows', toolStyle: 'classic' } }, async ($, on) => {
++  engine(on)
++  const row = await $.ui.mount(use('Bash', { command: 'make test' }, 'x-1'))
++  expect(await row.find({ type: 'Text', text: /^Ran make test$/ })).toBeDefined()
++  await row.unmount()
++  const group = await $.ui.mount({
++    plugin: 'prismantis',
++    surface: 'terminal',
++    component: 'ToolGroup',
++    props: { calls: [call('Bash', { command: 'make test' }, 'x-2')], isActive: false, isExpanded: true },
++  })
++  await group.unmount()
++  const out = await $.ui.mount(result('Bash', 'x-2', { stdout: '42 passed', stderr: '' }))
++  expect(await out.find({ type: 'Text', text: /^engine$/ })).toBeDefined()
++  await out.unmount()
++})
++
++for (const toolOutput of ['quiet', 'rows'] as const) {
++  test(`toolOutput ${toolOutput}: a collapsed group ${toolOutput === 'rows' ? 'shows no output under' : 'shows the first lines of'} a command that worked, and the last line of one that failed`, { options: { toolOutput, toolStyle: 'classic' } }, async $ => {
++    const worked = { ...call('Bash', { command: 'npm test' }, 'g-1'), output: { stdout: 'tests 19\npass 19\nfail 0', stderr: '' } }
++    const failed = { ...call('Bash', { command: 'node apply.mjs sunset' }, 'g-2'), isErrored: true, output: 'Exit code 1\nno palette "sunset"' }
++    const group = await $.ui.mount({
++      plugin: 'prismantis',
++      surface: 'terminal',
++      component: 'ToolGroup',
++      props: { calls: [worked, failed], isActive: false, isExpanded: false },
++    })
++    expect((await group.find({ type: 'Text', text: /pass 19/ })) !== undefined).toBe(toolOutput === 'quiet')
++    expect(await group.find({ type: 'Text', text: /no palette "sunset"$/ })).toBeDefined()
++    await group.unmount()
++  })
++}
++
++const reply = {
++  plugin: 'prismantis',
++  component: 'AssistantMessage' as const,
++  props: { text: 'Run this:\n\n```sh\nnpm test\n```', isFirstOfReply: true },
++  viewport: { columns: 100, rows: 40 },
++  surface: 'terminal' as const,
++}
++
++const labels = async (ui: { findAll: (q: { type: 'Button' }) => Promise<{ props: { label?: unknown } }[]> }) =>
++  (await ui.findAll({ type: 'Button' })).map(button => String(button.props.label))
++
++test('copyFeedback button: a copy flips that button to ✓ copied for a moment, with no toast', { options: { copyFeedback: 'button' } }, async ($, on) => {
++  const clock = mock.clock(on)
++  clipboardEnv(on, 'other')
++  const copies = recordCopies(on)
++  const toasts = recordToasts(on)
++  await startSession($, on)
++  const ui = await $.ui.mount(reply)
++  const before = await labels(ui)
++  await ui.press({ key: 'copy1' })
++  await clock.settle()
++  expect(copies).toEqual(['npm test'])
++  expect(toasts).toEqual([])
++  const after = await labels(ui)
++  expect(after.filter(label => label === '✓ copied')).toHaveLength(1)
++  expect(after.filter(label => label !== '✓ copied')).toEqual(before.filter(label => label !== '⧉ copy'))
++  await clock.advance(1500)
++  await clock.settle()
++  expect(await labels(ui)).toEqual(before)
++  await ui.unmount()
++})
++
++test('copyFeedback button: a failed copy still toasts its reason', { options: { copyFeedback: 'button' } }, async ($, on) => {
++  clipboardEnv(on, 'other')
++  on('ui.copy', () => ({ value: { isCopied: false as const, reason: 'no-clipboard' as const } }))
++  const toasts = recordToasts(on)
++  await startSession($, on)
++  const ui = await $.ui.mount(reply)
++  await ui.press({ key: 'copy1' })
++  expect(toasts).toEqual(['Copy failed: no-clipboard'])
++  expect((await labels(ui)).includes('✓ copied')).toBe(false)
++  await ui.unmount()
++})
++
++test('copyFeedback left at toast keeps the upstream toast', async ($, on) => {
++  clipboardEnv(on, 'other')
++  recordCopies(on)
++  const toasts = recordToasts(on)
++  await startSession($, on)
++  const ui = await $.ui.mount(reply)
++  await ui.press({ key: 'copy1' })
++  expect(toasts).toEqual(['Copied'])
++  await ui.unmount()
++})
+diff --git a/plugins/prismantis/types/index.d.ts b/plugins/prismantis/types/index.d.ts
+index f13e4c9..8b36d93 100644
+--- a/plugins/prismantis/types/index.d.ts
++++ b/plugins/prismantis/types/index.d.ts
+@@ -17,6 +17,8 @@ declare module 'claude-code' {
+       formulas: Record<string, unknown>
+       dir: string
+       unfolded: string[]
++      /** LOCAL PATCH (kasasree-mods): the copy button that just copied (copyFeedback 'button'), empty for none. */
++      copied: string
+       sent: { text: string; at: number }[]
+       turnEnds: { durationMs: number; at: number }[]
+       drawn: StateFamily<number>

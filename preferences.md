@@ -26,9 +26,20 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 ## v6 (Mindful breathing band, on Claude Code's own look)
 - Nothing to keep. Not liked at all.
 
+## v7 (six right-hand panes as tabs, on v2 Ember; built to order, not a complete swap)
+- Asked for: six tabs (cctop, cockpit, paneline, filetree, flightdeck and v2's Bridge, "the waves one").
+- Not liked: cockpit's band and status line repeating the context reading under and above the prompt (and showing `ctx —`). The v2 status line is the one that is right.
+- Liked: the **black of the right panel** (`#121110`, not pure black). The terminal now uses it too.
+- **prismantis was good**: it draws the chat again (with the tool rows below).
+- Tab verdicts: still to come.
+
 ## Across versions
 - **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.
 - **Spinner words:** not silly, but not stiff and serious just for the sake of it either. Plain words for what is happening.
+- **Tool calls (Bash, Read and the rest):** collapsed by default, one row on the right side, so they are never mixed up with the reply or its output.
+- **Headings** in the orange accent (the `▍` bar).
+- **Copying:** just a plain "copied" confirmation. Never a mod's name (prismantis, skins) in it.
+- **No repeated numbers:** each reading shows once (the v2 status line), not again in another mod's line.
 
 ## How versions are kept
 Before switching away from a version it is saved whole (`node v3-win/tools/snapshot.mjs save <name>`) and can be put back exactly (`restore <name>`). Saved: `v2.2-ember` (v2 as it was), `v3-gruvbox` (v3 on its own).
