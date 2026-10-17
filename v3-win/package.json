@@ -1,0 +1,14 @@
+{
+  "name": "claude-rice-v3-prismantis",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "v3 of the Windows Claude Code rice: prismantis (a popular reply renderer) in the Ember, Amber and Crimson palettes, on top of the v2 rice.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "apply": "node tools/rice.mjs apply",
+    "revert": "node tools/rice.mjs revert",
+    "status": "node tools/rice.mjs status"
+  },
+  "engines": { "node": ">=22" }
+}

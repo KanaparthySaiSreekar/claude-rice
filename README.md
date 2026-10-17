@@ -8,6 +8,8 @@ Deep-dive research into **Claude Code mods** and everything the community does t
 - **Applied:** [`v1-win/`](v1-win/) is the first setup actually built from these reports, on Windows 11 with Windows Terminal. It has the config files, the two local patches to pinned mods, and a note on where the build deliberately departs from the reports, and why. It is also tagged `v1-win`.
 - **Refined:** [`v1.1-win/`](v1.1-win/) is the same setup after a round of fixes: no overlap between the status line and the flightdeck pane, the git branch in the tab title, the PowerShell profile that v1 missed, a tab-title test suite, and the cause of the "Update available" banner. Tagged `v1.1-win`.
 - **Rebuilt:** [`v2-win/`](v2-win/) is a from-scratch visual rice with screenshots: one palette drives Windows Terminal (flat near-black, a glow on bright text, themed chrome), a rebuilt Claude Code theme, the transcript skin with a one-row-per-call rail, a two-row gradient status line, a first-party **Bridge** pane (heartbeat, per-call timeline, permission gate, agents, hot files), PowerShell and Rio. Palettes: `ember` (orange/white/black, default), `amber` (yellow/black), `crimson` (red/black) and the original `aurora`. Every kind of text detail (headings, bold, code, paths, links) has its own warm shade. It has an `apply` that backs up and merges, a `revert`, 50 rice tests plus 39 for the mod, and a findings file. Tagged `v2-win` (the aurora version), `v2.1-win` (Ember and the Bridge) and `v2.2-win` (detail colour, the status line spacer and glyph fix).
+- **Popular mods, customised:** each of these takes one well-known community mod, pins and reviews it, and makes it part of the v2 rice (its palettes, its taste), with local patches, tests, real-UI screenshots and an `apply`/`revert` that touches only the keys it owns.
+  - [`v3-win/`](v3-win/) **Prismantis Ember:** [prismantis](https://github.com/NahumLitvin/prismantis) (the most active reply renderer) draws replies in the ember, amber and crimson palettes: generated presets, a `▍` heading bar, alert colours from the palette, its 630-token per-prompt hint off. Tagged `v3-win`.
 
 ## TL;DR
 
@@ -109,6 +111,7 @@ v1-win/                                           ← checkpoint of the setup ap
                                                   marketplace git history, working folder (see full/README.md)
 v1.1-win/                                         ← v1 plus refinements (config, tests, tools, backups, reasons)
 v2-win/                                           ← Claude Ember: one palette (4 to pick from), generators, the Bridge pane mod, apply/revert, tests, screenshots
+v3-win/                                           ← prismantis in the rice palettes (also holds tools/kit.mjs, the apply/revert kit v3 to v6 share)
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

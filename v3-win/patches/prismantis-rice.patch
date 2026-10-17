@@ -1,0 +1,261 @@
+diff --git a/plugins/prismantis/.claude-plugin/plugin.json b/plugins/prismantis/.claude-plugin/plugin.json
+index 76428f3..0feffe4 100644
+--- a/plugins/prismantis/.claude-plugin/plugin.json
++++ b/plugins/prismantis/.claude-plugin/plugin.json
+@@ -28,7 +28,7 @@
+     "theme": {
+       "type": "string",
+       "title": "Theme",
+-      "description": "Base palette, from popular MIT-licensed themes. Light variants: catppuccin-latte, gruvbox-light, rose-pine-dawn, github-light, solarized-light. mono uses bold and dim only. random picks a dark color preset each time the mod loads (session start or reload).",
++      "description": "Base palette, from popular MIT-licensed themes, plus ember, amber and crimson (local addition: the rice palettes, near-black with one hot accent). Light variants: catppuccin-latte, gruvbox-light, rose-pine-dawn, github-light, solarized-light. mono uses bold and dim only. random picks a dark color preset each time the mod loads (session start or reload).",
+       "default": "catppuccin-mocha",
+       "options": [
+         "catppuccin-mocha",
+@@ -46,6 +46,9 @@
+         "one-dark",
+         "solarized-dark",
+         "solarized-light",
++        "ember",
++        "amber",
++        "crimson",
+         "mono",
+         "random"
+       ]
+@@ -53,13 +56,14 @@
+     "headingStyle": {
+       "type": "string",
+       "title": "Heading style",
+-      "description": "Terminals have one font size, so headings get weight instead: banner (a box around H1, a heavy rule under H2), bold, underline, or uppercase H1.",
++      "description": "Terminals have one font size, so headings get weight instead: banner (a box around H1, a heavy rule under H2), bold, underline, uppercase H1, or bar (a ▍ in the heading color before H1 and H2; local addition).",
+       "default": "banner",
+       "options": [
+         "bold",
+         "underline",
+         "uppercase",
+-        "banner"
++        "banner",
++        "bar"
+       ]
+     },
+     "tableStyle": {
+diff --git a/plugins/prismantis/hooks/presets.ts b/plugins/prismantis/hooks/presets.ts
+index eb513d2..15e86cb 100644
+--- a/plugins/prismantis/hooks/presets.ts
++++ b/plugins/prismantis/hooks/presets.ts
+@@ -106,6 +106,30 @@ export const PRESETS = {
+     rule: '#eee8d5', tableRule: '#93a1a1', bullet: '#6c71c4', diagram: '#268bd2', diagramText: '#586e75',
+     diffAdded: '#859900', diffRemoved: '#dc322f',
+   },
++  ember: {
++    accent: '#ff7a1a', heading: '#ff7a1a', strong: '#ffc53d', emphasis: '#ffe08a', inlineCode: '#ff8f70',
++    codeText: '#f8f4ee', codeCommand: '#e8553c', codeFlag: '#ffa55c', codeString: '#8ed69b', codeComment: '#9e948a',
++    link: '#ffa55c', path: '#ffcba4', number: '#ff7a1a', quote: '#bfb5aa', rule: '#3b352f',
++    tableHeader: '#ff7a1a', tableRule: '#80776d', bullet: '#ff7a1a', diagram: '#ff7a1a', diagramText: '#f8f4ee',
++    diffAdded: '#8ed69b', diffRemoved: '#ff4d4d', alertNote: '#ffcba4', alertTip: '#8ed69b', alertImportant: '#ff7a1a',
++    alertWarning: '#ffc53d', alertCaution: '#ff4d4d',
++  },
++  amber: {
++    accent: '#ffd60a', heading: '#ffd60a', strong: '#ff8a1f', emphasis: '#ffe9a0', inlineCode: '#ffb000',
++    codeText: '#f7f4e6', codeCommand: '#f2542d', codeFlag: '#ffeb66', codeString: '#a5de72', codeComment: '#9d9a85',
++    link: '#ffeb66', path: '#ffc9a0', number: '#ffd60a', quote: '#bebba4', rule: '#3c3b29',
++    tableHeader: '#ffd60a', tableRule: '#7f7c69', bullet: '#ffd60a', diagram: '#ffd60a', diagramText: '#f7f4e6',
++    diffAdded: '#a5de72', diffRemoved: '#ff5a4d', alertNote: '#ffc9a0', alertTip: '#a5de72', alertImportant: '#ffd60a',
++    alertWarning: '#ff9f1c', alertCaution: '#ff5a4d',
++  },
++  crimson: {
++    accent: '#ff4040', heading: '#ff4040', strong: '#ffb347', emphasis: '#ffdda8', inlineCode: '#ff9aa2',
++    codeText: '#f6eeee', codeCommand: '#ff5c8a', codeFlag: '#ff7b73', codeString: '#86d99c', codeComment: '#9e8f8f',
++    link: '#ff7b73', path: '#ffc4c0', number: '#ff4040', quote: '#bfb0b0', rule: '#3d3232',
++    tableHeader: '#ff4040', tableRule: '#807272', bullet: '#ff4040', diagram: '#ff4040', diagramText: '#f6eeee',
++    diffAdded: '#86d99c', diffRemoved: '#ff5c5c', alertNote: '#ffc4c0', alertTip: '#86d99c', alertImportant: '#ff4040',
++    alertWarning: '#ffb347', alertCaution: '#ff5c5c',
++  },
+   mono: {} as Theme,
+ } satisfies Record<string, Theme>
+ 
+diff --git a/plugins/prismantis/hooks/render.tsx b/plugins/prismantis/hooks/render.tsx
+index f1ebe6c..c641f0d 100644
+--- a/plugins/prismantis/hooks/render.tsx
++++ b/plugins/prismantis/hooks/render.tsx
+@@ -591,6 +591,10 @@ const drawHeading = (el: ElementTable, style: Style, block: Extract<Block, { kin
+       return block.level === 2
+         ? <Box key={key} flexDirection="column" alignSelf="flex-start"><Text bold color={color}>{renderInline(el, style, inline, key)}</Text><Text color={color}>{'━'.repeat(width(label))}</Text></Box>
+         : <Text key={key} bold color={block.level === 3 ? color : t.strong}>{renderInline(el, style, inline, key)}</Text>
++    case 'bar':
++      return block.level <= 2
++        ? <Box key={key} flexDirection="row" alignSelf="flex-start"><Text color={color}>{'▍ '}</Text><Text bold underline={block.level === 1} color={color}>{renderInline(el, style, inline, key)}</Text></Box>
++        : <Text key={key} bold color={block.level === 3 ? color : t.strong}>{renderInline(el, style, inline, key)}</Text>
+     default:
+       return <Text key={key} bold color={color}>{renderInline(el, style, inline, key)}</Text>
+   }
+@@ -645,7 +649,7 @@ const renderQuote = (el: ElementTable, style: Style, block: Extract<Block, { kin
+ 
+ const renderAlert = (el: ElementTable, style: Style, block: Extract<Block, { kind: 'alert' }>, columns: number, key: string, copy?: CopyButton, fold?: Fold, tip?: Tip) => {
+   const { Box, Text } = el
+-  const color = ALERT_COLOR[block.level]
++  const color = style.theme[`alert${block.level[0]!.toUpperCase()}${block.level.slice(1)}` as keyof Theme] ?? ALERT_COLOR[block.level]
+   const inner = columns - 4
+   const rtl = flowOf(style, leadInline(block.blocks), inner)?.base === 'R'
+   return (
+diff --git a/plugins/prismantis/hooks/theme.ts b/plugins/prismantis/hooks/theme.ts
+index d6f12af..21c5abc 100644
+--- a/plugins/prismantis/hooks/theme.ts
++++ b/plugins/prismantis/hooks/theme.ts
+@@ -10,13 +10,15 @@ export const TOKENS = [
+   'link', 'path', 'number', 'quote', 'rule', 'tableHeader', 'tableRule', 'bullet', 'diagram', 'diagramText', 'diffAdded', 'diffRemoved',
+ ] as const
+ 
+-export type Theme = Partial<Record<(typeof TOKENS)[number], string>>
++export const ALERT_TOKENS = ['alertNote', 'alertTip', 'alertImportant', 'alertWarning', 'alertCaution'] as const
++
++export type Theme = Partial<Record<(typeof TOKENS)[number] | (typeof ALERT_TOKENS)[number], string>>
+ 
+ export type Clock = 'off' | '24h' | '12h'
+ 
+ export type Style = {
+   theme: Theme
+-  headingStyle: 'bold' | 'underline' | 'uppercase' | 'banner'
++  headingStyle: 'bold' | 'underline' | 'uppercase' | 'banner' | 'bar'
+   tableStyle: 'box' | 'rules' | 'grid' | 'minimal'
+   taskStyle: 'checks' | 'ticks' | 'box' | 'progress'
+   promptStyle: 'bubble' | 'bar' | 'chevron' | 'off'
+@@ -70,7 +72,7 @@ export const resolveStyle = (options: PluginOptions): Style => {
+ 
+   return {
+     theme: { ...base, ...fromFields },
+-    headingStyle: pick(options.headingStyle, ['bold', 'underline', 'uppercase', 'banner'] as const, 'banner'),
++    headingStyle: pick(options.headingStyle, ['bold', 'underline', 'uppercase', 'banner', 'bar'] as const, 'banner'),
+     tableStyle: pick(options.tableStyle, ['box', 'rules', 'grid', 'minimal'] as const, 'box'),
+     taskStyle: pick(options.taskStyle, ['checks', 'ticks', 'box', 'progress'] as const, 'checks'),
+     promptStyle: pick(options.promptStyle, ['bubble', 'bar', 'chevron', 'off'] as const, 'bubble'),
+diff --git a/plugins/prismantis/tests/contrast.test.tsx b/plugins/prismantis/tests/contrast.test.tsx
+index bf184de..c1abbc7 100644
+--- a/plugins/prismantis/tests/contrast.test.tsx
++++ b/plugins/prismantis/tests/contrast.test.tsx
+@@ -20,6 +20,9 @@ const BACKGROUNDS: Record<string, string> = {
+   'one-dark': '#282c34',
+   'solarized-dark': '#002b36',
+   'solarized-light': '#fdf6e3',
++  ember: '#0a0908',
++  amber: '#0a0a07',
++  crimson: '#0a0808',
+ }
+ 
+ const FLOOR: Record<string, number> = { rule: 1.05, tableRule: 1.05, diagram: 3, codeComment: 3 }
+diff --git a/plugins/prismantis/tests/render.test.tsx b/plugins/prismantis/tests/render.test.tsx
+index 4025d48..89aea1b 100644
+--- a/plugins/prismantis/tests/render.test.tsx
++++ b/plugins/prismantis/tests/render.test.tsx
+@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
+ 
+ import { parse } from '../hooks/markdown'
+ import { PRESETS } from '../hooks/presets'
+-import { resolveStyle } from '../hooks/theme'
++import { ALERT_TOKENS, resolveStyle } from '../hooks/theme'
+ 
+ const TABLE = [
+   '| Service | Regions | Version |',
+@@ -109,11 +109,11 @@ test('mermaid off keeps the source', { options: { mermaid: false } }, async $ =>
+   await ui.unmount()
+ })
+ 
+-test('every preset defines every token with a valid color', async () => {
++test('every preset defines every token with a valid color (LOCAL PATCH: the optional alert colors are the only extra keys allowed)', async () => {
+   const tokens = Object.keys(PRESETS['catppuccin-mocha'])
+   for (const [name, theme] of Object.entries(PRESETS)) {
+     if (name === 'mono') continue
+-    expect(Object.keys(theme).sort()).toEqual([...tokens].sort())
++    expect(Object.keys(theme).filter(k => !(ALERT_TOKENS as readonly string[]).includes(k)).sort()).toEqual([...tokens].sort())
+     for (const value of Object.values(theme)) expect(/^#[0-9a-f]{6}$/.test(value as string)).toBe(true)
+   }
+ })
+diff --git a/plugins/prismantis/tests/rice.test.tsx b/plugins/prismantis/tests/rice.test.tsx
+new file mode 100644
+index 0000000..0139762
+--- /dev/null
++++ b/plugins/prismantis/tests/rice.test.tsx
+@@ -0,0 +1,84 @@
++import { expect, test } from 'claude-code/testing'
++
++import { PRESETS } from '../hooks/presets'
++import { contrast } from '../hooks/render'
++import type { Theme } from '../hooks/theme'
++import { TOKENS, pickTheme, resolveStyle } from '../hooks/theme'
++
++const RICE: Record<string, { bg: string; accent: string }> = {
++  ember: { bg: '#0a0908', accent: '#ff7a1a' },
++  amber: { bg: '#0a0a07', accent: '#ffd60a' },
++  crimson: { bg: '#0a0808', accent: '#ff4040' },
++}
++
++const mount = (text: string) => ({
++  plugin: 'prismantis',
++  component: 'AssistantMessage' as const,
++  props: { text, isFirstOfReply: true },
++  viewport: { columns: 100, rows: 40 },
++  surface: 'terminal' as const,
++})
++
++const hue = (hex: string) => {
++  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number]
++  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min
++  if (d < 0.08) return null
++  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
++  return (h * 60 + 360) % 360
++}
++
++for (const [name, { accent }] of Object.entries(RICE)) {
++  test(`the ${name} preset is a theme you can pick, with every slot filled and the accent on headings and table headers`, async () => {
++    const theme = (PRESETS as Record<string, Theme>)[name]!
++    expect(TOKENS.filter(k => !theme[k])).toEqual([])
++    expect(pickTheme(name)).toBe(name)
++    const style = resolveStyle({ theme: name })
++    expect(style.theme.heading).toBe(accent)
++    expect(style.theme.tableHeader).toBe(accent)
++  })
++
++  test(`the ${name} preset has no blue, purple or cyan in it (green only for added diff lines)`, async () => {
++    const theme = (PRESETS as Record<string, Theme>)[name]!
++    const cool = Object.entries(theme).filter(([k, v]) => k !== 'diffAdded' && hue(v!) !== null && hue(v!)! > 150 && hue(v!)! < 300)
++    expect(cool).toEqual([])
++  })
++
++  test(`the ${name} preset keeps detail colors apart: bold, inline code, paths, links and numbers are five different shades`, async () => {
++    const t = (PRESETS as Record<string, Theme>)[name]!
++    expect(new Set([t.strong, t.inlineCode, t.path, t.link, t.number]).size).toBe(5)
++    expect(contrast(t.codeText!, RICE[name]!.bg) >= 10).toBe(true)
++  })
++}
++
++test('bar headings put a ▍ in the heading color before H1 and H2, underline only H1, and leave H3 as bold accent text', { options: { theme: 'ember', headingStyle: 'bar', copyButtons: false } }, async $ => {
++  const t = PRESETS.ember
++  const ui = await $.ui.mount(mount('# Top\n\n## Section\n\n### Detail'))
++  const bars = await ui.findAll({ type: 'Text', text: /^▍ $/ })
++  expect(bars.length).toBe(2)
++  expect(bars.every(b => b.props.color === t.heading)).toBe(true)
++  const top = await ui.find({ type: 'Text', text: /^Top$/ })
++  const section = await ui.find({ type: 'Text', text: /^Section$/ })
++  const detail = await ui.find({ type: 'Text', text: /^Detail$/ })
++  expect([top?.props.bold, top?.props.underline, top?.props.color]).toEqual([true, true, t.heading])
++  expect([section?.props.bold, section?.props.underline, section?.props.color]).toEqual([true, false, t.heading])
++  expect([detail?.props.bold, detail?.props.color]).toEqual([true, t.accent])
++  await ui.unmount()
++})
++
++test('alerts take the rice preset alert colors, and keep the named GitHub colors in upstream presets', { options: { theme: 'ember', copyButtons: false } }, async $ => {
++  const ui = await $.ui.mount(mount('> [!NOTE]\n> one\n\n> [!WARNING]\n> two'))
++  expect((await ui.find({ type: 'Text', text: /^Note$/ }))?.props.color).toBe(PRESETS.ember.alertNote)
++  expect((await ui.find({ type: 'Text', text: /^Warning$/ }))?.props.color).toBe(PRESETS.ember.alertWarning)
++  await ui.unmount()
++})
++
++test('an upstream preset still draws a note in named blue', { options: { theme: 'nord', copyButtons: false } }, async $ => {
++  const ui = await $.ui.mount(mount('> [!NOTE]\n> one'))
++  expect((await ui.find({ type: 'Text', text: /^Note$/ }))?.props.color).toBe('blue')
++  await ui.unmount()
++})
++
++test('an unknown heading style still falls back to banner', async () => {
++  expect(resolveStyle({ headingStyle: 'nope' }).headingStyle).toBe('banner')
++  expect(resolveStyle({ headingStyle: 'bar' }).headingStyle).toBe('bar')
++})

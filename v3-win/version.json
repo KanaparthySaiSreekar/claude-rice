@@ -1,0 +1,17 @@
+{
+  "tag": "v3",
+  "label": "Prismantis Ember: replies drawn by prismantis in the rice palette",
+  "plugins": {
+    "prismantis@kasasree-mods": true,
+    "skins@kasasree-mods": false
+  },
+  "options": {
+    "prismantis@kasasree-mods": {
+      "theme": "{palette}",
+      "headingStyle": "bar",
+      "promptStyle": "bar",
+      "copyButtonStyle": "hover",
+      "diagramHints": false
+    }
+  }
+}

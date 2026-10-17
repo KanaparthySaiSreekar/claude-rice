@@ -1,3 +1,7 @@
 # Keep patch files byte-exact: git must not apply autocrlf to them.
 v1-win/patches/*.patch -text
 v2-win/patches/*.patch -text
+v3-win/patches/*.patch -text
+v4-win/patches/*.patch -text
+v5-win/patches/*.patch -text
+v6-win/patches/*.patch -text
