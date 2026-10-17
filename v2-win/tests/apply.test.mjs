@@ -190,3 +190,16 @@ test("applying a palette with no art takes a previous palette's background pictu
   assert.ok(!fs.existsSync(path.join(emberBuild, "art")), "no art folder is built for a plain palette")
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test("applying a palette without the glow takes an earlier apply's glow shader away", () => {
+  const { dir, L } = sandbox()
+  const ember = getPalette(path.join(ROOT, "palette", "palettes.json"), "ember")
+  const wt = json(L.wtSettings); wt.profiles.defaults["experimental.pixelShaderPath"] = "C:\\old\\.rice\\current\\shaders\\glow.hlsl"
+  fs.writeFileSync(L.wtSettings, JSON.stringify(wt))
+  const emberBuild = path.join(L.rice, "builds", "ember"); writeBuild(ember, emberBuild, { assetsDir: emberBuild, pwshPath: "C:\\pwsh.exe", repoRoot: ROOT })
+  apply(ember, L, { buildDir: emberBuild })
+  const d = json(L.wtSettings).profiles.defaults
+  assert.ok(!("experimental.pixelShaderPath" in d), JSON.stringify(d))
+  assert.equal(d.colorScheme, "Claude Ember")
+  fs.rmSync(dir, { recursive: true, force: true })
+})

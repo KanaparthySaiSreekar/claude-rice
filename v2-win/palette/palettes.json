@@ -63,6 +63,7 @@
         "#FF5FA2",
         "#FF8F66"
       ],
+      "glow": true,
       "art": {
         "seed": 7,
         "intensity": 1,

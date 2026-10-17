@@ -70,6 +70,8 @@ export function mergeWtSettings(s, p, assets) {
   const defaults = { ...(out.profiles?.defaults ?? {}), ...wtProfileDefaults(p, assets) }
   // switching from a palette that had art to one that has none must take the picture away again
   if (!p.art) for (const k of ["backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]) delete defaults[k]
+  // and a palette without the glow takes an earlier apply's shader away
+  if (p.glow !== true) delete defaults["experimental.pixelShaderPath"]
   out.profiles = { ...out.profiles, defaults }
   out.profiles.list = (out.profiles.list ?? []).filter((x) => x.guid !== PREVIEW_GUID)
   return out

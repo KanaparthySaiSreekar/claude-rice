@@ -54,7 +54,8 @@ export function wtProfileDefaults(p, assets, opts = {}) {
     backgroundImageStretchMode: "uniformToFill",
     backgroundImageAlignment: "center",
   })
-  if (opts.shader !== false) d["experimental.pixelShaderPath"] = win("shaders\\glow.hlsl")
+  // the glow is opt-in (a palette with "glow": true, or shader: true): it softened the text, which was not liked (2026-10-17)
+  if (opts.shader === true || (opts.shader !== false && p.glow === true)) d["experimental.pixelShaderPath"] = win("shaders\\glow.hlsl")
   return d
 }
 

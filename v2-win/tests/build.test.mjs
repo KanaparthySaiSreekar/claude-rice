@@ -132,7 +132,9 @@ test("a palette without art produces no background-image settings, one with art 
   const q = getPalette(PAL, "ember")
   const d = wtProfileDefaults(q, "C:\\x\\assets")
   for (const k of ["backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]) assert.ok(!(k in d), k)
-  assert.equal(d["experimental.pixelShaderPath"], "C:\\x\\assets\\shaders\\glow.hlsl")
+  // the glow is opt-in since 2026-10-17 (it softened the text): only aurora asks for it
+  assert.equal("experimental.pixelShaderPath" in d, false)
+  assert.equal(wtProfileDefaults(q, "C:\\x\\assets", { shader: true })["experimental.pixelShaderPath"], "C:\\x\\assets\\shaders\\glow.hlsl")
   assert.ok("backgroundImage" in wtProfileDefaults(p, "C:\\x\\assets"), "aurora keeps its art")
 })
 
