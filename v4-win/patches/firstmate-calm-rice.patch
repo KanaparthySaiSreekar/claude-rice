@@ -1,0 +1,1626 @@
+diff --git a/plugins/firstmate-calm/.claude-plugin/plugin.json b/plugins/firstmate-calm/.claude-plugin/plugin.json
+index d9d81a6..1ea4e8b 100644
+--- a/plugins/firstmate-calm/.claude-plugin/plugin.json
++++ b/plugins/firstmate-calm/.claude-plugin/plugin.json
+@@ -1,9 +1,32 @@
+ {
+-  "name": "fm",
+-  "version": "1.0.0",
+-  "description": "Firstmate Calm for Claude Code: the sailboat working animation and conversation-only transcript presentation, sharing the per-home config/calm preference with the Pi Calm extension. Its hooks module may load through CLAUDE_CODE_ENABLE_FUNCTION_HOOKS or Claude Code's tengu_plugin_hooks_modules rollout flag, but the mod activates only when CLAUDE_CODE_ENABLE_FUNCTION_HOOKS is exactly 1 and is otherwise a complete no-op.",
++  "name": "firstmate-calm",
++  "version": "1.0.0-rice.1",
++  "description": "Firstmate Calm, rice edition: a sailboat crossing a swell replaces the working spinner, and tool rows and short narration are hidden so the transcript reads as the conversation. /calm toggles. Forked from kunchenguid/firstmate (plugin fm, MIT) to run outside a Firstmate checkout, in the rice palette, with no file or environment access.",
+   "author": {
+-    "name": "Firstmate",
++    "name": "Firstmate (Kun Chen); rice fork by Kasasree",
+     "url": "https://github.com/kunchenguid/firstmate"
++  },
++  "homepage": "https://github.com/kunchenguid/firstmate",
++  "license": "MIT",
++  "userConfig": {
++    "start": {
++      "type": "string",
++      "title": "Start with Calm",
++      "description": "on: Calm is on until /calm turns it off. off: it starts off. After the first /calm, your last choice is kept.",
++      "default": "on",
++      "options": ["on", "off"]
++    },
++    "palette": {
++      "type": "string",
++      "title": "Palette",
++      "description": "A JSON object of #RRGGBB colours: boat (hull and mast), sail, water and label (the spinner word). Empty uses Ember: orange, cream, dim ember, muted.",
++      "default": ""
++    },
++    "showVerb": {
++      "type": "boolean",
++      "title": "Show the spinner word",
++      "description": "Keep the spinner's word (your spinnerVerbs) to the right of the boat.",
++      "default": true
++    }
+   }
+ }
+diff --git a/plugins/firstmate-calm/hooks/register.ts b/plugins/firstmate-calm/hooks/register.ts
+index 907ba18..ad36853 100644
+--- a/plugins/firstmate-calm/hooks/register.ts
++++ b/plugins/firstmate-calm/hooks/register.ts
+@@ -1,173 +1,60 @@
+-// Firstmate Calm for Claude Code: the hooks module of the Calm mod, whose plugin name is `fm`.
++// Firstmate Calm, rice edition: the hooks module of the `firstmate-calm` plugin.
+ //
+-// A Claude Code "mod" is a plugin whose behavior lives in one hooks module. Claude Code
+-// may load this module through its rollout flag or `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS`,
+-// but every handler requires that environment variable to equal `1`, so rollout-only
+-// loading remains a complete no-op.
+-// The plugin carries no command, skill, agent, or classic hook of its own; the `/calm`
+-// command below exists only once this module has registered it. docs/calm.md owns the
+-// captain-facing contract and docs/calm-mode-feasibility.md the version-scoped evidence.
++// Forked from kunchenguid/firstmate's `.claude/mods/firstmate-calm` (plugin `fm`, MIT, pinned at d20196a).
++// What Calm does is upstream's: while it is on, the stock working row (`Spinner`) becomes a two-row sailboat
++// crossing a swell, repainted in place through `$.ui.blit` on the sprite's own tick; tool rows (`ToolUse`,
++// `ToolResult`, `ToolGroup`) and short mid-turn narration draw as zero-height boxes, so the transcript reads as
++// the conversation only. Nothing rewrites a message: only drawings change.
+ //
+-// This file is the only place the engine interface `$` is touched: the geometry lives
+-// in ../lib/fm-calm-working-ship-sprite.ts (shared with the Pi extension), the Raster
+-// packing in ../lib/fm-calm-ship-raster.ts, and every visibility decision in
+-// ../lib/fm-calm-presentation.ts, so the policy is testable under Node and the engine
+-// glue under `claude plugin test`. Nothing here rewrites a message: `ui.render` changes
+-// drawings and leaves the stored transcript, model context, and session storage alone.
+-//
+-// Presentation while Calm is on, sharing Pi Calm's goals where the mods API allows:
+-// the stock working row (`Spinner`) becomes the two-row sailboat, repainted through
+-// `$.ui.blit` on the sprite's own tick; `ToolUse`, `ToolResult`, and `ToolGroup` rows
+-// draw as zero-height boxes; a `UserMessage` whose text the canonical operational-input
+-// classifier recognizes, or a record-backed doorbell whose record holds a current
+-// envelope (read through `$.fs.read`, cached until Calm next invalidates its drawings),
+-// draws as zero height; an `AssistantMessage` block recorded as a mid-turn working note
+-// draws as zero height. Calm off returns every drawing to the
+-// engine. A toggle invalidates every hooked drawing, so rows already on screen redraw.
+-// The boat is painted in Claude Code's own theme colors: the family is read from the
+-// `theme` setting at load and re-read when a `config.set` changes it.
+-//
+-// Supervision notes, whether Calm is on or off, as Pi shows them regardless of Calm: a
+-// slow timer follows the outcome store's display tail copy and the supervision host's
+-// latch, and `$.ui.log` appends one dim line per new outcome or latch change, never
+-// sent to the model. The first tail copy a session sees, at `session.start` or later,
+-// replays the outcomes unread or unprocessed at `session.start` that this session has
+-// not already shown. The mod only reads the Firstmate home: the drain remains the one
+-// presenter that marks outcomes read.
+-// ../lib/fm-branch-notes.ts owns every line and which rows are due.
+-//
+-// Loading is lazy and cached within a session: a resumed transcript or a hot reload can
+-// draw restored rows before `session.start`, so every hook awaits that session's load of
+-// the per-home preference and restored working notes rather than trusting a stale "off".
+-// Each `session.start` clears presentation classifications and reloads the new session.
++// What this fork changes, so it works outside a Firstmate checkout and inside the rice:
++// - It is active whenever the plugin is enabled. Upstream does nothing unless CLAUDE_CODE_ENABLE_FUNCTION_HOOKS
++//   is exactly "1", the pre-launch opt-in that a mod-enabled Claude Code (2.1.287+) no longer sets.
++// - The on/off choice lives in the mod's own `$.store`, starting from the `start` option. Upstream keeps it in a
++//   `config/calm` file three folders above the plugin, which from a marketplace copy is an unrelated folder.
++// - No Firstmate fleet features: no supervision-note polling of a Firstmate state folder every 3 s and no
++//   reading of files named by "doorbell" prompts. So no `$.fs` and no `$.env` at all.
++// - Colours come from the `palette` option (JSON written by the rice's apply): orange hull and mast, cream sails,
++//   a dim ember sea. Upstream paints Claude's spinner blue water and Claude orange boat by theme family.
++// - The spinner's own word (your `spinnerVerbs`) stays visible to the right of the boat (`showVerb`).
++// - Sail glyphs the terminal font has (see ../lib/fm-calm-working-ship-sprite.ts).
+ import type { EngineInterface, Register, RenderElement, RenderInput } from "claude-code";
+-import {
+-  CALM_WORKING_SHIP_TICK_MS,
+-  createCalmWorkingShipSprite,
+-} from "../lib/fm-calm-working-ship-sprite.ts";
++import { CALM_WORKING_SHIP_TICK_MS, createCalmWorkingShipSprite } from "../lib/fm-calm-working-ship-sprite.ts";
+ import {
+   CALM_SHIP_RASTER_KEY,
+-  CALM_SHIP_RASTER_PALETTES,
+-  calmShipPaletteFamily,
+   calmShipRasterColumns,
++  hexOf,
+   packCalmShipRasterCells,
+-  type CalmShipRasterPalette,
++  parseCalmShipPalette,
+ } from "../lib/fm-calm-ship-raster.ts";
+ import {
+-  calmPreferencePath,
+-  parseCalmPreference,
+   classifyRestoredTranscript,
+-  recordIsOperational,
+-  serializeCalmPreference,
+   stepTextIsWorkingNote,
+   userTextIsOperational,
+-  userTextOperationalRecord,
+   workingNoteKey,
+ } from "../lib/fm-calm-presentation.ts";
+-import {
+-  firstmateStateDirectory,
+-  hostHealthNote,
+-  newOutcomeNotes,
+-  parseHostHealth,
+-  parseOutcomeMarker,
+-  parseOutcomeTail,
+-  recordSessionShownThrough,
+-  replayOutcomeNotes,
+-  sessionShownThrough,
+-  type HostHealth,
+-} from "../lib/fm-branch-notes.ts";
+ 
+-/** The slash command the mod serves, the same name as Pi's `/calm`. */
+ const CALM_COMMAND = "calm";
++/** The `$.store` key holding "on" or "off" once `/calm` has been used. */
++export const CALM_PREFERENCE_KEY = "calm";
++/** Columns kept to the right of the boat for the spinner word, so the boat's width does not change with the word. */
++export const CALM_LABEL_COLUMNS = 24;
+ 
+-// One module environment holds one Calm state; a hot reload starts a fresh one, the
+-// same as a new Pi extension lifetime.
+ let calm = false;
+-let preferencePath: string | undefined;
+-let activation: Promise<boolean> | undefined;
+ let loading: Promise<void> | undefined;
+ let ticker: { cancel(): void } | undefined;
+ const workingNotes = new Set<string>();
+ const finalReplies = new Set<string>();
+-// Each doorbell's record verdict, by record path. Records are immutable once published
+-// but pruned after seven days, so every invalidation drops the cache and rechecks.
+-const doorbellVerdicts = new Map<string, Promise<boolean>>();
+ const sprite = createCalmWorkingShipSprite();
+-let palette: CalmShipRasterPalette = CALM_SHIP_RASTER_PALETTES.light;
+-// Every Spinner site currently drawing the boat, by its requestId, with the mounted
+-// Raster size a blit must repeat exactly.
++// Every Spinner site drawing the boat, by requestId, with the mounted Raster size a blit must repeat exactly.
+ const sites = new Map<string, { columns: number; rows: number }>();
+-/** How often the supervision notes check the store's tail copy and the host's latch. */
+-const BRANCH_NOTES_POLL_MS = 3000;
+-/**
+- * A file changed this recently may be replaced again within its timestamp's resolution
+- * at the same size, so its size and time do not yet prove a later read unchanged.
+- */
+-const SETTLED_MS = 5000;
+-/**
+- * The mod's store key for the sequence each session has followed the store through:
+- * Claude Code 2.1.283 keeps `$.ui.log` lines in the session and restores them on
+- * `--continue`, so a resumed session replays only what it has not already shown.
+- */
+-const BRANCH_NOTES_SHOWN_KEY = "supervision-notes-shown-through";
+-// What the notes have shown in this session; each `session.start` replaces it.
+-type NotesState = {
+-  state: string;
+-  tailStamp: string | undefined;
+-  healthStamp: string | undefined;
+-  lastSeen: number | undefined;
+-  cursor: number;
+-  processed: number;
+-  shown: number;
+-  health: HostHealth | undefined;
+-  sessionId: string | undefined;
+-  remembered: number | undefined;
+-};
+-let notes: NotesState | undefined;
+-let notesTimer: { cancel(): void } | undefined;
+-let notesPolling = false;
+-
+-function isActivated($: EngineInterface): Promise<boolean> {
+-  if (activation === undefined) {
+-    activation = $.env.get("CLAUDE_CODE_ENABLE_FUNCTION_HOOKS").then(
+-      (value) => value === "1",
+-      () => false,
+-    );
+-  }
+-  return activation;
+-}
+-
+-// A missing file is checked first because every rejected read or stat is an error in
+-// Claude Code's debug log, and the supervision notes look for absent files every tick.
+-async function readText($: EngineInterface, path: string): Promise<string | undefined> {
+-  try {
+-    if (!(await $.fs.exists(path))) return undefined;
+-    return await $.fs.read(path);
+-  } catch {
+-    return undefined;
+-  }
+-}
+-
+-/** The `theme` setting's current value, or undefined when the menu cannot be read. */
+-async function readTheme($: EngineInterface): Promise<unknown> {
+-  try {
+-    return (await $.config.list()).find((row) => row.key === "theme")?.value;
+-  } catch {
+-    return undefined;
+-  }
+-}
++// Set from the plugin options when the module registers.
++let palette = parseCalmShipPalette(undefined);
++let startOn = true;
++let showVerb = true;
+ 
+ async function load($: EngineInterface): Promise<void> {
+-  preferencePath = calmPreferencePath(
+-    {
+-      FM_HOME: await $.env.get("FM_HOME"),
+-      FM_ROOT_OVERRIDE: await $.env.get("FM_ROOT_OVERRIDE"),
+-      FM_CONFIG_OVERRIDE: await $.env.get("FM_CONFIG_OVERRIDE"),
+-    },
+-    $.plugin.root,
+-  );
+-  calm = parseCalmPreference(await readText($, preferencePath));
+-  palette = CALM_SHIP_RASTER_PALETTES[calmShipPaletteFamily(await readTheme($))];
++  const stored = await $.store.get(CALM_PREFERENCE_KEY).catch(() => undefined);
++  calm = stored === "on" ? true : stored === "off" ? false : startOn;
+   try {
+     const restored = classifyRestoredTranscript(await $.session.messages());
+     for (const note of restored.workingNotes) workingNotes.add(note);
+@@ -175,255 +62,62 @@ async function load($: EngineInterface): Promise<void> {
+   } catch {
+     // A transcript that cannot be read leaves restored narration visible; nothing else changes.
+   }
+-  if (ticker === undefined) {
+-    ticker = $.clock.every(CALM_WORKING_SHIP_TICK_MS, () => {
+-      void repaintShip($);
+-    });
+-  }
+-  invalidateDrawings($);
++  ticker ??= $.clock.every(CALM_WORKING_SHIP_TICK_MS, () => void repaintShip($));
++  $.ui.invalidate("ui.render");
+ }
+ 
++// A resumed transcript or a hot reload can draw rows before session.start, so every hook waits for this.
+ function ensureLoaded($: EngineInterface): Promise<void> {
+-  if (loading === undefined) loading = load($);
++  loading ??= load($);
+   return loading;
+ }
+ 
+-async function resetSession($: EngineInterface): Promise<void> {
+-  if (loading !== undefined) await loading.catch(() => undefined);
+-  calm = false;
+-  preferencePath = undefined;
+-  loading = undefined;
+-  workingNotes.clear();
+-  finalReplies.clear();
+-  doorbellVerdicts.clear();
+-  sites.clear();
+-  sprite.reset();
+-  palette = CALM_SHIP_RASTER_PALETTES.light;
+-  await ensureLoaded($);
+-}
+-
+-/** Redraw every hooked drawing, rechecking each doorbell's record on its next drawing. */
+-function invalidateDrawings($: EngineInterface): void {
+-  doorbellVerdicts.clear();
+-  $.ui.invalidate("ui.render");
+-}
+-
+-/** One scheduler tick: advance the sprite, then repaint every mounted boat in place. */
+ async function repaintShip($: EngineInterface): Promise<void> {
+   if (!calm || sites.size === 0) return;
+   sprite.tick();
+   for (const [requestId, site] of sites) {
+     const packed = packCalmShipRasterCells(sprite.frame(site.columns), site.columns, palette);
+-    const result = await $.ui.blit({
+-      requestId,
+-      key: CALM_SHIP_RASTER_KEY,
+-      cells: packed.cells,
+-      columns: site.columns,
+-      rows: site.rows,
+-    });
+-    // A denied blit means the site no longer shows this plugin's Raster (the turn
+-    // settled, or a resize redrew it); forget it until the next Spinner drawing.
++    const result = await $.ui.blit({ requestId, key: CALM_SHIP_RASTER_KEY, cells: packed.cells, columns: site.columns, rows: site.rows });
++    // A denied blit means the site no longer shows this Raster (the turn settled, or a resize redrew it).
+     if (result.deny !== undefined && sites.get(requestId) === site) sites.delete(requestId);
+   }
+ }
+ 
+-/** Whether a user row is a record-backed doorbell whose record holds a current envelope. */
+-function doorbellIsOperational($: EngineInterface, text: string): Promise<boolean> {
+-  const record = userTextOperationalRecord(text);
+-  if (record === undefined) return Promise.resolve(false);
+-  let verdict = doorbellVerdicts.get(record);
+-  if (verdict === undefined) {
+-    verdict = readText($, record).then(recordIsOperational);
+-    doorbellVerdicts.set(record, verdict);
+-  }
+-  return verdict;
+-}
+-
+-/**
+- * A file's text with the size and time it was read at, or undefined when it is missing or
+- * unchanged. A file too recently changed has no stamp, so the next check reads it again.
+- */
+-async function readIfChanged(
+-  $: EngineInterface,
+-  path: string,
+-  stamp: string | undefined,
+-): Promise<{ stamp: string | undefined; text: string } | undefined> {
+-  let current: string;
+-  let settled: boolean;
+-  try {
+-    if (!(await $.fs.exists(path))) return undefined;
+-    const stat = await $.fs.stat(path);
+-    current = `${stat.size}:${stat.mtimeMs}`;
+-    settled = (await $.clock.now()) - stat.mtimeMs >= SETTLED_MS;
+-  } catch {
+-    return undefined;
+-  }
+-  if (current === stamp) return undefined;
+-  const text = await readText($, path);
+-  return text === undefined ? undefined : { stamp: settled ? current : undefined, text };
+-}
+-
+-/** Replay the due outcomes, then follow the store from its current tail. */
+-async function startNotes($: EngineInterface): Promise<void> {
+-  const state = firstmateStateDirectory(
+-    {
+-      FM_HOME: await $.env.get("FM_HOME"),
+-      FM_ROOT_OVERRIDE: await $.env.get("FM_ROOT_OVERRIDE"),
+-      FM_STATE_OVERRIDE: await $.env.get("FM_STATE_OVERRIDE"),
+-    },
+-    $.plugin.root,
+-  );
+-  const sessionId = await $.session.id().catch(() => undefined);
+-  const health = await readIfChanged($, `${state}/.supervision-host-health`, undefined);
+-  const current: NotesState = {
+-    state,
+-    tailStamp: undefined,
+-    healthStamp: health?.stamp,
+-    lastSeen: undefined,
+-    cursor: parseOutcomeMarker(await readText($, `${state}/.branch-outcomes-cursor`)),
+-    processed: parseOutcomeMarker(await readText($, `${state}/.branch-outcomes-processed`)),
+-    shown: sessionId === undefined ? 0 : sessionShownThrough(await readStored($), sessionId),
+-    health: parseHostHealth(health?.text),
+-    sessionId,
+-    remembered: undefined,
+-  };
+-  await followTail($, current);
+-  notes = current;
+-  if (notesTimer === undefined) {
+-    notesTimer = $.clock.every(BRANCH_NOTES_POLL_MS, () => {
+-      void pollNotes($);
+-    });
+-  }
+-}
+-
+-/**
+- * A line per outcome the tail copy gained. The first tail this session sees is the
+- * startup replay, whether it existed at session start or appeared later, judged against
+- * the read cursor and processed marker as they were at session start: a row read or
+- * processed before then is never shown, and one the drain read since still is.
+- */
+-async function followTail($: EngineInterface, current: NotesState): Promise<void> {
+-  const tail = await readIfChanged($, `${current.state}/.branch-outcomes-tail.jsonl`, current.tailStamp);
+-  if (tail === undefined) return;
+-  current.tailStamp = tail.stamp;
+-  const rows = parseOutcomeTail(tail.text);
+-  let lines: string[];
+-  if (current.lastSeen === undefined) {
+-    lines = replayOutcomeNotes(rows, current.cursor, current.processed, current.shown);
+-    current.lastSeen = rows[rows.length - 1]?.seq;
+-  } else {
+-    const fresh = newOutcomeNotes(rows, current.lastSeen);
+-    lines = fresh.lines;
+-    current.lastSeen = fresh.lastSeen;
+-  }
+-  for (const line of lines) $.ui.log(line);
+-  await rememberShown($, current);
+-}
+-
+-async function readStored($: EngineInterface): Promise<unknown> {
+-  try {
+-    return await $.store.get(BRANCH_NOTES_SHOWN_KEY);
+-  } catch {
+-    return undefined;
+-  }
+-}
+-
+-/** Record how far this session has followed the store, when that moved. */
+-async function rememberShown($: EngineInterface, current: NotesState): Promise<void> {
+-  if (current.sessionId === undefined || current.lastSeen === undefined || current.lastSeen === current.remembered) return;
+-  try {
+-    await $.store.set(
+-      BRANCH_NOTES_SHOWN_KEY,
+-      recordSessionShownThrough(await readStored($), current.sessionId, current.lastSeen),
+-    );
+-    current.remembered = current.lastSeen;
+-  } catch {
+-    // An unwritable store only means a later resume may replay a line again.
+-  }
+-}
+-
+-/** One slow tick: a line per outcome appended since the last, and a latch change's note. */
+-async function pollNotes($: EngineInterface): Promise<void> {
+-  const current = notes;
+-  if (current === undefined || notesPolling) return;
+-  notesPolling = true;
+-  try {
+-    await followTail($, current);
+-    const health = await readIfChanged($, `${current.state}/.supervision-host-health`, current.healthStamp);
+-    if (health !== undefined) {
+-      current.healthStamp = health.stamp;
+-      const next = parseHostHealth(health.text);
+-      const note = hostHealthNote(current.health, next);
+-      if (next !== undefined) current.health = next;
+-      if (note !== undefined) $.ui.log(note);
+-    }
+-  } finally {
+-    notesPolling = false;
+-  }
+-}
+-
+-/** A zero-height drawing: the row contributes nothing to the transcript's layout. */
+ function hiddenRow($: EngineInterface, e: RenderInput): RenderElement {
+-  const { Box } = $.ui.resolve(e);
+-  return Box({ display: "none" });
++  return $.ui.resolve(e).Box({ display: "none" });
+ }
+ 
+-export const register: Register = (on) => {
++export const register: Register = (on, options) => {
++  palette = parseCalmShipPalette(options.palette);
++  startOn = options.start !== "off";
++  showVerb = options.showVerb !== false;
++
+   on("session.start", async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+-    await resetSession($);
+-    // Notes that cannot start leave Calm and the transcript exactly as they were.
+-    await startNotes($).catch(() => undefined);
+-    await $.command.register({
+-      name: CALM_COMMAND,
+-      description: "Toggle Firstmate's Calm transcript presentation and working ship.",
+-    });
++    if (loading !== undefined) await loading.catch(() => undefined);
++    loading = undefined;
++    calm = false;
++    workingNotes.clear();
++    finalReplies.clear();
++    sites.clear();
++    sprite.reset();
++    await ensureLoaded($);
++    await $.command.register({ name: CALM_COMMAND, description: "Calm: hide tool rows and narration, and sail a boat while Claude works (toggle)" });
+     return next(e);
+   });
+ 
+-  on("command.run", { command: CALM_COMMAND }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
++  on("command.run", { command: CALM_COMMAND }, async ($) => {
+     await ensureLoaded($);
+     const active = !calm;
+-    // Persist before changing live presentation, so a failed write leaves the current
+-    // choice unchanged rather than claiming persistence.
+-    try {
+-      await $.fs.write(preferencePath ?? "", serializeCalmPreference(active));
+-    } catch (error) {
+-      const reason = error instanceof Error ? error.message : String(error);
+-      $.ui.toast(`Calm unchanged: could not save ${preferencePath ?? "the preference"} (${reason})`);
+-      return {};
+-    }
++    await $.store.set(CALM_PREFERENCE_KEY, active ? "on" : "off").catch(() => undefined);
+     calm = active;
+     if (!calm) sites.clear();
+-    invalidateDrawings($);
+-    $.ui.toast(active ? "Calm on" : "Calm off");
+-    // No `text`: the toggle leaves no output row in the transcript, as on Pi.
++    $.ui.invalidate("ui.render");
++    $.ui.toast(active ? "Calm on: tool rows hidden" : "Calm off: tool rows back");
+     return {};
+   });
+ 
+-  // Follow a theme change: the next drawing and every later blit use the new family.
+-  on("config.set", { key: "theme" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+-    const result = await next(e);
+-    if (result.deny === undefined) {
+-      const chosen = CALM_SHIP_RASTER_PALETTES[calmShipPaletteFamily(result.value)];
+-      if (chosen !== palette) {
+-        palette = chosen;
+-        if (calm) invalidateDrawings($);
+-      }
+-    }
+-    return result;
+-  });
+-
+-  // Record mid-turn narration as it streams: the text blocks of a model step that
+-  // stopped to call tools. Subagent steps never draw in the main transcript.
++  // Record mid-turn narration as it streams: the text of a model step that stopped to call tools.
+   on("turn.step", async function* ($, e, next) {
+-    if (!(await isActivated($))) {
+-      const untouched = next(e);
+-      for await (const chunk of untouched) yield chunk;
+-      return await untouched.result;
+-    }
+     const stream = next(e);
+     const blocks = new Map<number, string>();
+     for await (const chunk of stream) {
+@@ -441,62 +135,59 @@ export const register: Register = (on) => {
+           workingNotes.add(key);
+           changed = true;
+         } else {
+-          if (!finalReplies.has(key)) {
+-            finalReplies.add(key);
+-            changed = true;
+-          }
++          if (!finalReplies.has(key)) { finalReplies.add(key); changed = true }
+           if (workingNotes.delete(key)) changed = true;
+         }
+       }
+-      if (changed && calm) invalidateDrawings($);
++      if (changed && calm) $.ui.invalidate("ui.render");
+     }
+     return result;
+   });
+ 
+   on("ui.render", { component: "Spinner" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+     await ensureLoaded($);
+     if (!calm || e.surface !== "terminal") {
+       sites.delete(e.requestId);
+       return next(e);
+     }
+-    const columns = calmShipRasterColumns(e.viewport?.columns);
++    const width = calmShipRasterColumns(e.viewport?.columns);
++    const label = showVerb && width >= CALM_LABEL_COLUMNS + 12 ? CALM_LABEL_COLUMNS : 0;
++    const columns = width - label;
+     const packed = packCalmShipRasterCells(sprite.frame(columns), columns, palette);
+     sites.set(e.requestId, { columns, rows: packed.rows });
+-    const { Box, Raster } = $.ui.resolve(e);
++    const { Box, Raster, Text } = $.ui.resolve(e);
++    const word = String(e.props.word ?? "").trim();
++    const text = word.length > label - 3 ? `${word.slice(0, label - 4)}…` : `${word}…`;
+     return Box({
+-      flexDirection: "column",
+-      children: Raster({ key: CALM_SHIP_RASTER_KEY, columns, rows: packed.rows, cells: packed.cells }),
++      flexDirection: "row",
++      alignItems: "flex-end",
++      children: [
++        Raster({ key: CALM_SHIP_RASTER_KEY, columns, rows: packed.rows, cells: packed.cells }),
++        ...(label && word ? [Text({ key: "word", color: hexOf(palette.label), children: ` ${text}` })] : []),
++      ],
+     });
+   });
+ 
+   on("ui.render", { component: "ToolUse" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+     await ensureLoaded($);
+     return calm ? hiddenRow($, e) : next(e);
+   });
+   on("ui.render", { component: "ToolResult" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+     await ensureLoaded($);
+     return calm ? hiddenRow($, e) : next(e);
+   });
+   on("ui.render", { component: "ToolGroup" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+     await ensureLoaded($);
+     return calm ? hiddenRow($, e) : next(e);
+   });
+ 
++  // Firstmate's own machine-typed prompts (marked with U+2063) hide; anything you type always shows.
+   on("ui.render", { component: "UserMessage" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+     await ensureLoaded($);
+-    if (!calm) return next(e);
+-    const operational =
+-      userTextIsOperational(e.props.text) || (await doorbellIsOperational($, e.props.text));
+-    return operational ? hiddenRow($, e) : next(e);
++    return calm && userTextIsOperational(e.props.text) ? hiddenRow($, e) : next(e);
+   });
+ 
+   on("ui.render", { component: "AssistantMessage" }, async ($, e, next) => {
+-    if (!(await isActivated($))) return next(e);
+     await ensureLoaded($);
+     const key = workingNoteKey(e.props.text);
+     return calm && workingNotes.has(key) && !finalReplies.has(key) ? hiddenRow($, e) : next(e);
+diff --git a/plugins/firstmate-calm/lib/fm-branch-notes.ts b/plugins/firstmate-calm/lib/fm-branch-notes.ts
+deleted file mode 100644
+index 6a3f5d5..0000000
+--- a/plugins/firstmate-calm/lib/fm-branch-notes.ts
++++ /dev/null
+@@ -1,166 +0,0 @@
+-// Firstmate supervision notes for the Claude Code mod, kept free of the engine.
+-//
+-// Pi renders each supervision outcome in the transcript: a sailboat note for a visible
+-// routine outcome and a sequence-keyed anchor entry for a captain outcome
+-// (.pi/extensions/fm-branch-supervision.ts). This module owns the same lines for
+-// Claude Code, read from the display tail copy of the one outcome store
+-// (bin/fm-branch-outcome.sh owns every file format read here) and from the supervision
+-// host's latch (bin/fm-supervision-host.sh). It only renders: nothing here marks an
+-// outcome read or processed. Everything is pure so tests run it under Node.
+-import { calmCodeRootFromPluginRoot } from "./fm-calm-presentation.ts";
+-
+-export const BRANCH_NOTE_BOAT = "⛵";
+-export const BRANCH_NOTE_ANCHOR = "⚓";
+-/** At most this many lines replay at session start, newest kept. */
+-export const BRANCH_NOTES_REPLAY_LIMIT = 20;
+-/** How many sessions' last shown sequence the mod's store keeps, newest kept. */
+-export const BRANCH_NOTES_SESSIONS_KEPT = 20;
+-
+-export type FirstmateStateEnvironment = {
+-  readonly FM_HOME?: string | undefined;
+-  readonly FM_ROOT_OVERRIDE?: string | undefined;
+-  readonly FM_STATE_OVERRIDE?: string | undefined;
+-};
+-
+-export type OutcomeRow = {
+-  readonly seq: number;
+-  readonly epoch: number;
+-  readonly task: string;
+-  readonly verdict: "routine" | "captain";
+-  readonly summary: string;
+-  readonly silent: boolean;
+-};
+-
+-/** The home's state directory, resolved as the Pi extension resolves it. */
+-export function firstmateStateDirectory(env: FirstmateStateEnvironment, pluginRoot: string): string {
+-  return env.FM_STATE_OVERRIDE || `${env.FM_HOME || env.FM_ROOT_OVERRIDE || calmCodeRootFromPluginRoot(pluginRoot)}/state`;
+-}
+-
+-function parseOutcomeRow(value: unknown): OutcomeRow | undefined {
+-  if (value === null || typeof value !== "object") return undefined;
+-  const row = value as Record<string, unknown>;
+-  if (typeof row.seq !== "number" || !Number.isSafeInteger(row.seq) || row.seq < 1) return undefined;
+-  if (typeof row.epoch !== "number" || !Number.isSafeInteger(row.epoch) || row.epoch < 0) return undefined;
+-  if (typeof row.task !== "string" || row.task === "") return undefined;
+-  if (row.verdict !== "routine" && row.verdict !== "captain") return undefined;
+-  if (typeof row.summary !== "string" || row.summary === "") return undefined;
+-  if (row.silent !== undefined && typeof row.silent !== "boolean") return undefined;
+-  const silent = row.silent === true;
+-  if (silent && row.verdict !== "routine") return undefined;
+-  return { seq: row.seq, epoch: row.epoch, task: row.task, verdict: row.verdict, summary: row.summary, silent };
+-}
+-
+-/** The valid rows of the tail copy in ascending sequence; a line that breaks the contract is skipped. */
+-export function parseOutcomeTail(text: string | undefined): OutcomeRow[] {
+-  const rows: OutcomeRow[] = [];
+-  for (const line of (text ?? "").split("\n")) {
+-    if (line.trim() === "") continue;
+-    let row: OutcomeRow | undefined;
+-    try {
+-      row = parseOutcomeRow(JSON.parse(line));
+-    } catch {
+-      row = undefined;
+-    }
+-    if (row !== undefined && (rows.length === 0 || row.seq > rows[rows.length - 1]!.seq)) rows.push(row);
+-  }
+-  return rows;
+-}
+-
+-/** A sidecar marker's sequence: absent or unreadable reads as 0, as the store owner reads it. */
+-export function parseOutcomeMarker(text: string | undefined): number {
+-  const value = (text ?? "").trim();
+-  return /^(0|[1-9][0-9]*)$/.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : 0;
+-}
+-
+-/** Pi's transcript line for one row, on one line; a silent row has none. */
+-export function outcomeNoteLine(row: OutcomeRow): string | undefined {
+-  if (row.silent) return undefined;
+-  const summary = row.summary.replace(/\s*\n\s*/g, " ");
+-  return row.verdict === "captain"
+-    ? `${BRANCH_NOTE_ANCHOR} [seq ${row.seq}] ${row.task}: ${summary}`
+-    : `${BRANCH_NOTE_BOAT} ${row.task}: ${summary}`;
+-}
+-
+-/**
+- * The session-start replay, as Pi's startup replay presents the store: every captain row
+- * main has not acknowledged as processed and every unread visible routine row, bounded
+- * to the newest few with one line counting any that were left out. Rows through
+- * `shownThrough` are already in this session's restored transcript and are skipped,
+- * unless the tail ends below it (a replaced store).
+- */
+-export function replayOutcomeNotes(
+-  rows: readonly OutcomeRow[],
+-  cursor: number,
+-  processed: number,
+-  shownThrough = 0,
+-): string[] {
+-  const shown = shownThrough > (rows[rows.length - 1]?.seq ?? 0) ? 0 : shownThrough;
+-  const due = rows.filter(
+-    (row) => row.seq > shown && (row.verdict === "captain" ? row.seq > processed : row.seq > cursor),
+-  );
+-  const lines = due.map(outcomeNoteLine).filter((line): line is string => line !== undefined);
+-  if (lines.length <= BRANCH_NOTES_REPLAY_LIMIT) return lines;
+-  const omitted = lines.length - BRANCH_NOTES_REPLAY_LIMIT;
+-  return [
+-    `${BRANCH_NOTE_BOAT} ${omitted} earlier supervision ${omitted === 1 ? "note" : "notes"} not replayed; bin/fm-branch-outcome.sh list shows them`,
+-    ...lines.slice(-BRANCH_NOTES_REPLAY_LIMIT),
+-  ];
+-}
+-
+-/**
+- * The lines for rows appended since `lastSeen`, and the new last seen sequence. Rows that
+- * arrived faster than the tail copy holds are counted in one line rather than dropped
+- * silently. A tail that ends below the anchor is a replaced store: re-anchor there
+- * without replaying it.
+- */
+-export function newOutcomeNotes(rows: readonly OutcomeRow[], lastSeen: number): { lines: string[]; lastSeen: number } {
+-  const last = rows.length === 0 ? lastSeen : rows[rows.length - 1]!.seq;
+-  if (last < lastSeen) return { lines: [], lastSeen: last };
+-  const fresh = rows.filter((row) => row.seq > lastSeen);
+-  const lines = fresh.map(outcomeNoteLine).filter((line): line is string => line !== undefined);
+-  const missed = (fresh[0]?.seq ?? lastSeen + 1) - lastSeen - 1;
+-  if (missed > 0) {
+-    lines.unshift(
+-      `${BRANCH_NOTE_BOAT} ${missed} earlier supervision ${missed === 1 ? "outcome" : "outcomes"} not shown; bin/fm-branch-outcome.sh list shows them`,
+-    );
+-  }
+-  return { lines, lastSeen: last };
+-}
+-
+-/** The last sequence a session has followed the store through, from the mod's store value; 0 when unknown. */
+-export function sessionShownThrough(stored: unknown, sessionId: string): number {
+-  if (!Array.isArray(stored)) return 0;
+-  const entry = stored.find((item) => Array.isArray(item) && item[0] === sessionId);
+-  return entry !== undefined && Number.isSafeInteger(entry[1]) && entry[1] > 0 ? entry[1] : 0;
+-}
+-
+-/** The store value with this session's last followed sequence recorded as its newest entry. */
+-export function recordSessionShownThrough(stored: unknown, sessionId: string, seq: number): [string, number][] {
+-  const others = (Array.isArray(stored) ? stored : []).filter(
+-    (item): item is [string, number] =>
+-      Array.isArray(item) && typeof item[0] === "string" && item[0] !== sessionId && Number.isSafeInteger(item[1]),
+-  );
+-  return [...others, [sessionId, seq] as [string, number]].slice(-BRANCH_NOTES_SESSIONS_KEPT);
+-}
+-
+-export type HostHealth = { readonly key: string; readonly cooling: boolean };
+-
+-/** The supervision host's latch, or undefined when the file is absent or has no key. */
+-export function parseHostHealth(text: string | undefined): HostHealth | undefined {
+-  const field = (name: string) => new RegExp(`^${name}=(.*)$`, "m").exec(text ?? "")?.[1];
+-  const key = field("key");
+-  if (key === undefined || key === "") return undefined;
+-  const cooldown = field("cooldown") ?? "";
+-  return { key, cooling: /^[0-9]+$/.test(cooldown) && Number(cooldown) > 0 };
+-}
+-
+-/** The note a latch change owes, as Pi's two health notes: a trip, or a recovery under the same key. */
+-export function hostHealthNote(previous: HostHealth | undefined, next: HostHealth | undefined): string | undefined {
+-  if (next === undefined) return undefined;
+-  const wasCooling = previous !== undefined && previous.key === next.key && previous.cooling;
+-  if (next.cooling && !wasCooling) {
+-    return `${BRANCH_NOTE_BOAT} Supervision session paused after repeated engine errors; main will handle wakes while it cools down.`;
+-  }
+-  if (!next.cooling && wasCooling) return `${BRANCH_NOTE_BOAT} Supervision session recovered after a successful cooldown probe.`;
+-  return undefined;
+-}
+diff --git a/plugins/firstmate-calm/lib/fm-calm-ship-raster.ts b/plugins/firstmate-calm/lib/fm-calm-ship-raster.ts
+index 24d3424..d2ff1e0 100644
+--- a/plugins/firstmate-calm/lib/fm-calm-ship-raster.ts
++++ b/plugins/firstmate-calm/lib/fm-calm-ship-raster.ts
+@@ -34,8 +34,11 @@ export const CALM_SHIP_RASTER_DEFAULT_VIEWPORT_COLUMNS = 80;
+ /** `0x01000000` (bit 24 alone) asks for the terminal's default color. */
+ export const CALM_SHIP_RASTER_DEFAULT_COLOR = 0x01000000;
+ 
+-/** Foreground per sprite color class, as `0x00RRGGBB`, or the terminal default. */
+-export type CalmShipRasterPalette = Readonly<Record<CalmWorkingShipColor, number>>;
++/**
++ * Foreground per sprite color class, as `0x00RRGGBB`, or the terminal default. Rice fork: `label` is the color of
++ * the spinner word drawn beside the boat; it is not a sprite class.
++ */
++export type CalmShipRasterPalette = Readonly<Record<CalmWorkingShipColor | "label", number>>;
+ 
+ /** The two theme families Claude Code's built-in themes fall into. */
+ export type CalmShipPaletteFamily = "dark" | "light";
+@@ -46,10 +49,44 @@ export type CalmShipPaletteFamily = "dark" | "light";
+  * built-in theme tables.
+  */
+ export const CALM_SHIP_RASTER_PALETTES: Readonly<Record<CalmShipPaletteFamily, CalmShipRasterPalette>> = {
+-  dark: { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, water: 0x93a5ff, boat: 0xd77757 },
+-  light: { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, water: 0x5769f7, boat: 0xd77757 },
++  dark: { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, water: 0x93a5ff, boat: 0xd77757, sail: 0xd77757, label: 0x999999 },
++  light: { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, water: 0x5769f7, boat: 0xd77757, sail: 0xd77757, label: 0x666666 },
++};
++
++/**
++ * Rice fork: the Ember palette (orange hull and mast, warm-white sails, a dim ember sea, muted word), used when the
++ * `palette` option is empty or unreadable. The rice's apply writes the option from its palette file.
++ */
++export const CALM_SHIP_RICE_PALETTE: CalmShipRasterPalette = {
++  plain: CALM_SHIP_RASTER_DEFAULT_COLOR, boat: 0xff7a1a, sail: 0xf8f4ee, water: 0xb85a1e, label: 0xbfb5aa,
+ };
+ 
++const HEX_COLOR = /^#([0-9a-f]{6})$/i;
++
++/**
++ * The palette a `palette` option names: a JSON object of `#RRGGBB` strings for `boat`, `sail`, `water` and
++ * `label`. A missing or malformed key takes the Ember value, and anything that is not such an object is Ember.
++ */
++export function parseCalmShipPalette(option: unknown): CalmShipRasterPalette {
++  let raw: unknown;
++  try {
++    raw = typeof option === "string" && option.trim() ? JSON.parse(option) : undefined;
++  } catch {
++    raw = undefined;
++  }
++  const given = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
++  const color = (key: "boat" | "sail" | "water" | "label"): number => {
++    const match = typeof given[key] === "string" ? HEX_COLOR.exec((given[key] as string).trim()) : null;
++    return match ? parseInt(match[1]!, 16) : CALM_SHIP_RICE_PALETTE[key];
++  };
++  return { plain: CALM_SHIP_RASTER_DEFAULT_COLOR, boat: color("boat"), sail: color("sail"), water: color("water"), label: color("label") };
++}
++
++/** A palette color as the `#rrggbb` a Text color prop takes. */
++export function hexOf(color: number): string {
++  return `#${(color & 0xffffff).toString(16).padStart(6, "0")}`;
++}
++
+ /**
+  * The palette family for a `theme` setting value: values starting with `dark` select
+  * the dark set, values starting with `light` select the light set, and every other,
+diff --git a/plugins/firstmate-calm/lib/fm-calm-working-ship-sprite.ts b/plugins/firstmate-calm/lib/fm-calm-working-ship-sprite.ts
+index ef492c1..f2283fc 100644
+--- a/plugins/firstmate-calm/lib/fm-calm-working-ship-sprite.ts
++++ b/plugins/firstmate-calm/lib/fm-calm-working-ship-sprite.ts
+@@ -30,9 +30,12 @@
+ // quarter triangle keeps the left sail lighter than the full right sail, and the whole
+ // boat (both sail halves, mast, and hull) is one color so the sprite reads as one shape.
+ // The hull's inner cells retain zero-height water glyphs instead of interrupting the trough.
+-const LEFT_SAIL = "◿";
++// Rice fork: upstream's ◿ (U+25FF) and ◣ (U+25E3) are not in JetBrainsMono Nerd Font Mono, so Windows Terminal drew
++// them from a fallback font at another width and they spilled into the next cell. The Powerline lower-right and
++// lower-left triangles (U+E0BA, U+E0B8) are in every Nerd Font and fill the cell edge to edge: the same two sail halves.
++const LEFT_SAIL = "\uE0BA";
+ const MAST = "│";
+-const RIGHT_SAIL = "◣";
++const RIGHT_SAIL = "\uE0B8";
+ const HULL_LEFT = "╲";
+ const HULL_WATER = "▁▁▁";
+ const HULL_RIGHT = "╱";
+@@ -72,7 +75,7 @@ export const CALM_WORKING_SHIP_TICKS_PER_MOVE = 4;
+  * zero-height interior. Each harness maps a class to its own color: Pi paints them as
+  * standard ANSI blue and yellow, the Claude Code mod as Claude Code's theme colors.
+  */
+-export type CalmWorkingShipColor = "plain" | "water" | "boat";
++export type CalmWorkingShipColor = "plain" | "water" | "boat" | "sail";
+ 
+ /** One same-colored run of cells inside a frame row. */
+ export type CalmWorkingShipRun = {
+@@ -233,7 +236,12 @@ export function createCalmWorkingShipSprite(): CalmWorkingShipSprite {
+   };
+ 
+   // The boat is one boat-colored run per row, so its halves never split into mismatched colors.
+-  const sail = (): CalmWorkingShipRun[] => [{ text: CALM_WORKING_SHIP_SAIL, color: "boat" }];
++  // Rice fork: the two sail halves take the `sail` class (cream) and the mast stays with the hull (`boat`).
++  const sail = (): CalmWorkingShipRun[] => [
++    { text: LEFT_SAIL, color: "sail" },
++    { text: MAST, color: "boat" },
++    { text: RIGHT_SAIL, color: "sail" },
++  ];
+   const hull = (): CalmWorkingShipRun[] => [{ text: CALM_WORKING_SHIP_HULL, color: "boat" }];
+ 
+   return {
+diff --git a/plugins/firstmate-calm/tests/branch-notes.test.ts b/plugins/firstmate-calm/tests/branch-notes.test.ts
+deleted file mode 100644
+index 17f8af8..0000000
+--- a/plugins/firstmate-calm/tests/branch-notes.test.ts
++++ /dev/null
+@@ -1,175 +0,0 @@
+-// firstmate-calm under `claude plugin test`: the supervision notes, one dim transcript
+-// line per outcome the store's tail copy gains and per latch change, replayed at session
+-// start, shown whether Calm is on or off, and never marking anything read.
+-import { describe, expect, test } from "claude-code/testing";
+-import { HOME, world } from "./support.ts";
+-
+-const sessionStart = { cwd: "/work", surface: "terminal" as const, isInteractive: true };
+-const STATE = `${HOME}/state`;
+-const TAIL = `${STATE}/.branch-outcomes-tail.jsonl`;
+-const CURSOR = `${STATE}/.branch-outcomes-cursor`;
+-const PROCESSED = `${STATE}/.branch-outcomes-processed`;
+-const HEALTH = `${STATE}/.supervision-host-health`;
+-const POLL = 3000;
+-
+-type Row = { seq: number; task: string; verdict: "routine" | "captain"; summary: string; silent?: boolean; epoch?: number };
+-
+-function tail(rows: readonly Row[]): string {
+-  return rows
+-    .map((row) =>
+-      JSON.stringify({
+-        seq: row.seq,
+-        epoch: row.epoch ?? 100,
+-        task: row.task,
+-        wake: "",
+-        verdict: row.verdict,
+-        summary: row.summary,
+-        silent: row.silent ?? false,
+-        statusEndpoint: 0,
+-        statusIdent: "-",
+-      }),
+-    )
+-    .map((line) => `${line}\n`)
+-    .join("");
+-}
+-
+-function health(key: string, cooldown: number): string {
+-  return `key=${key}\nerrors=${cooldown > 0 ? 2 : 0}\ncooldown=${cooldown}\nretry_after=0\n`;
+-}
+-
+-const history: Row[] = [
+-  { seq: 1, task: "fm-old", verdict: "captain", summary: "PR merged earlier" },
+-  { seq: 2, task: "fm-a", verdict: "routine", summary: "read already" },
+-  { seq: 3, task: "fm-b", verdict: "captain", summary: "decision waiting" },
+-  { seq: 4, task: "fm-c", verdict: "routine", summary: "worker healthy" },
+-  { seq: 5, task: "fm-d", verdict: "routine", summary: "no change", silent: true },
+-];
+-
+-describe("supervision notes", () => {
+-  test("session start replays unprocessed captain rows and unread visible routine rows with Calm off", async ($, on) => {
+-    const { files, journal } = world(on);
+-    files.set(TAIL, tail(history));
+-    files.set(CURSOR, "3\n");
+-    files.set(PROCESSED, "1\n");
+-    await $.session.start(sessionStart);
+-    expect(journal.logs).toEqual(["⚓ [seq 3] fm-b: decision waiting", "⛵ fm-c: worker healthy"]);
+-    // Only reads: the markers the drain owns are exactly as they were.
+-    expect(files.get(CURSOR)).toBe("3\n");
+-    expect(files.get(PROCESSED)).toBe("1\n");
+-  });
+-
+-  test("each new row becomes one line on the next slow tick, a silent row none, and none twice", async ($, on) => {
+-    const { clock, files, journal } = world(on, { preference: "on\n" });
+-    files.set(TAIL, tail(history));
+-    files.set(CURSOR, "5\n");
+-    files.set(PROCESSED, "3\n");
+-    await $.session.start(sessionStart);
+-    expect(journal.logs).toEqual([]);
+-    files.set(
+-      TAIL,
+-      tail([
+-        ...history,
+-        { seq: 6, task: "fm-e", verdict: "routine", summary: "reconciled\nthe backlog" },
+-        { seq: 7, task: "fm-f", verdict: "routine", summary: "nothing new", silent: true },
+-        { seq: 8, task: "fm-g", verdict: "captain", summary: "PR https://example.test/pr/1 checks green" },
+-      ]),
+-    );
+-    await clock.advance(POLL - 1);
+-    expect(journal.logs).toEqual([]);
+-    await clock.advance(1);
+-    expect(journal.logs).toEqual(["⛵ fm-e: reconciled the backlog", "⚓ [seq 8] fm-g: PR https://example.test/pr/1 checks green"]);
+-    await clock.advance(POLL * 3);
+-    expect(journal.logs).toHaveLength(2);
+-  });
+-
+-  test("a tail copy that first appears after session start replays against the session-start markers, even within the same second", async ($, on) => {
+-    const { clock, files, journal } = world(on);
+-    await clock.set(100_000);
+-    files.set(CURSOR, "5\n");
+-    files.set(PROCESSED, "1\n");
+-    await $.session.start(sessionStart);
+-    expect(journal.logs).toEqual([]);
+-    // Session start seeds the copy, or an append in the session's first second creates it, with every
+-    // earlier row; the drain then reads the new routine row before the mod's first poll.
+-    files.set(TAIL, tail([...history, { seq: 6, task: "fm-new", verdict: "routine", summary: "fresh" }]));
+-    files.set(CURSOR, "6\n");
+-    await clock.advance(POLL);
+-    expect(journal.logs).toEqual(["⚓ [seq 3] fm-b: decision waiting", "⛵ fm-new: fresh"]);
+-    await clock.advance(POLL);
+-    expect(journal.logs).toHaveLength(2);
+-  });
+-
+-  test("rows that arrive faster than the tail copy holds are counted in one line, not dropped silently", async ($, on) => {
+-    const { clock, files, journal } = world(on);
+-    files.set(TAIL, tail(history));
+-    files.set(CURSOR, "5\n");
+-    files.set(PROCESSED, "3\n");
+-    await $.session.start(sessionStart);
+-    files.set(
+-      TAIL,
+-      tail([
+-        { seq: 9, task: "fm-i", verdict: "routine", summary: "kept" },
+-        { seq: 10, task: "fm-j", verdict: "captain", summary: "newest" },
+-      ]),
+-    );
+-    await clock.advance(POLL);
+-    expect(journal.logs).toEqual([
+-      "⛵ 3 earlier supervision outcomes not shown; bin/fm-branch-outcome.sh list shows them",
+-      "⛵ fm-i: kept",
+-      "⚓ [seq 10] fm-j: newest",
+-    ]);
+-  });
+-
+-  test("a same-size replacement within one timestamp tick is still read and shown", async ($, on) => {
+-    const { clock, files, mtimes, journal } = world(on);
+-    await clock.set(1_000_000);
+-    mtimes.set(TAIL, 1_000_000);
+-    files.set(TAIL, tail(history));
+-    files.set(CURSOR, "5\n");
+-    files.set(PROCESSED, "3\n");
+-    await $.session.start(sessionStart);
+-    expect(journal.logs).toEqual([]);
+-    const replaced = tail([...history.slice(1), { seq: 6, task: "fm-new", verdict: "captain", summary: "fresh anchor here" }]);
+-    expect(replaced.length).toBe(tail(history).length);
+-    files.set(TAIL, replaced);
+-    await clock.advance(POLL);
+-    expect(journal.logs).toEqual(["⚓ [seq 6] fm-new: fresh anchor here"]);
+-    await clock.advance(POLL * 3);
+-    expect(journal.logs).toHaveLength(1);
+-  });
+-
+-  test("a latch trip and its recovery each write Pi's health note, and a new session key alone writes none", async ($, on) => {
+-    const { clock, files, journal } = world(on);
+-    files.set(HEALTH, health("s1", 0));
+-    await $.session.start(sessionStart);
+-    files.set(HEALTH, health("s1", 300));
+-    await clock.advance(POLL);
+-    expect(journal.logs).toEqual([
+-      "⛵ Supervision session paused after repeated engine errors; main will handle wakes while it cools down.",
+-    ]);
+-    files.set(HEALTH, health("s1", 0));
+-    await clock.advance(POLL);
+-    expect(journal.logs[1]).toBe("⛵ Supervision session recovered after a successful cooldown probe.");
+-    files.set(HEALTH, health("s2", 0));
+-    await clock.advance(POLL);
+-    expect(journal.logs).toHaveLength(2);
+-  });
+-
+-  test("a resumed session replays only outcomes it has not shown, and a new session replays every due one", async ($, on) => {
+-    const { clock, files, journal, setSessionId } = world(on);
+-    files.set(TAIL, tail(history));
+-    files.set(CURSOR, "5\n");
+-    files.set(PROCESSED, "2\n");
+-    await $.session.start(sessionStart);
+-    expect(journal.logs).toEqual(["⚓ [seq 3] fm-b: decision waiting"]);
+-    // Resumed (or hot reloaded): its restored transcript already holds seq 3.
+-    files.set(TAIL, tail([...history, { seq: 6, task: "fm-h", verdict: "captain", summary: "while closed" }]));
+-    await $.session.start(sessionStart);
+-    expect(journal.logs).toEqual(["⚓ [seq 3] fm-b: decision waiting", "⚓ [seq 6] fm-h: while closed"]);
+-    await clock.advance(POLL);
+-    expect(journal.logs).toHaveLength(2);
+-    setSessionId("session-2");
+-    await $.session.start(sessionStart);
+-    expect(journal.logs.slice(2)).toEqual(["⚓ [seq 3] fm-b: decision waiting", "⚓ [seq 6] fm-h: while closed"]);
+-  });
+-});
+diff --git a/plugins/firstmate-calm/tests/calm.test.ts b/plugins/firstmate-calm/tests/calm.test.ts
+index dadb677..a2b839a 100644
+--- a/plugins/firstmate-calm/tests/calm.test.ts
++++ b/plugins/firstmate-calm/tests/calm.test.ts
+@@ -1,165 +1,22 @@
+-// firstmate-calm under `claude plugin test`: the Calm toggle, its persisted per-home
+-// preference, and the transcript rows Calm hides and restores.
++// firstmate-calm under `claude plugin test`: the transcript rows Calm hides and restores.
++// LOCAL PATCH (rice fork): upstream's "activation" and "/calm" blocks tested the CLAUDE_CODE_ENABLE_FUNCTION_HOOKS gate
++// and the per-home config/calm file, and three doorbell tests read Firstmate inbox records; the fork has none of those
++// (tests/rice.test.ts covers its own activation, store-backed toggle and palette). Calm now starts on, so the two
++// "while off" tests ask for start: off.
+ import { describe, expect, test, type Engine } from "claude-code/testing";
+ import {
+   assistantMessage,
+   calmCommand,
+-  doorbell,
+   fromFirstmate,
+-  HOME,
+   isHidden,
+   isStock,
+   operational,
+-  PREFERENCE,
+-  spinner,
+-  toolGroup,
+-  toolResult,
+-  toolUse,
+   userMessage,
+   world,
+ } from "./support.ts";
+ 
+ const sessionStart = { cwd: "/work", surface: "terminal" as const, isInteractive: true };
+ 
+-describe("activation", () => {
+-  async function expectInert($: Engine, on: Parameters<typeof world>[0], functionHooks: string | undefined) {
+-    const { clock, files, journal } = world(on, {
+-      functionHooks,
+-      preference: "on\n",
+-      messages: [{ role: "assistant", text: "Working", toolUses: [{ name: "Bash" }] }],
+-    });
+-    files.set(
+-      `${HOME}/state/.branch-outcomes-tail.jsonl`,
+-      '{"seq":1,"epoch":0,"task":"fm-x","wake":"","verdict":"captain","summary":"PR ready","silent":false}\n',
+-    );
+-    await $.session.start(sessionStart);
+-    const drawings = await Promise.all([
+-      $.ui.render(spinner()),
+-      $.ui.render(toolUse()),
+-      $.ui.render(toolResult()),
+-      $.ui.render(toolGroup()),
+-      $.ui.render(userMessage(operational("watcher", "signal: x"))),
+-      $.ui.render(assistantMessage("Working")),
+-    ]);
+-    expect(drawings.every(isStock)).toBe(true);
+-    await clock.advance(220 * 16);
+-    expect(journal.commands).toHaveLength(0);
+-    expect(journal.blits).toHaveLength(0);
+-    expect(journal.invalidations).toHaveLength(0);
+-    expect(journal.toasts).toHaveLength(0);
+-    expect(journal.fsReads).toHaveLength(0);
+-    expect(journal.logs).toHaveLength(0);
+-    expect(journal.sessionMessageReads).toBe(0);
+-    expect(journal.configLists).toBe(0);
+-  }
+-
+-  test("is fully inert when the function-hooks opt-in is absent", async ($, on) => {
+-    await expectInert($, on, undefined);
+-  });
+-
+-  test("is fully inert when the function-hooks opt-in is not exactly one", async ($, on) => {
+-    await expectInert($, on, "true");
+-  });
+-
+-  test("registers /calm at session start and stays a pass-through while off", async ($, on) => {
+-    const { clock, journal } = world(on);
+-    await $.session.start(sessionStart);
+-    expect(journal.commands).toEqual(["calm"]);
+-    expect(isStock(await $.ui.render(spinner()))).toBe(true);
+-    expect(isStock(await $.ui.render(toolUse()))).toBe(true);
+-    expect(isStock(await $.ui.render(toolResult()))).toBe(true);
+-    expect(isStock(await $.ui.render(toolGroup()))).toBe(true);
+-    expect(isStock(await $.ui.render(userMessage(operational("watcher", "signal: x"))))).toBe(true);
+-    expect(isStock(await $.ui.render(assistantMessage("hello")))).toBe(true);
+-    await clock.advance(220 * 8);
+-    expect(journal.blits).toHaveLength(0);
+-    expect(journal.toasts).toHaveLength(0);
+-  });
+-
+-  test("reads a persisted on before session start, so restored rows never draw with a stale off", async ($, on) => {
+-    world(on, { preference: "on\n" });
+-    expect(isHidden(await $.ui.render(toolUse()))).toBe(true);
+-    expect(isHidden(await $.ui.render(toolGroup()))).toBe(true);
+-  });
+-
+-  test("reads the legacy max value as on", async ($, on) => {
+-    world(on, { preference: "max\n" });
+-    expect(isHidden(await $.ui.render(toolResult()))).toBe(true);
+-  });
+-
+-  test("reads an unrecognized value as off", async ($, on) => {
+-    world(on, { preference: "maybe\n" });
+-    expect(isStock(await $.ui.render(toolUse()))).toBe(true);
+-  });
+-});
+-
+-describe("/calm", () => {
+-  test("toggles on: persists on, toasts, redraws every hooked drawing, and leaves no output row", async ($, on) => {
+-    const { files, journal } = world(on);
+-    await $.session.start(sessionStart);
+-    expect(isStock(await $.ui.render(toolUse()))).toBe(true);
+-    const answer = await $.command.run(calmCommand());
+-    expect(answer.text).toBeUndefined();
+-    expect(files.get(PREFERENCE)).toBe("on\n");
+-    expect(journal.toasts).toEqual(["Calm on"]);
+-    expect(journal.invalidations).toContain("ui.render");
+-    expect(isHidden(await $.ui.render(toolUse()))).toBe(true);
+-    expect(isHidden(await $.ui.render(toolResult()))).toBe(true);
+-    expect(isHidden(await $.ui.render(toolGroup("g", true)))).toBe(true);
+-  });
+-
+-  test("toggles off: persists off and restores the engine's drawings", async ($, on) => {
+-    const { files, journal } = world(on, { preference: "on\n" });
+-    await $.session.start(sessionStart);
+-    expect(isHidden(await $.ui.render(toolUse()))).toBe(true);
+-    await $.command.run(calmCommand());
+-    expect(files.get(PREFERENCE)).toBe("off\n");
+-    expect(journal.toasts).toEqual(["Calm off"]);
+-    expect(isStock(await $.ui.render(toolUse()))).toBe(true);
+-    expect(isStock(await $.ui.render(spinner()))).toBe(true);
+-  });
+-
+-  test("keeps the current choice when the preference cannot be written", async ($, on) => {
+-    const { files, journal, failWrites } = world(on, { preference: "on\n" });
+-    await $.session.start(sessionStart);
+-    const redrawsBefore = journal.invalidations.length;
+-    failWrites("EACCES: read-only");
+-    await $.command.run(calmCommand());
+-    expect(files.get(PREFERENCE)).toBe("on\n");
+-    expect(isHidden(await $.ui.render(toolUse()))).toBe(true);
+-    expect(journal.toasts).toHaveLength(1);
+-    expect(journal.toasts[0]).toContain("Calm unchanged");
+-    expect(journal.toasts[0]).toContain(PREFERENCE);
+-    expect(journal.invalidations).toHaveLength(redrawsBefore);
+-  });
+-
+-  test("writes under FM_CONFIG_OVERRIDE when that override names the config directory", async ($, on) => {
+-    const { files } = world(on, { env: { FM_CONFIG_OVERRIDE: "/elsewhere/cfg" } });
+-    await $.command.run(calmCommand());
+-    expect(files.get("/elsewhere/cfg/calm")).toBe("on\n");
+-    expect(files.has(PREFERENCE)).toBe(false);
+-  });
+-
+-  test("falls back to FM_ROOT_OVERRIDE, then the tracked code root above the plugin, when FM_HOME is unset", async ($, on) => {
+-    const { files } = world(on, { home: undefined, env: { FM_ROOT_OVERRIDE: "/root/override" } });
+-    await $.command.run(calmCommand());
+-    expect(files.get("/root/override/config/calm")).toBe("on\n");
+-  });
+-
+-  test("derives the home from the plugin folder when nothing names it", async ($, on) => {
+-    const { files } = world(on, { home: undefined });
+-    await $.command.run(calmCommand());
+-    const [path] = [...files.keys()];
+-    expect(path).toBeDefined();
+-    expect(path!).toEndWith("/config/calm");
+-    expect(path!.startsWith(HOME)).toBe(false);
+-    // Three levels above the plugin folder: the tracked code root, above `.claude/`.
+-    expect(path!).not.toContain("firstmate-calm/");
+-    expect(path!).not.toContain("/.claude/");
+-    expect(path!).not.toContain("/mods/");
+-  });
+-});
+-
+ describe("operational user rows", () => {
+   const hiddenTexts = [
+     operational("session-start", "Run bin/fm-session-start.sh"),
+@@ -202,51 +59,12 @@ describe("operational user rows", () => {
+     }
+   });
+ 
+-  test("leaves every user row to the engine while off", async ($, on) => {
++  test("leaves every user row to the engine while off", { options: { start: "off" } }, async ($, on) => {
+     world(on);
+     for (const text of [...hiddenTexts, ...visibleTexts]) {
+       expect(isStock(await $.ui.render(userMessage(text))), JSON.stringify(text)).toBe(true);
+     }
+   });
+-
+-  // A harness that strips U+2063 from submitted prompts receives a plain doorbell naming
+-  // a record that holds the envelope; only the record makes the row Firstmate's.
+-  const inbox = `${HOME}/state/operational-inbox`;
+-  const backed = `${inbox}/1790000000-0123456789abcdef.msg`;
+-  const unbacked = `${inbox}/1790000000-fedcba9876543210.msg`;
+-  const asciiRecord = `${inbox}/1790000000-aaaaaaaaaaaaaaaa.msg`;
+-
+-  test("hides a doorbell only when the record it names holds a current envelope", async ($, on) => {
+-    const { files, journal } = world(on, { preference: "on\n" });
+-    files.set(backed, operational("away-supervisor", "Supervisor escalate: done: PR 1"));
+-    files.set(asciiRecord, "FIRSTMATE_OP: v1 away-supervisor: ascii only");
+-    expect(isHidden(await $.ui.render(userMessage(doorbell(backed))))).toBe(true);
+-    expect(isStock(await $.ui.render(userMessage(doorbell(unbacked))))).toBe(true);
+-    expect(isStock(await $.ui.render(userMessage(doorbell(asciiRecord))))).toBe(true);
+-    expect(isStock(await $.ui.render(userMessage(`${doorbell(backed)} and more`)))).toBe(true);
+-    expect(isStock(await $.ui.render(userMessage(doorbell("relative/operational-inbox/1-a.msg"))))).toBe(true);
+-    // Records are immutable once published, so one read serves every redraw of the row.
+-    const readsBefore = journal.fsReads.filter((path) => path === backed).length;
+-    expect(isHidden(await $.ui.render(userMessage(doorbell(backed))))).toBe(true);
+-    expect(journal.fsReads.filter((path) => path === backed).length).toBe(readsBefore);
+-  });
+-
+-  test("shows a hidden doorbell again once a toggle redraws it after its record is pruned", async ($, on) => {
+-    const { files } = world(on, { preference: "on\n" });
+-    files.set(backed, operational("away-supervisor", "escalate"));
+-    expect(isHidden(await $.ui.render(userMessage(doorbell(backed))))).toBe(true);
+-    files.delete(backed);
+-    await $.command.run(calmCommand());
+-    await $.command.run(calmCommand());
+-    expect(isStock(await $.ui.render(userMessage(doorbell(backed))))).toBe(true);
+-  });
+-
+-  test("leaves a backed doorbell to the engine while off, without reading its record", async ($, on) => {
+-    const { files, journal } = world(on);
+-    files.set(backed, operational("away-supervisor", "escalate"));
+-    expect(isStock(await $.ui.render(userMessage(doorbell(backed))))).toBe(true);
+-    expect(journal.fsReads).not.toContain(backed);
+-  });
+ });
+ 
+ describe("mid-turn working notes", () => {
+@@ -378,7 +196,7 @@ describe("mid-turn working notes", () => {
+       result: { answer: "Done.", toolUses: [{ name: "Bash", input: {} }], stopReason: "tool_use" },
+     });
+     await runStep($);
+-    expect(journal.fsReads.filter((path) => path === PREFERENCE)).toHaveLength(2);
++    expect(journal.fsReads).toEqual([]); // LOCAL PATCH: the fork keeps the choice in $.store and reads no file
+     expect(journal.sessionMessageReads).toBe(2);
+     expect(isHidden(await $.ui.render(assistantMessage("Done.", "session-two-note")))).toBe(true);
+   });
+@@ -411,7 +229,7 @@ describe("mid-turn working notes", () => {
+     expect(isStock(await $.ui.render(assistantMessage("Sub note")))).toBe(true);
+   });
+ 
+-  test("records notes while off and hides them retroactively when toggled on", async ($, on) => {
++  test("records notes while off and hides them retroactively when toggled on", { options: { start: "off" } }, async ($, on) => {
+     world(on);
+     const set = stepper(on);
+     set({
+diff --git a/plugins/firstmate-calm/tests/rice.test.ts b/plugins/firstmate-calm/tests/rice.test.ts
+new file mode 100644
+index 0000000..5993e64
+--- /dev/null
++++ b/plugins/firstmate-calm/tests/rice.test.ts
+@@ -0,0 +1,66 @@
++// The rice fork's own behaviour: active without the pre-launch env opt-in, the toggle kept in the mod's store,
++// no file system, and only glyphs the terminal font has.
++import { describe, expect, test } from "claude-code/testing";
++import { CALM_WORKING_SHIP_HULL, CALM_WORKING_SHIP_SAIL, CALM_WORKING_SHIP_WAVE_BARS } from "../lib/fm-calm-working-ship-sprite.ts";
++import { CALM_SHIP_RICE_PALETTE, hexOf, parseCalmShipPalette } from "../lib/fm-calm-ship-raster.ts";
++import { assistantMessage, calmCommand, isHidden, isStock, spinner, toolGroup, toolResult, toolUse, userMessage, world } from "./support.ts";
++
++const sessionStart = { cwd: "/work", surface: "terminal" as const, isInteractive: true };
++
++// Code points JetBrainsMono Nerd Font Mono has (read from its cmap with WPF's GlyphTypeface, 2026-10-17).
++// Upstream's sail glyphs U+25FF and U+25E3 are NOT in it, which is why the fork changed them.
++const IN_FONT = new Set([0x20, 0x2502, 0x2571, 0x2572, 0x2581, 0x2582, 0x2583, 0x2584, 0xe0b8, 0xe0ba]);
++
++describe("rice fork", () => {
++  test("is active with no CLAUDE_CODE_ENABLE_FUNCTION_HOOKS at all: registers /calm and hides tool rows from the start", async ($, on) => {
++    const { journal } = world(on, { functionHooks: undefined, home: undefined });
++    await $.session.start(sessionStart);
++    expect(journal.commands).toEqual(["calm"]);
++    for (const drawing of [await $.ui.render(toolUse()), await $.ui.render(toolResult()), await $.ui.render(toolGroup())]) {
++      expect(isHidden(drawing)).toBe(true);
++    }
++    expect(isStock(await $.ui.render(userMessage("hello there")))).toBe(true);
++    expect(isStock(await $.ui.render(assistantMessage("Here is the answer.")))).toBe(true);
++  });
++
++  test("start: off leaves every drawing to the engine until /calm", { options: { start: "off" } }, async ($, on) => {
++    world(on);
++    await $.session.start(sessionStart);
++    expect(isStock(await $.ui.render(toolUse()))).toBe(true);
++    expect(isStock(await $.ui.render(spinner()))).toBe(true);
++    await $.command.run(calmCommand());
++    expect(isHidden(await $.ui.render(toolUse()))).toBe(true);
++  });
++
++  test("/calm toggles, toasts, redraws, keeps the choice in the store across a new session, and touches no file", async ($, on) => {
++    const { journal } = world(on);
++    await $.session.start(sessionStart);
++    const redraws = journal.invalidations.length;
++    expect(await $.command.run(calmCommand())).toEqual({});
++    expect(journal.toasts.at(-1)).toMatch(/^Calm off/);
++    expect(journal.invalidations.length).toBeGreaterThan(redraws);
++    expect(isStock(await $.ui.render(toolUse()))).toBe(true);
++    await $.session.start(sessionStart);
++    expect(isStock(await $.ui.render(toolUse())), "off survives a new session").toBe(true);
++    await $.command.run(calmCommand());
++    expect(journal.toasts.at(-1)).toMatch(/^Calm on/);
++    await $.session.start(sessionStart);
++    expect(isHidden(await $.ui.render(toolUse())), "on survives a new session").toBe(true);
++    expect(journal.fsReads).toEqual([]);
++  });
++
++  test("every glyph the boat and the swell can draw is in the terminal font", () => {
++    const glyphs = [...CALM_WORKING_SHIP_SAIL, ...CALM_WORKING_SHIP_HULL, ...CALM_WORKING_SHIP_WAVE_BARS.join("")].map((g) => g.codePointAt(0)!);
++    expect(glyphs.filter((cp) => !IN_FONT.has(cp)).map((cp) => cp.toString(16))).toEqual([]);
++  });
++
++  test("the palette option reads #RRGGBB per key, keeps Ember for anything missing or malformed", () => {
++    expect(parseCalmShipPalette("")).toEqual(CALM_SHIP_RICE_PALETTE);
++    expect(parseCalmShipPalette("not json")).toEqual(CALM_SHIP_RICE_PALETTE);
++    expect(parseCalmShipPalette('{"boat":"red"}')).toEqual(CALM_SHIP_RICE_PALETTE);
++    const p = parseCalmShipPalette('{"boat":"#FF4040","water":"#b33030"}');
++    expect(hexOf(p.boat)).toBe("#ff4040");
++    expect(hexOf(p.water)).toBe("#b33030");
++    expect(p.sail).toBe(CALM_SHIP_RICE_PALETTE.sail);
++  });
++});
+diff --git a/plugins/firstmate-calm/tests/working-ship.test.ts b/plugins/firstmate-calm/tests/working-ship.test.ts
+index a5210b1..fcbef80 100644
+--- a/plugins/firstmate-calm/tests/working-ship.test.ts
++++ b/plugins/firstmate-calm/tests/working-ship.test.ts
+@@ -1,52 +1,77 @@
+-// firstmate-calm under `claude plugin test`: the sailboat that replaces the stock
+-// working row while Calm is on, its cadence on the mocked clock, its size against the
+-// viewport, and how it lets go of a site the surface no longer draws.
++// firstmate-calm under `claude plugin test`: the sailboat that replaces the stock working row while Calm is on,
++// its cadence on the mocked clock, its size against the viewport, and how it lets go of a site the surface no longer
++// draws. LOCAL PATCH (rice fork): rewritten from upstream's file for the fork's glyphs, its palette option (upstream
++// painted by theme family) and the spinner word kept beside the boat (24 columns, so a 40-column row has a 14-column boat).
+ import { describe, expect, test } from "claude-code/testing";
+-import { calmCommand, decodeCells, isStock, rasterOf, spinner, themeChange, unmeasuredSpinner, world } from "./support.ts";
++import { calmCommand, decodeCells, isStock, rasterOf, spinner, unmeasuredSpinner, world } from "./support.ts";
+ 
+-const SAIL = "◿│◣";
++const SAIL = "\uE0BA│\uE0B8";
+ const HULL = "╲▁▁▁╱";
+ const DEFAULT = 0x01000000;
+-// Claude Code's own theme tables: the spinner blue of each family for the water and
+-// the Claude orange of the stock spinner for the boat.
+-const DARK_WATER = 0x93a5ff;
+-const LIGHT_WATER = 0x5769f7;
+-const BOAT = 0xd77757;
++// Ember, the fork's built-in palette.
++const BOAT = 0xff7a1a;
++const SAILS = 0xf8f4ee;
++const WATER = 0xb85a1e;
+ const TICK = 220;
+ const TICKS_PER_MOVE = 4;
++const LABEL = 24;
++
++/** Every Text in a drawing, as [text, color]. */
++function texts(tree: unknown): [string, unknown][] {
++  const out: [string, unknown][] = [];
++  const walk = (node: unknown): void => {
++    if (node === null || typeof node !== "object") return;
++    const el = node as { type?: unknown; props?: Record<string, unknown>; children?: unknown };
++    if (el.type === "Text") out.push([JSON.stringify(el.children ?? el.props?.children ?? ""), el.props?.color]);
++    for (const child of [el.children, el.props?.children].flat()) walk(child);
++  };
++  walk(tree);
++  return out;
++}
+ 
+ describe("the working ship", () => {
+-  test("replaces the spinner with a two-row raster sized to the row inside the transcript margin", async ($, on) => {
+-    world(on, { preference: "on\n" });
+-    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })));
++  test("replaces the spinner with a two-row raster and keeps the spinner word beside it in the label color", async ($, on) => {
++    world(on);
++    const tree = await $.ui.render(spinner("agent-main", { columns: 80, rows: 24 }));
++    const raster = rasterOf(tree);
+     expect(raster).toBeDefined();
+     expect(raster!.key).toBe("firstmate-calm-working-ship");
+-    expect(raster!.columns).toBe(38);
++    expect(raster!.columns).toBe(78 - LABEL);
+     expect(raster!.rows).toBe(2);
+-    const { glyphs, foregrounds, backgrounds } = decodeCells(raster!.cells, 38, 2);
+-    expect(glyphs[0]).toHaveLength(38);
+-    expect(glyphs[1]).toHaveLength(38);
+-    // The boat starts at the left edge: hull at column 0, sail centered one column in.
++    const word = texts(tree).find(([t]) => t.includes("Sauteing"));
++    expect(word).toBeDefined();
++    expect(word![1]).toBe("#bfb5aa");
++  });
++
++  test("paints Ember: orange hull and mast, cream sails, a dim ember sea, default padding and backgrounds", async ($, on) => {
++    world(on);
++    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40 + LABEL, rows: 24 })))!;
++    expect(raster.columns).toBe(38);
++    const { glyphs, foregrounds, backgrounds } = decodeCells(raster.cells, 38, 2);
+     expect(glyphs[1]!.indexOf(HULL)).toBe(0);
+     expect(glyphs[0]!.indexOf(SAIL)).toBe(1);
+     expect(glyphs[0]!.slice(4)).toBe(" ".repeat(34));
+     expect(glyphs[1]!.replace(HULL, "▁▁▁▁▁")).toMatch(/^[▁▂▃▄]+$/);
+-    // Colors on the default dark theme: the whole boat one Claude orange (both sail halves,
+-    // mast, and the complete hull including its interior), every water cell the dark
+-    // spinner blue whatever its height, default-colored padding, default backgrounds.
+     expect(foregrounds[1]!.slice(0, 5)).toEqual([BOAT, BOAT, BOAT, BOAT, BOAT]);
+-    expect(foregrounds[0]!.slice(1, 4)).toEqual([BOAT, BOAT, BOAT]);
++    expect(foregrounds[0]!.slice(1, 4)).toEqual([SAILS, BOAT, SAILS]);
+     expect(foregrounds[0]![0]).toBe(DEFAULT);
+-    expect(foregrounds[0]!.slice(4).every((color) => color === DEFAULT)).toBe(true);
+-    expect(foregrounds[1]!.slice(5).every((color) => color === DARK_WATER)).toBe(true);
+-    expect(glyphs[1]!.slice(5)).toMatch(/[▃▄]/);
++    expect(foregrounds[1]!.slice(5).every((color) => color === WATER)).toBe(true);
+     expect(backgrounds.flat().every((color) => color === DEFAULT)).toBe(true);
+   });
+ 
++  test("takes its colors from the palette option, and an unreadable option falls back to Ember", { options: { palette: '{"boat":"#FFD60A","sail":"#F7F4E6","water":"#C9A60A","label":"#BEBBA4"}' } }, async ($, on) => {
++    world(on);
++    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40 + LABEL, rows: 24 })))!;
++    const { foregrounds } = decodeCells(raster.cells, 38, 2);
++    expect(foregrounds[1]![0]).toBe(0xffd60a);
++    expect(foregrounds[0]![1]).toBe(0xf7f4e6);
++    expect(foregrounds[1]!.at(-1)).toBe(0xc9a60a);
++  });
++
+   test("animates the water every tick and moves the hull one column every fourth, through blits of the mounted size", async ($, on) => {
+-    const { clock, journal } = world(on, { preference: "on\n" });
++    const { clock, journal } = world(on);
+     await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+-    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
++    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40 + LABEL, rows: 24 })))!;
+     const first = decodeCells(raster.cells, 38, 2);
+     await clock.advance(TICK);
+     expect(journal.blits).toHaveLength(1);
+@@ -62,7 +87,7 @@ describe("the working ship", () => {
+   });
+ 
+   test("stops blitting a site the surface denies and resumes when the spinner is drawn again", async ($, on) => {
+-    const { clock, journal, denyBlits } = world(on, { preference: "on\n" });
++    const { clock, journal, denyBlits } = world(on);
+     await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+     await $.ui.render(spinner());
+     await clock.advance(TICK);
+@@ -79,7 +104,7 @@ describe("the working ship", () => {
+   });
+ 
+   test("never blits while off, and drops every site when toggled off", async ($, on) => {
+-    const { clock, journal } = world(on, { preference: "on\n" });
++    const { clock, journal } = world(on);
+     await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+     await $.ui.render(spinner());
+     await clock.advance(TICK);
+@@ -92,97 +117,30 @@ describe("the working ship", () => {
+     expect(journal.blits).toHaveLength(1);
+   });
+ 
+-  test("sizes to the raster limits: an unmeasured viewport reads as 80 columns, a wide one clips at 512, a narrow one falls back to one row", async ($, on) => {
+-    world(on, { preference: "on\n" });
+-    expect(rasterOf(await $.ui.render(unmeasuredSpinner("a")))!.columns).toBe(78);
+-    expect(rasterOf(await $.ui.render(spinner("b", { columns: 900, rows: 40 })))!.columns).toBe(512);
++  test("sizes to the raster limits: unmeasured reads as 80 columns, wide clips at 512, narrow drops the word and then a row", async ($, on) => {
++    world(on);
++    expect(rasterOf(await $.ui.render(unmeasuredSpinner("a")))!.columns).toBe(78 - LABEL);
++    expect(rasterOf(await $.ui.render(spinner("b", { columns: 900, rows: 40 })))!.columns).toBe(512 - LABEL);
++    const noWord = rasterOf(await $.ui.render(spinner("e", { columns: 30, rows: 40 })))!;
++    expect(noWord.columns).toBe(28);
+     const narrow = rasterOf(await $.ui.render(spinner("c", { columns: 5, rows: 40 })))!;
+     expect(narrow.columns).toBe(3);
+     expect(narrow.rows).toBe(1);
+     expect(decodeCells(narrow.cells, 3, 1).glyphs[0]).toBe(SAIL);
+-    const tiny = rasterOf(await $.ui.render(spinner("d", { columns: 2, rows: 40 })))!;
+-    expect(tiny.columns).toBe(1);
+-    expect(tiny.rows).toBe(1);
+-    expect(decodeCells(tiny.cells, 1, 1).glyphs[0]).toMatch(/^[▁▂▃▄]$/);
+   });
+ 
+-  test("reflows to a new width on the redraw a resize causes, and blits at that width from then on", async ($, on) => {
+-    const { clock, journal } = world(on, { preference: "on\n" });
+-    await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+-    await $.ui.render(spinner("agent-main", { columns: 80, rows: 24 }));
+-    await clock.advance(TICK * TICKS_PER_MOVE * 6);
+-    const wide = decodeCells(journal.blits.at(-1)!.cells, 78, 2);
+-    expect(wide.glyphs[1]!.indexOf(HULL)).toBe(6);
+-    const shrunk = rasterOf(await $.ui.render(spinner("agent-main", { columns: 12, rows: 24 })))!;
+-    expect(shrunk.columns).toBe(10);
+-    expect(decodeCells(shrunk.cells, 10, 2).glyphs[1]!.indexOf(HULL)).toBe(5);
+-    await clock.advance(TICK);
+-    expect(journal.blits.at(-1)).toMatchObject({ columns: 10, rows: 2 });
++  test("leaves the word out when showVerb is off, so the boat takes the whole row", { options: { showVerb: false } }, async ($, on) => {
++    world(on);
++    const tree = await $.ui.render(spinner("agent-main", { columns: 80, rows: 24 }));
++    expect(rasterOf(tree)!.columns).toBe(78);
++    expect(texts(tree).some(([t]) => t.includes("Sauteing"))).toBe(false);
+   });
+ 
+   test("leaves a non-terminal surface to the engine", async ($, on) => {
+-    const { clock, journal } = world(on, { preference: "on\n" });
++    const { clock, journal } = world(on);
+     const desktop = { ...spinner(), surface: "desktop" as const };
+     expect(isStock(await $.ui.render(desktop as never))).toBe(true);
+     await clock.advance(TICK * 4);
+     expect(journal.blits).toHaveLength(0);
+   });
+-
+-  test("paints the light theme family's spinner blue for the water and the same Claude orange boat", async ($, on) => {
+-    world(on, { preference: "on\n", theme: "light" });
+-    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
+-    const { foregrounds } = decodeCells(raster.cells, 38, 2);
+-    expect(foregrounds[1]!.slice(0, 5)).toEqual([BOAT, BOAT, BOAT, BOAT, BOAT]);
+-    expect(foregrounds[1]!.slice(5).every((color) => color === LIGHT_WATER)).toBe(true);
+-  });
+-
+-  // Each theme value needs its own world, so the family rule gets one test per value.
+-  for (const [theme, expected, family] of [
+-    ["dark-ansi", DARK_WATER, "dark"],
+-    ["dark-daltonized", DARK_WATER, "dark"],
+-    ["light", LIGHT_WATER, "light"],
+-    ["light-daltonized", LIGHT_WATER, "light"],
+-    ["light-ansi", LIGHT_WATER, "light"],
+-    ["auto", LIGHT_WATER, "light"],
+-    ["custom:rose-pine", LIGHT_WATER, "light"],
+-  ] as const) {
+-    test(`paints the ${family} family for the theme value ${JSON.stringify(theme)}`, async ($, on) => {
+-      world(on, { preference: "on\n", theme });
+-      const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
+-      const { foregrounds } = decodeCells(raster.cells, 38, 2);
+-      expect(foregrounds[1]!.slice(5).every((color) => color === expected)).toBe(true);
+-      expect(foregrounds[1]![0]).toBe(BOAT);
+-    });
+-  }
+-
+-  test("re-paints in the new family after the theme changes, through the next drawing and every later blit", async ($, on) => {
+-    const { clock, journal } = world(on, { preference: "on\n", theme: "dark" });
+-    await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+-    await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 }));
+-    await clock.advance(TICK);
+-    expect(decodeCells(journal.blits.at(-1)!.cells, 38, 2).foregrounds[1]!.at(-1)).toBe(DARK_WATER);
+-    const redrawsBefore = journal.invalidations.length;
+-    const changed = await $.config.set(themeChange("light", "dark"));
+-    expect(changed.value).toBe("light");
+-    expect(journal.invalidations.length).toBe(redrawsBefore + 1);
+-    await clock.advance(TICK);
+-    expect(decodeCells(journal.blits.at(-1)!.cells, 38, 2).foregrounds[1]!.at(-1)).toBe(LIGHT_WATER);
+-    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
+-    expect(decodeCells(raster.cells, 38, 2).foregrounds[1]!.at(-1)).toBe(LIGHT_WATER);
+-    // A change within the same family redraws nothing.
+-    const redrawsAfter = journal.invalidations.length;
+-    await $.config.set(themeChange("light-ansi", "light"));
+-    expect(journal.invalidations.length).toBe(redrawsAfter);
+-  });
+-
+-  test("leaves a theme change to the engine while Calm is off, and paints the new family once Calm turns on", async ($, on) => {
+-    const { journal } = world(on, { theme: "dark" });
+-    await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
+-    const redrawsBefore = journal.invalidations.length;
+-    await $.config.set(themeChange("light", "dark"));
+-    expect(journal.invalidations.length).toBe(redrawsBefore);
+-    await $.command.run(calmCommand());
+-    const raster = rasterOf(await $.ui.render(spinner("agent-main", { columns: 40, rows: 24 })))!;
+-    expect(decodeCells(raster.cells, 38, 2).foregrounds[1]!.at(-1)).toBe(LIGHT_WATER);
+-  });
+ });

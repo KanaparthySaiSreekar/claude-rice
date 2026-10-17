@@ -3,15 +3,19 @@
 // mods run and how they are configured. Each version folder holds a version.json:
 //
 //   { "tag": "v3", "label": "...", "plugins": { "<name>@kasasree-mods": true | false },
+//     "first": ["<name>@kasasree-mods"],                  (optional) plugins moved to the front of enabledPlugins
 //     "options": { "<name>@kasasree-mods": { "<option>": <value> } } }
 //
-// A string value "{palette}" becomes the palette name, "{palette:<builder>}" the JSON a v2 builder makes for it.
+// A string value "{palette}" becomes the palette name, "{palette:<builder>}" the JSON a builder below makes for it.
 //
 //   node tools/rice.mjs apply [palette] [--dry-run]   back up ~/.claude/settings.json, then merge the version into it
 //   node tools/rice.mjs revert                        undo the newest apply: byte for byte if settings.json is untouched since,
 //                                                     otherwise only the keys that apply set (later changes of yours stay)
 //   node tools/rice.mjs status
 //   node tools/rice.mjs preview <palette>             write a --settings file for a throwaway preview process (live setup untouched)
+//   node tools/rice.mjs preview-order on|off          a --settings file cannot reorder plugins, so for a preview of a version
+//                                                     with "first", "on" reorders settings.json's enabledPlugins (values kept,
+//                                                     original saved) and "off" puts the file back byte for byte
 //
 // Only enabledPlugins and pluginConfigs.<plugin>.options keys named in version.json are touched; every other key survives.
 import fs from "node:fs"
@@ -39,7 +43,12 @@ export function loadSpec(dir) {
   return spec
 }
 
-const BUILDERS = { bridge: (p) => JSON.stringify(bridgePalette(p)) }
+const BUILDERS = {
+  bridge: (p) => JSON.stringify(bridgePalette(p)),
+  // v4, firstmate-calm: orange hull, cream sails, the dim accent (the prompt frame's colour) for the sea, muted word
+  ship: (p) => JSON.stringify({ boat: p.accent.coral, sail: p.base.fg, water: p.theme?.promptBorder ?? p.darker(p.accent.coral, 0.45), label: p.base.muted }),
+}
+export const builderNames = () => Object.keys(BUILDERS)
 
 /** version.json with its "{palette...}" placeholders filled in for one palette. */
 export function resolve(spec, paletteName) {
@@ -52,13 +61,18 @@ export function resolve(spec, paletteName) {
     return v
   }
   const options = Object.fromEntries(Object.entries(spec.options ?? {}).map(([plugin, o]) => [plugin, Object.fromEntries(Object.entries(o).map(([k, v]) => [k, fill(v)]))]))
-  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, options }
+  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], options }
 }
 
 /** settings.json text with the version merged in. Pure, so it can be tested on any input. */
 export function merged(text, version) {
   const s = JSON.parse(text)
   s.enabledPlugins = { ...(s.enabledPlugins ?? {}), ...version.plugins }
+  // Claude Code loads user mods in the key order of enabledPlugins, and the first one loaded is the outermost: it
+  // sees each event first and can answer it without passing it on (measured with --debug, 2.1.301). "first" lists
+  // the plugins that must sit in front, e.g. Calm, which has to hide a tool row before skins draws it.
+  const first = (version.first ?? []).filter((k) => k in s.enabledPlugins)
+  if (first.length) s.enabledPlugins = Object.fromEntries([...first.map((k) => [k, s.enabledPlugins[k]]), ...Object.entries(s.enabledPlugins).filter(([k]) => !first.includes(k))])
   s.pluginConfigs ??= {}
   for (const [plugin, o] of Object.entries(version.options)) {
     s.pluginConfigs[plugin] = { ...(s.pluginConfigs[plugin] ?? {}), options: { ...(s.pluginConfigs[plugin]?.options ?? {}), ...o } }
@@ -79,6 +93,8 @@ export function apply(spec, paletteName, { dryRun = false, log = console.log } =
   const changes = []
   const was = JSON.parse(before)
   for (const [k, v] of Object.entries(version.plugins)) if (was.enabledPlugins?.[k] !== v) changes.push(`${k}: ${v ? "on" : "off"}`)
+  const order = (t) => Object.keys(JSON.parse(t).enabledPlugins ?? {}).join(",")
+  if (version.first.length && order(before) !== order(after)) changes.push(`load first: ${version.first.join(", ")}`)
   for (const [plugin, o] of Object.entries(version.options))
     for (const [k, v] of Object.entries(o)) if (JSON.stringify(was.pluginConfigs?.[plugin]?.options?.[k]) !== JSON.stringify(v)) changes.push(`${plugin} ${k} = ${typeof v === "string" && v.length > 40 ? v.slice(0, 37) + "..." : JSON.stringify(v)}`)
   if (dryRun) { log(`${version.tag} (${version.palette.key}) would change:\n  ${changes.join("\n  ") || "nothing"}`); return { changes, dryRun: true } }
@@ -171,6 +187,25 @@ export function previewClean(spec) {
   return made
 }
 
+/** For a preview only: put the version's "first" plugins in front of the live enabledPlugins, or put the file back. */
+export function previewOrder(spec, mode, { log = console.log } = {}) {
+  const saved = path.join(riceDir(), "preview", spec.tag, "settings.order-backup.json")
+  if (mode === "off") {
+    if (!fs.existsSync(saved)) { log("nothing to put back"); return false }
+    fs.copyFileSync(saved, settingsFile()); fs.rmSync(saved); log("settings.json is back, byte for byte"); return true
+  }
+  const before = fs.readFileSync(settingsFile(), "utf8")
+  const s = JSON.parse(before)
+  const first = (spec.first ?? []).filter((k) => k in (s.enabledPlugins ?? {}))
+  if (!first.length) { log("nothing to reorder"); return false }
+  fs.mkdirSync(path.dirname(saved), { recursive: true })
+  if (!fs.existsSync(saved)) fs.writeFileSync(saved, before)
+  s.enabledPlugins = Object.fromEntries([...first.map((k) => [k, s.enabledPlugins[k]]), ...Object.entries(s.enabledPlugins).filter(([k]) => !first.includes(k))])
+  fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2) + "\n")
+  log(`load order now starts with ${first.join(", ")}; run preview-order off when done`)
+  return true
+}
+
 /** The CLI every version's tools/rice.mjs hands its argv to. */
 export function cli(dir, argv) {
   const spec = loadSpec(dir)
@@ -180,6 +215,7 @@ export function cli(dir, argv) {
   else if (cmd === "revert") revert()
   else if (cmd === "status") status()
   else if (cmd === "preview") preview(spec, palette)
+  else if (cmd === "preview-order") previewOrder(spec, rest[0] === "off" ? "off" : "on")
   else if (cmd === "preview-clean") console.log(`removed: ${previewClean(spec).join(", ") || "nothing"}`)
-  else { console.log(`usage: node tools/rice.mjs <apply [palette] [--dry-run] | revert | status | preview <palette> | preview-clean>`); process.exitCode = cmd ? 1 : 0 }
+  else { console.log(`usage: node tools/rice.mjs <apply [palette] [--dry-run] | revert | status | preview <palette> | preview-order on|off | preview-clean>`); process.exitCode = cmd ? 1 : 0 }
 }

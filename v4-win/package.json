@@ -1,0 +1,14 @@
+{
+  "name": "claude-rice-v4-calm",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "description": "v4 of the Windows Claude Code rice: Firstmate Calm (a sailboat for the spinner, a conversation-only transcript), forked to run outside Firstmate, on the v2.2 rice.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "apply": "node tools/rice.mjs apply",
+    "revert": "node tools/rice.mjs revert",
+    "status": "node tools/rice.mjs status"
+  },
+  "engines": { "node": ">=22" }
+}

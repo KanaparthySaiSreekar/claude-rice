@@ -6,10 +6,13 @@ $ErrorActionPreference = 'Stop'
 # A preview launched from inside a Claude Code session must not look like that session's child: it would inherit the
 # parent's messaging socket and token and switch off transcript saving. Scrub what Claude Code sets for children.
 Get-ChildItem Env: | Where-Object { $_.Name -match '^(CLAUDECODE|CLAUDE_CODE_|CLAUDE_PID|CLAUDE_EFFORT)' } | ForEach-Object { Remove-Item "Env:$($_.Name)" }
-$session = (Get-Content $env:RICE_PREVIEW_SESSION -Raw).Trim()
 Set-Location "$env:USERPROFILE\Projects\aurora-demo"
 $env:COLORTERM = 'truecolor'
 $env:RICE_DEMO_GIT = '{"branch":"main","dirty":1,"ahead":1}'   # demo only: the demo folder is not a repo, this shows the git pill
-$claudeArgs = @('--no-chrome', '--resume', $session)
+# RICE_PREVIEW_PROMPT starts a NEW session with that prompt instead of resuming one. That is a real model turn (it spends
+# usage), so it is only for what a written transcript cannot show, such as the working spinner.
+if ($env:RICE_PREVIEW_PROMPT) { $claudeArgs = @('--no-chrome', $env:RICE_PREVIEW_PROMPT) }
+else { $claudeArgs = @('--no-chrome', '--resume', (Get-Content $env:RICE_PREVIEW_SESSION -Raw).Trim()) }
 if ($env:RICE_PREVIEW_SETTINGS) { $claudeArgs += @('--settings', $env:RICE_PREVIEW_SETTINGS) }
+if ($env:RICE_PREVIEW_ARGS) { $claudeArgs += ($env:RICE_PREVIEW_ARGS -split ' ') }   # e.g. --debug, to read the mod load order
 & "$env:USERPROFILE\.local\bin\claude.exe" @claudeArgs

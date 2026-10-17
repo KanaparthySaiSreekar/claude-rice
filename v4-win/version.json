@@ -1,0 +1,17 @@
+{
+  "tag": "v4",
+  "label": "Firstmate Calm: a sailboat for the spinner and a conversation-only transcript, on the v2.2 rice",
+  "plugins": {
+    "firstmate-calm@kasasree-mods": true,
+    "skins@kasasree-mods": true,
+    "prismantis@kasasree-mods": false
+  },
+  "first": ["firstmate-calm@kasasree-mods"],
+  "options": {
+    "firstmate-calm@kasasree-mods": {
+      "start": "on",
+      "showVerb": true,
+      "palette": "{palette:ship}"
+    }
+  }
+}

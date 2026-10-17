@@ -1,0 +1,56 @@
+diff --git a/plugins/skins/hooks/prose.tsx b/plugins/skins/hooks/prose.tsx
+index 2a3320d..8fa12b0 100644
+--- a/plugins/skins/hooks/prose.tsx
++++ b/plugins/skins/hooks/prose.tsx
+@@ -1,4 +1,5 @@
+ import type { AlertType, Block, Line, Run, RunStyle, Task } from './blocks'
++import { splitBlocks } from './blocks'
+ import { safeHref, touchOf } from './links'
+ import type { Look } from './rows'
+ import type { Palette } from './skin'
+@@ -93,15 +94,17 @@ function headingRow(look: Look, level: number, text: string) {
+   )
+ }
+ 
++// LOCAL PATCH (kasasree-mods): the body goes through the skin's own blocks, like the reply around it. Upstream handed it to
++// the engine's Markdown, whose inline code is a fixed lavender that no skin or theme colour reaches (seen in an Ember alert).
+ function alertBox(look: Look, type: AlertType, body: string) {
+-  const { Box, Text, Markdown } = look.ui
++  const { Box, Text } = look.ui
+   const alert = ALERTS[type]
+   const color = look.skin.palette[alert.slot]
+ 
+   return (
+     <Box flexDirection="column" borderStyle="round" borderColor={color} paddingX={1}>
+       <Text color={color} bold>{`${look.prefs.icons === 'ascii' ? alert.ascii : alert.unicode} ${alert.title}`}</Text>
+-      {body === '' ? null : <Markdown text={body} />}
++      {body === '' ? null : <Box flexDirection="column">{blockRows(look, splitBlocks(body, { prose: look.surface === 'terminal' }))}</Box>}
+     </Box>
+   )
+ }
+diff --git a/plugins/skins/tests/rows.test.tsx b/plugins/skins/tests/rows.test.tsx
+index e2e29bb..32a5428 100644
+--- a/plugins/skins/tests/rows.test.tsx
++++ b/plugins/skins/tests/rows.test.tsx
+@@ -347,6 +347,21 @@ test('the markdown pack draws alerts and task lists everywhere, headings and par
+   expect(await off.find({ type: 'Text', text: 'stock row' })).toBeDefined()
+ })
+ 
++// LOCAL PATCH: an alert's body is drawn by the skin's own blocks, so its inline code takes the same colour as in a paragraph
++// (the engine's Markdown drew it in a fixed lavender).
++test('inline code inside an alert takes the skin colour it has in a paragraph, and no engine markdown is left on the terminal', async ($, on) => {
++  stubEngine(on)
++
++  const text = 'Run `npm test` now.\n\n> [!NOTE]\n> Run `npm test` first.'
++  const ui = await $.ui.mount({ ...SITE, surface: 'terminal', component: 'AssistantMessage', requestId: 'alert-code', props: { text, isFirstOfReply: true } })
++  const prose = spanColor((await ui.find({ type: 'Text', text: /now\.$/ })) as Found, 'npm test')
++  const alert = spanColor((await ui.find({ type: 'Text', text: /first\.$/ })) as Found, 'npm test')
++  expect(prose).toBeDefined()
++  expect(alert).toBe(prose)
++  expect(await ui.find({ type: 'Markdown' })).toBeUndefined()
++  await ui.unmount()
++})
++
+ test('a terminal table sizes Korean, Chinese, Japanese and emoji cells to their full width', async ($, on) => {
+   stubEngine(on)
+ 
