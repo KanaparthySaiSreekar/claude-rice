@@ -6,13 +6,14 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - The **flightdeck** pane: the live dashboard on the right.
 
 ## v2 (Claude Ember)
-- The **colour theme**: orange to yellow on near-black.
+- The **colour theme**: orange to yellow on near-black. Still the best of all the themes so far (said after trying v3's Gruvbox).
 - The **status line**.
 - Not liked: the soft blur round the text (the glow shader).
+- Not liked: the custom spinner words ("Pondering", "Noodling" and so on): too silly.
 
 ## v3 (prismantis, on its own in Gruvbox Dark)
 - **Crisp text**: no blur on the letters (v3 has no glow shader).
-- Nothing else stood out.
+- **Tool calls collapsed into one line** ("Ran 1 command", "Read 2 files"): clean, and kept apart from the chat.
 - Not liked: the diff colours (plain red and green tints).
 
 ## v4 (Firstmate Calm)
@@ -26,6 +27,7 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 
 ## Across versions
 - **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.
+- **Spinner words:** not silly, but not stiff and serious just for the sake of it either. Plain words for what is happening.
 
 ## How versions are kept
 Before switching away from a version it is saved whole (`node v3-win/tools/snapshot.mjs save <name>`) and can be put back exactly (`restore <name>`). Saved: `v2.2-ember` (v2 as it was), `v3-gruvbox` (v3 on its own).
