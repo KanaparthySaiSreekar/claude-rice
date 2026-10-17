@@ -1,0 +1,14 @@
+{
+  "_source": "Gruvbox Dark by Pavel Pertsev (morhetz/gruvbox, MIT): the official palette, mapped onto the rice's palette format so the v2 builders can write a matching Claude Code theme, Windows Terminal scheme, PowerShell colours and Rio config.",
+  "key": "gruvbox",
+  "label": "Gruvbox Dark",
+  "mood": "warm retro: brown-black, cream text, yellow, orange, aqua, green, soft red and pink",
+  "base": { "bg": "#282828", "surface": "#32302F", "raised": "#3C3836", "hover": "#504945", "line": "#504945", "selection": "#665C54", "fg": "#EBDBB2", "muted": "#BDAE93", "faint": "#A89984", "dim": "#928374" },
+  "accent": { "coral": "#FE8019", "coralLight": "#FABD2F", "pink": "#D3869B", "violet": "#D3869B", "blue": "#83A598", "cyan": "#8EC07C", "mint": "#B8BB26", "amber": "#FABD2F", "red": "#FB4934" },
+  "ansi": { "black": "#282828", "red": "#CC241D", "green": "#98971A", "yellow": "#D79921", "blue": "#458588", "purple": "#B16286", "cyan": "#689D6A", "white": "#A89984",
+            "brightBlack": "#928374", "brightRed": "#FB4934", "brightGreen": "#B8BB26", "brightYellow": "#FABD2F", "brightBlue": "#83A598", "brightPurple": "#D3869B", "brightCyan": "#8EC07C", "brightWhite": "#EBDBB2" },
+  "tool": { "read": "#83A598", "write": "#FE8019", "run": "#B8BB26", "search": "#8EC07C", "web": "#FABD2F", "mcp": "#D3869B", "other": "#A89984", "agent": "#FABD2F" },
+  "ramp": ["#B8BB26", "#FABD2F", "#FE8019", "#FB4934"],
+  "art": null,
+  "theme": { "promptBorder": "#665C54" }
+}

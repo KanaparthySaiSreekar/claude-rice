@@ -8,6 +8,24 @@ v3 runs it **in the rice's own palettes** (ember, amber, crimson), with a `▍` 
 
 *The real Claude Code 2.1.301 resuming a synthetic session (no prompt sent, no usage spent), with v3 applied for that one process only.*
 
+## v3 on its own (Gruvbox, all matched)
+
+Added 2026-10-17 when the versions started being tried one at a time, each as a complete swap. As built above, v3 sits on v2 (its theme, status line and Bridge pane), so it looked almost the same as v2. **v3-complete** keeps nothing from v1 or v2:
+- prismantis draws the replies in its own **Gruvbox Dark** theme (`gruvbox-dark`, with the `▍` headings and bar prompts).
+- Claude Code's theme, the Windows Terminal scheme and window theme, the PowerShell colours and Rio are all matched to Gruvbox (`palette/gruvbox.json`, written by the v2 builders).
+- There is no status line, no side pane, no glow shader, no custom spinner words and no tab-title hook; skins, the Bridge, flightdeck, filetree and image-view are off.
+
+`complete.json` lists every change, including what stays because it is not part of the look (the model, fullscreen mode, the font, PowerShell key bindings).
+
+```powershell
+node tools/complete.mjs apply [--dry-run]   # saves the current setup first, then switches
+node tools/complete.mjs revert              # puts back what apply saved
+node tools/snapshot.mjs restore v2.2-ember  # v2 exactly as it was before v3
+node tools/snapshot.mjs list
+```
+
+`tools/snapshot.mjs` saves and restores the whole live setup (Claude Code settings, themes, hooks, mod stores, Windows Terminal, PowerShell, Rio and `~/.rice`), checking every saved file's hash before restoring.
+
 ## What it looks like
 
 ![A JavaScript card with green strings and flame function names, a bar chart, a peach note and a task list, all in Ember](docs/screenshots/prismantis-chart.png)

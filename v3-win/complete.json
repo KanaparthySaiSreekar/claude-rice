@@ -1,0 +1,31 @@
+{
+  "_what": "v3 on its own, with nothing from v1 or v2: prismantis drawing the replies in its Gruvbox Dark theme, and Claude Code, Windows Terminal, PowerShell and Rio matched to Gruvbox. No status line, no side pane, no glow, no custom spinner words, no tab-title hook. tools/complete.mjs applies it; v2 is kept as the snapshot v2.2-ember.",
+  "palette": "palette/gruvbox.json",
+  "claude": {
+    "theme": "custom:gruvbox",
+    "remove": ["statusLine", "spinnerVerbs", "spinnerTipsOverride"],
+    "removeHookScript": "tab-title.mjs",
+    "removeEnv": ["CLAUDE_CODE_DISABLE_TERMINAL_TITLE", "AURORA_DECK_ROWS"],
+    "plugins": {
+      "prismantis@kasasree-mods": true,
+      "skins@kasasree-mods": false,
+      "aurora-bridge@kasasree-mods": false,
+      "flightdeck@kasasree-mods": false,
+      "filetree@kasasree-mods": false,
+      "image-view@kasasree-mods": false,
+      "claude-hud@kasasree-mods": false,
+      "token-weather@kasasree-mods": false,
+      "firstmate-calm@kasasree-mods": false,
+      "context-bar@kasasree-mods": false,
+      "usage-meter@kasasree-mods": false,
+      "mindful-breath@kasasree-mods": false
+    },
+    "options": {
+      "prismantis@kasasree-mods": { "theme": "gruvbox-dark", "headingStyle": "bar", "promptStyle": "bar", "copyButtonStyle": "hover", "diagramHints": false }
+    }
+  },
+  "terminal": {
+    "removeDefaults": ["tabColor", "padding", "cursorShape", "experimental.pixelShaderPath", "useAcrylic", "opacity", "backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]
+  },
+  "keptBecauseNotLooks": ["model and effort", "tui: fullscreen", "maxProseWidth", "autoUpdatesChannel", "permission settings", "the JetBrainsMono NFM font and grayscale text (needed for the glyphs; your system-wide display choice)", "PowerShell key bindings and history options"]
+}
