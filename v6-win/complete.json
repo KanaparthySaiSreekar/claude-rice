@@ -1,0 +1,44 @@
+{
+  "_what": "v6 on its own, with nothing from v1 to v5: Mindful-Claude's guided breathing band above the prompt while Claude works (the spinner reads the breath), in the mod's own single Claude orange. v6 has no look of its own, so it runs on Claude Code's stock look (built-in dark theme, Windows Terminal's built-in Campbell, Claude Code's own reply drawing). No status line, no side pane, no glow, no custom spinner words, no tab-title hook. The 5-row band and the font-safe centre glyph are v6's own changes to the mod; the ember glow it was built with is v2's colour, so it is left out.",
+  "tag": "v6",
+  "label": "v6: Mindful breathing band on Claude Code's own look",
+  "palette": "../v4-win/palette/claude-default.json",
+  "claude": {
+    "theme": "dark",
+    "remove": ["statusLine", "spinnerVerbs", "spinnerTipsOverride"],
+    "removeHookScript": "tab-title.mjs",
+    "removeEnv": ["CLAUDE_CODE_DISABLE_TERMINAL_TITLE", "AURORA_DECK_ROWS"],
+    "plugins": {
+      "mindful-breath@kasasree-mods": true,
+      "usage-meter@kasasree-mods": false,
+      "context-bar@kasasree-mods": false,
+      "firstmate-calm@kasasree-mods": false,
+      "prismantis@kasasree-mods": false,
+      "skins@kasasree-mods": false,
+      "aurora-bridge@kasasree-mods": false,
+      "flightdeck@kasasree-mods": false,
+      "filetree@kasasree-mods": false,
+      "image-view@kasasree-mods": false,
+      "claude-hud@kasasree-mods": false,
+      "token-weather@kasasree-mods": false
+    },
+    "first": ["mindful-breath@kasasree-mods"],
+    "options": {
+      "mindful-breath@kasasree-mods": { "rows": "5", "palette": "" }
+    }
+  },
+  "terminal": {
+    "scheme": "Campbell",
+    "windowTheme": "dark",
+    "removeDefaults": ["tabColor", "padding", "cursorShape", "experimental.pixelShaderPath", "useAcrylic", "opacity", "backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]
+  },
+  "keptBecauseNotLooks": [
+    "model and effort",
+    "tui: fullscreen",
+    "maxProseWidth",
+    "autoUpdatesChannel",
+    "permission settings",
+    "the JetBrainsMono NFM font and grayscale text",
+    "PowerShell key bindings and history options"
+  ]
+}

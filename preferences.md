@@ -19,8 +19,8 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 ## v4 (Firstmate Calm, on Claude Code's own look)
 - Nothing to keep. The sailboat spinner is not liked, and nothing else in it was useful.
 
-## v5 (Ember meters)
-- *(not tried yet)*
+## v5 (context and usage meters, on Claude Code's own look)
+- Nothing to keep: just a meter row, nothing attractive about it.
 
 ## v6 (Breathing ember)
 - *(not tried yet)*
