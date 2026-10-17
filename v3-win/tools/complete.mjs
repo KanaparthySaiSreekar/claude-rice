@@ -60,6 +60,9 @@ export function claudeSettings(s, spec) {
   if (out.env) { for (const k of c.removeEnv ?? []) delete out.env[k]; if (!Object.keys(out.env).length) delete out.env }
   out.enabledPlugins = { ...(out.enabledPlugins ?? {}) }
   for (const [k, v] of Object.entries(c.plugins ?? {})) if (k in out.enabledPlugins || v) out.enabledPlugins[k] = v
+  // Claude Code loads mods in the key order of enabledPlugins, the first outermost: "first" puts these in front
+  const first = (c.first ?? []).filter((k) => k in out.enabledPlugins)
+  if (first.length) out.enabledPlugins = Object.fromEntries([...first.map((k) => [k, out.enabledPlugins[k]]), ...Object.entries(out.enabledPlugins).filter(([k]) => !first.includes(k))])
   out.pluginConfigs ??= {}
   for (const [k, o] of Object.entries(c.options ?? {})) out.pluginConfigs[k] = { ...(out.pluginConfigs[k] ?? {}), options: { ...(out.pluginConfigs[k]?.options ?? {}), ...o } }
   return out

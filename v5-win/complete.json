@@ -1,0 +1,45 @@
+{
+  "_what": "v5 on its own, with nothing from v1 to v4: hamzafer's context-bar and usage-meter sharing one row above the prompt (context by category, 5h and 7d with reset times, session cost), in the mods' own colours. v5 has no look of its own, so it runs on Claude Code's stock look (built-in dark theme, Windows Terminal's built-in Campbell, Claude Code's own reply drawing). No status line (the one-row status line v5 was built with is v2's), no side pane, no glow, no custom spinner words, no tab-title hook. The one-row line style, the shared row and the font-safe glyph are v5's own changes to the mods.",
+  "tag": "v5",
+  "label": "v5: context and usage meters on Claude Code's own look",
+  "palette": "../v4-win/palette/claude-default.json",
+  "claude": {
+    "theme": "dark",
+    "remove": ["statusLine", "spinnerVerbs", "spinnerTipsOverride"],
+    "removeHookScript": "tab-title.mjs",
+    "removeEnv": ["CLAUDE_CODE_DISABLE_TERMINAL_TITLE", "AURORA_DECK_ROWS"],
+    "plugins": {
+      "usage-meter@kasasree-mods": true,
+      "context-bar@kasasree-mods": true,
+      "firstmate-calm@kasasree-mods": false,
+      "prismantis@kasasree-mods": false,
+      "skins@kasasree-mods": false,
+      "aurora-bridge@kasasree-mods": false,
+      "flightdeck@kasasree-mods": false,
+      "filetree@kasasree-mods": false,
+      "image-view@kasasree-mods": false,
+      "claude-hud@kasasree-mods": false,
+      "token-weather@kasasree-mods": false,
+      "mindful-breath@kasasree-mods": false
+    },
+    "first": ["usage-meter@kasasree-mods"],
+    "options": {
+      "context-bar@kasasree-mods": { "style": "line", "maxWidth": "48", "palette": "" },
+      "usage-meter@kasasree-mods": { "join": "on", "palette": "" }
+    }
+  },
+  "terminal": {
+    "scheme": "Campbell",
+    "windowTheme": "dark",
+    "removeDefaults": ["tabColor", "padding", "cursorShape", "experimental.pixelShaderPath", "useAcrylic", "opacity", "backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]
+  },
+  "keptBecauseNotLooks": [
+    "model and effort",
+    "tui: fullscreen",
+    "maxProseWidth",
+    "autoUpdatesChannel",
+    "permission settings",
+    "the JetBrainsMono NFM font and grayscale text",
+    "PowerShell key bindings and history options"
+  ]
+}

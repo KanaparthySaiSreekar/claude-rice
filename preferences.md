@@ -16,8 +16,8 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - **Tool calls collapsed into one line** ("Ran 1 command", "Read 2 files"): clean, and kept apart from the chat.
 - Not liked: the diff colours (plain red and green tints).
 
-## v4 (Firstmate Calm)
-- *(not tried yet)*
+## v4 (Firstmate Calm, on Claude Code's own look)
+- Nothing to keep. The sailboat spinner is not liked, and nothing else in it was useful.
 
 ## v5 (Ember meters)
 - *(not tried yet)*
