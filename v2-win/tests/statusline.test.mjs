@@ -161,10 +161,10 @@ test("the status line's embedded default palette matches palettes.json (no silen
 
 // Glyphs that exist in JetBrainsMono NFM (read from the font's cmap with WPF's GlyphTypeface, 2026-10-17). A glyph the font lacks
 // is drawn from a fallback font at another width and spills into the next cell: the old reset arrow touched its time that way.
-const FONT_SAFE = new Set([..."–−…│▏▎▍▌▋▊▉█▐▕▇◆◇◌◔◕◈●○✓✕⚡⌂⌥↑↓·•→"])   // the last two are the Powerline pill caps
+const FONT_SAFE = new Set([..."–−…│▏▎▍▌▋▊▉█▐▕▇◆◇◌◔◕◈●○✓✕⚡⌂⌥↑↓·•→" + "\ue0b6\ue0b4"])   // the last two are the Powerline pill caps
 test("the status line draws only glyphs the terminal font really has", () => {
   const src = fs.readFileSync(DECK, "utf8").split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n")
-  const bad = [...new Set([...src].filter((c) => c.codePointAt(0) > 127 && c !== " " && !FONT_SAFE.has(c)))]
+  const bad = [...new Set([...src].filter((c) => c.codePointAt(0) > 127 && !FONT_SAFE.has(c)))]
   assert.deepEqual(bad, [], `not in the font: ${bad.join(" ")}`)
 })
 
@@ -177,8 +177,11 @@ test("AURORA_DECK_PALETTE points the status line at another palette (used by the
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "deck-pal-"))
   const file = path.join(dir, "palette.json")
   fs.writeFileSync(file, JSON.stringify({ accent: { ...P.accent, coral: "#123456" } }))
-  const r = spawnSync(process.execPath, [DECK], { input: JSON.stringify(payload()), encoding: "utf8", env: { ...process.env, AURORA_DECK_PALETTE: file } })
-  assert.equal(r.status, 0)
-  assert.ok(r.stdout.includes("38;2;18;52;86") || r.stdout.includes("48;2;18;52;86"), "the model pill should use the override's coral #123456")
-  fs.rmSync(dir, { recursive: true, force: true })
+  try {
+    const r = spawnSync(process.execPath, [DECK], { input: JSON.stringify(payload()), encoding: "utf8", env: { ...process.env, AURORA_DECK_PALETTE: file } })
+    assert.equal(r.status, 0)
+    assert.ok(r.stdout.includes("38;2;18;52;86") || r.stdout.includes("48;2;18;52;86"), "the model pill should use the override's coral #123456")
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })

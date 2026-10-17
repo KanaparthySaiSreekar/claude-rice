@@ -9,7 +9,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { getPalette } from "./lib/palette.mjs"
-import { skin as buildSkin, claudeTheme, bridgePalette } from "./build.mjs"
+import { skin as buildSkin, claudeTheme, bridgePalette, statusPalette } from "./build.mjs"
 import { PALETTES, RICE, repoRoot } from "./rice.mjs"
 
 const STORE = path.join(os.homedir(), ".claude", "plugins", "store", "skins_kasasree-mods-2f16574f50f4.json")
@@ -35,7 +35,9 @@ function seed(paletteName) {
   fs.writeFileSync(STORE, JSON.stringify(store))
   // 3. the status line shim + the per-process settings
   const shim = path.join(PREVIEW, "deck.cmd")
-  const palFile = path.join(RICE, "builds", p.key, "statusline", "palette.json")   // the previewed palette, not the applied one
+  // the previewed palette, not the applied one, written here so a palette that was never built still previews in its own colours
+  const palFile = path.join(PREVIEW, "statusline-palette.json")
+  fs.writeFileSync(palFile, JSON.stringify(statusPalette(p), null, 2))
   fs.writeFileSync(shim, `@echo off\r\nset "AURORA_DECK_PALETTE=${palFile}"\r\n"${process.execPath}" "${path.join(repoRoot, "statusline", "aurora-deck.mjs")}"\r\n`)
   const settings = {
     theme: `custom:${p.key}`,

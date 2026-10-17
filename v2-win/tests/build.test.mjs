@@ -34,12 +34,15 @@ test("the audit actually fails on an unreadable palette", () => {
 })
 
 test("every Claude theme token is one Claude Code actually knows (a typo would be silently ignored)", () => {
-  const t = claudeTheme(p)
-  assert.equal(t.base, "dark")
-  const unknown = Object.keys(t.overrides).filter((k) => !KNOWN_TOKENS.has(k))
-  assert.deepEqual(unknown, [], `unknown tokens: ${unknown}`)
-  for (const [k, v] of Object.entries(t.overrides)) assert.match(v, HEX, `${k} = ${v}`)
-  for (const must of ["claude", "text", "composerSidebarBackground", "userMessageBackground", "subtle", "success", "error", "warning", "promptBorder", "diffAdded", "diffRemoved"]) assert.ok(must in t.overrides, `missing ${must}`)
+  // every palette, because a palette's own "theme" block can add tokens too
+  for (const name of Object.keys(loadPalettes(PAL).palettes)) {
+    const t = claudeTheme(getPalette(PAL, name))
+    assert.equal(t.base, "dark")
+    const unknown = Object.keys(t.overrides).filter((k) => !KNOWN_TOKENS.has(k))
+    assert.deepEqual(unknown, [], `${name}: unknown tokens: ${unknown}`)
+    for (const [k, v] of Object.entries(t.overrides)) assert.match(v, HEX, `${name}: ${k} = ${v}`)
+    for (const must of ["claude", "text", "composerSidebarBackground", "userMessageBackground", "subtle", "success", "error", "warning", "promptBorder", "diffAdded", "diffRemoved"]) assert.ok(must in t.overrides, `${name}: missing ${must}`)
+  }
 })
 
 test("text-bearing theme tokens are readable on the surfaces they sit on", () => {
