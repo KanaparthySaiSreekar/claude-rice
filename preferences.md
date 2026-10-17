@@ -23,8 +23,8 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - The **meter bar itself is clean** (one row above the input: the stacked context bar, 5h and 7d bars, cost). Maybe for later.
 - Not liked: its colour palette (the mods' own blues and purples).
 
-## v6 (Breathing ember)
-- *(not tried yet)*
+## v6 (Mindful breathing band, on Claude Code's own look)
+- Nothing to keep. Not liked at all.
 
 ## Across versions
 - **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.
