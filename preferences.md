@@ -20,7 +20,8 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - Nothing to keep. The sailboat spinner is not liked, and nothing else in it was useful.
 
 ## v5 (context and usage meters, on Claude Code's own look)
-- Nothing to keep: just a meter row, nothing attractive about it.
+- The **meter bar itself is clean** (one row above the input: the stacked context bar, 5h and 7d bars, cost). Maybe for later.
+- Not liked: its colour palette (the mods' own blues and purples).
 
 ## v6 (Breathing ember)
 - *(not tried yet)*
