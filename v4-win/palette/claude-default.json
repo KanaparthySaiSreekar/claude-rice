@@ -1,0 +1,14 @@
+{
+  "_source": "Claude Code's own default look: Windows Terminal's built-in Campbell scheme for the ANSI colours and background, and Claude Code's dark-theme accents (Claude orange, the spinner blue, its success, warning and error colours). Used only for the PowerShell prompt and Rio; Claude Code itself runs its built-in dark theme and Windows Terminal its built-in Campbell scheme.",
+  "key": "claude-default",
+  "label": "Claude Default",
+  "mood": "Claude Code as it ships: neutral black, grey-white text, Claude orange, spinner blue",
+  "base": { "bg": "#0C0C0C", "surface": "#161616", "raised": "#1E1E1E", "hover": "#2A2A2A", "line": "#3A3A3A", "selection": "#264F78", "fg": "#CCCCCC", "muted": "#999999", "faint": "#888888", "dim": "#767676" },
+  "accent": { "coral": "#D77757", "coralLight": "#EB9F7F", "pink": "#E74856", "violet": "#B1B9F9", "blue": "#93A5FF", "cyan": "#61D6D6", "mint": "#4EBA65", "amber": "#FFC107", "red": "#FF6B80" },
+  "ansi": { "black": "#0C0C0C", "red": "#C50F1F", "green": "#13A10E", "yellow": "#C19C00", "blue": "#0037DA", "purple": "#881798", "cyan": "#3A96DD", "white": "#CCCCCC",
+            "brightBlack": "#767676", "brightRed": "#E74856", "brightGreen": "#16C60C", "brightYellow": "#F9F1A5", "brightBlue": "#3B78FF", "brightPurple": "#B4009E", "brightCyan": "#61D6D6", "brightWhite": "#F2F2F2" },
+  "tool": { "read": "#93A5FF", "write": "#D77757", "run": "#4EBA65", "search": "#61D6D6", "web": "#B1B9F9", "mcp": "#E74856", "other": "#999999", "agent": "#FFC107" },
+  "ramp": ["#4EBA65", "#FFC107", "#D77757", "#FF6B80"],
+  "art": null,
+  "theme": { "promptBorder": "#888888" }
+}

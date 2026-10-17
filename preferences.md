@@ -8,9 +8,12 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 ## v2 (Claude Ember)
 - The **colour theme**: orange to yellow on near-black.
 - The **status line**.
+- Not liked: the soft blur round the text (the glow shader).
 
 ## v3 (prismantis, on its own in Gruvbox Dark)
-- *(reviewing)*
+- **Crisp text**: no blur on the letters (v3 has no glow shader).
+- Nothing else stood out.
+- Not liked: the diff colours (plain red and green tints).
 
 ## v4 (Firstmate Calm)
 - *(not tried yet)*
@@ -21,5 +24,8 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 ## v6 (Breathing ember)
 - *(not tried yet)*
 
+## Across versions
+- **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.
+
 ## How versions are kept
-Before switching away from a version it is saved whole (`node v3-win/tools/snapshot.mjs save <name>`) and can be put back exactly (`restore <name>`). Saved so far: `v2.2-ember` (v2 as it was), and the automatic `before-v3-complete-*`.
+Before switching away from a version it is saved whole (`node v3-win/tools/snapshot.mjs save <name>`) and can be put back exactly (`restore <name>`). Saved: `v2.2-ember` (v2 as it was), `v3-gruvbox` (v3 on its own).

@@ -1,0 +1,47 @@
+{
+  "_what": "v4 on its own, with nothing from v1, v2 or v3: Firstmate's Calm (the sailboat while Claude works, tool rows and short narration hidden) on Claude Code's own default look. Calm's colours are upstream's: a Claude-orange boat on spinner-blue water. Claude Code runs its built-in dark theme and draws replies itself (no skins, no prismantis); Windows Terminal runs its built-in Campbell scheme. No status line, no side pane, no glow, no custom spinner words, no tab-title hook. The font-safe sail glyphs and the spinner word beside the boat are v4's own changes to Calm.",
+  "tag": "v4",
+  "label": "v4: Firstmate Calm on Claude Code's own look",
+  "palette": "palette/claude-default.json",
+  "claude": {
+    "theme": "dark",
+    "remove": ["statusLine", "spinnerVerbs", "spinnerTipsOverride"],
+    "removeHookScript": "tab-title.mjs",
+    "removeEnv": ["CLAUDE_CODE_DISABLE_TERMINAL_TITLE", "AURORA_DECK_ROWS"],
+    "plugins": {
+      "firstmate-calm@kasasree-mods": true,
+      "prismantis@kasasree-mods": false,
+      "skins@kasasree-mods": false,
+      "aurora-bridge@kasasree-mods": false,
+      "flightdeck@kasasree-mods": false,
+      "filetree@kasasree-mods": false,
+      "image-view@kasasree-mods": false,
+      "claude-hud@kasasree-mods": false,
+      "token-weather@kasasree-mods": false,
+      "context-bar@kasasree-mods": false,
+      "usage-meter@kasasree-mods": false,
+      "mindful-breath@kasasree-mods": false
+    },
+    "options": {
+      "firstmate-calm@kasasree-mods": {
+        "start": "on",
+        "showVerb": true,
+        "palette": "{\"boat\":\"#D77757\",\"sail\":\"#D77757\",\"water\":\"#93A5FF\",\"label\":\"#999999\"}"
+      }
+    }
+  },
+  "terminal": {
+    "scheme": "Campbell",
+    "windowTheme": "dark",
+    "removeDefaults": ["tabColor", "padding", "cursorShape", "experimental.pixelShaderPath", "useAcrylic", "opacity", "backgroundImage", "backgroundImageOpacity", "backgroundImageStretchMode", "backgroundImageAlignment"]
+  },
+  "keptBecauseNotLooks": [
+    "model and effort",
+    "tui: fullscreen",
+    "maxProseWidth",
+    "autoUpdatesChannel",
+    "permission settings",
+    "the JetBrainsMono NFM font and grayscale text (needed for the glyphs; your system-wide display choice)",
+    "PowerShell key bindings and history options"
+  ]
+}
