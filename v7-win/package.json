@@ -1,6 +1,6 @@
 {
   "name": "claude-rice-v7-six-tabs",
-  "version": "7.0.0",
+  "version": "7.2.0",
   "private": true,
   "type": "module",
   "description": "v7 of the Windows Claude Code rice: six right-hand panes as tabs (Bridge, flightdeck, filetree, cockpit, paneline, cctop) on the v2 Ember rice.",

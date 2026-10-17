@@ -27,6 +27,7 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - Nothing to keep. Not liked at all.
 
 ## v7 (six right-hand panes as tabs, on v2 Ember; built to order, not a complete swap)
+- **The master version**, with all my preferences (2026-10-17). Not final yet: tweaks to come.
 - Asked for: six tabs (cctop, cockpit, paneline, filetree, flightdeck and v2's Bridge, "the waves one").
 - Not liked: cockpit's band and status line repeating the context reading under and above the prompt (and showing `ctx —`). The v2 status line is the one that is right.
 - Liked: the **black of the right panel** (`#121110`, not pure black). The terminal now uses it too.

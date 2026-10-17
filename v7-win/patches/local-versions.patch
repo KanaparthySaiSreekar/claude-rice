@@ -1,0 +1,36 @@
+diff --git a/plugins/aurora-bridge/.claude-plugin/plugin.json b/plugins/aurora-bridge/.claude-plugin/plugin.json
+index e6c5faa..abcdb60 100644
+--- a/plugins/aurora-bridge/.claude-plugin/plugin.json
++++ b/plugins/aurora-bridge/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "aurora-bridge",
+-  "version": "0.1.0",
++  "version": "0.2.0",
+   "description": "Bridge: a right-hand pane with a live heartbeat, a one-dot-per-tool-call activity timeline, the permission gate, subagents, the hottest files and a receipt for the last turn, all drawn in your own palette",
+   "author": { "name": "Kasasree" },
+   "license": "MIT",
+diff --git a/plugins/cctop/.claude-plugin/plugin.json b/plugins/cctop/.claude-plugin/plugin.json
+index 85b5f72..1f8fb29 100644
+--- a/plugins/cctop/.claude-plugin/plugin.json
++++ b/plugins/cctop/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "cctop",
+-  "version": "0.10.0",
++  "version": "0.10.0-rice.1",
+   "description": "btop-style live dashboard for Claude Code internals: /cctop opens it in a side pane, cctop-insights lets the session answer questions from its numbers",
+   "author": { "name": "Thomas Stagl" },
+   "homepage": "https://github.com/tomstagl/cctop",
+diff --git a/plugins/cockpit/.claude-plugin/plugin.json b/plugins/cockpit/.claude-plugin/plugin.json
+index 5d400ec..439155b 100644
+--- a/plugins/cockpit/.claude-plugin/plugin.json
++++ b/plugins/cockpit/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "cockpit",
+-  "version": "1.0.2",
++  "version": "1.0.2-rice.1",
+   "description": "Agent cockpit for Claude Code: live context, limits, cost, tools, files, tests and a guard for risky commands",
+   "author": {
+     "name": "drkokorev"

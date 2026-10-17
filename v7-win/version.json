@@ -28,6 +28,7 @@
       "copyFeedback": "button",
       "diffAddedColor": "#98C25B",
       "diffRemovedColor": "#E8553C",
+      "diffTint": "color",
       "diagramHints": false
     }
   },

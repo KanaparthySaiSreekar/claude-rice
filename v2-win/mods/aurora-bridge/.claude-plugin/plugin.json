@@ -1,6 +1,6 @@
 {
   "name": "aurora-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bridge: a right-hand pane with a live heartbeat, a one-dot-per-tool-call activity timeline, the permission gate, subagents, the hottest files and a receipt for the last turn, all drawn in your own palette",
   "author": { "name": "Kasasree" },
   "license": "MIT",

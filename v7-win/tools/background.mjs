@@ -31,22 +31,35 @@ const keep = (file) => {
   fs.copyFileSync(file, path.join(backup, path.basename(file)))
 }
 const writeJson = (file, obj, indent = 2) => fs.writeFileSync(file, JSON.stringify(obj, null, indent) + "\n")
+// A file is only backed up and written when what is in it differs from what the builder makes (compared as data,
+// so line endings and spacing do not count); a second run, or a dry run after one, says "nothing".
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, "utf8")) } catch { return undefined } }
 
 const changes = []
-keep(themeFile)
-changes.push(`${themeFile}: background ${p.base.bg}`)
-if (!dryRun) writeJson(themeFile, claudeTheme(p))
+const theme = claudeTheme(p)
+if (!same(readJson(themeFile), theme)) {
+  keep(themeFile)
+  changes.push(`${themeFile}: background ${p.base.bg}`)
+  if (!dryRun) writeJson(themeFile, theme)
+}
 if (fs.existsSync(WT_SETTINGS)) {
-  keep(WT_SETTINGS)
   const wt = readWt()
   const scheme = wtScheme(p)
-  wt.schemes = upsert(wt.schemes ?? [], scheme)
-  changes.push(`Windows Terminal scheme "${scheme.name}": background ${scheme.background}`)
-  if (!dryRun) writeWt(wt)
+  if (!same((wt.schemes ?? []).find((s) => s.name === scheme.name), scheme)) {
+    keep(WT_SETTINGS)
+    wt.schemes = upsert(wt.schemes ?? [], scheme)
+    changes.push(`Windows Terminal scheme "${scheme.name}": background ${scheme.background}`)
+    if (!dryRun) writeWt(wt)
+  }
 }
 if (fs.existsSync(deckPalette)) {
-  keep(deckPalette)
-  changes.push(`${deckPalette}: base.bg ${p.base.bg}`)
-  if (!dryRun) writeJson(deckPalette, statusPalette(p))
+  const deck = statusPalette(p)
+  if (!same(readJson(deckPalette), deck)) {
+    keep(deckPalette)
+    changes.push(`${deckPalette}: base.bg ${p.base.bg}`)
+    if (!dryRun) writeJson(deckPalette, deck)
+  }
 }
-console.log(`${dryRun ? "would change" : "changed"}:\n  ${changes.join("\n  ")}${dryRun ? "" : `\nbackup in ${backup}`}`)
+if (changes.length === 0) console.log(`${p.key}: nothing to change, the live files already match the palette`)
+else console.log(`${dryRun ? "would change" : "changed"}:\n  ${changes.join("\n  ")}${dryRun ? "" : `\nbackup in ${backup}`}`)

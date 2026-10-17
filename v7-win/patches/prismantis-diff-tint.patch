@@ -1,0 +1,121 @@
+diff --git a/plugins/prismantis/.claude-plugin/plugin.json b/plugins/prismantis/.claude-plugin/plugin.json
+index 3803a9e..1938a84 100644
+--- a/plugins/prismantis/.claude-plugin/plugin.json
++++ b/plugins/prismantis/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "prismantis",
+-  "version": "0.25.1",
++  "version": "0.25.1-rice.2",
+   "description": "Colorful, themeable rendering for Claude Code replies: tables, headings, code, numbers, paths and links.",
+   "author": {
+     "name": "Nahum Litvin",
+@@ -297,6 +297,13 @@
+       "default": "card",
+       "options": ["card", "full", "marks", "bar"]
+     },
++    "diffTint": {
++      "type": "string",
++      "title": "Diff tint",
++      "description": "What the tint behind changed lines (card and full) is mixed from. hue: the diff color's full hue, so any green tints as pure green. color (local addition): the diff color as given, so a muted color gives a muted tint. Either way code text stays at 4.5:1.",
++      "default": "hue",
++      "options": ["hue", "color"]
++    },
+     "mermaid": {
+       "type": "boolean",
+       "title": "Mermaid diagrams",
+diff --git a/plugins/prismantis/hooks/render.tsx b/plugins/prismantis/hooks/render.tsx
+index 4a829a7..78fb342 100644
+--- a/plugins/prismantis/hooks/render.tsx
++++ b/plugins/prismantis/hooks/render.tsx
+@@ -1025,11 +1025,12 @@ export const fullHue = (hex: string): string => {
+   return `#${pure.map(v => Math.round(v! * 255).toString(16).padStart(2, '0')).join('')}`
+ }
+ 
+-export const diffTint = (text: string | undefined, color: string | undefined): string | undefined => {
++// LOCAL PATCH (kasasree-mods): `own` mixes the color itself (diffTint 'color'), so a muted diff color stays muted.
++export const diffTint = (text: string | undefined, color: string | undefined, own = false): string | undefined => {
+   if (!text || !color || !HEX.test(text) || !HEX.test(color)) return undefined
+   const dark = contrast(text, '#000000') >= contrast(text, '#ffffff')
+   const base = dark ? '#000000' : '#ffffff'
+-  const hue = fullHue(color)
++  const hue = own ? color : fullHue(color)
+   let share = dark ? 0.3 : 0.2
+   while (share > 0.05 && contrast(text, tint(base, hue, share)!) < TEXT_CONTRAST) share -= 0.01
+   return tint(base, hue, share)
+@@ -1071,7 +1072,8 @@ const diffBox = (el: ElementTable, style: Style, rows: DiffLine[], fold: Fold, i
+   const color = (mark: DiffLine['mark']) => (mark === '+' ? addColor : mark === '-' ? removeColor : undefined)
+   const look = style.diffStyle
+   const tinted = look === 'card' || look === 'full'
+-  const tints = { '+': tinted ? diffTint(t.codeText, addColor) : undefined, '-': tinted ? diffTint(t.codeText, removeColor) : undefined, ' ': undefined }
++  const own = style.diffTint === 'color'
++  const tints = { '+': tinted ? diffTint(t.codeText, addColor, own) : undefined, '-': tinted ? diffTint(t.codeText, removeColor, own) : undefined, ' ': undefined }
+   const frame = look === 'card' ? { borderStyle: 'round', borderColor: t.rule, paddingX: 1 } : {}
+   return (
+     <Box key={`card${key}`} flexDirection="column" flexShrink={1} {...frame}>
+diff --git a/plugins/prismantis/hooks/theme.ts b/plugins/prismantis/hooks/theme.ts
+index ffd056f..34f09dd 100644
+--- a/plugins/prismantis/hooks/theme.ts
++++ b/plugins/prismantis/hooks/theme.ts
+@@ -29,6 +29,7 @@ export type Style = {
+   inside?: 'quote' | 'alert'
+   noteKey?: string
+   diffStyle: 'card' | 'full' | 'marks' | 'bar'
++  diffTint: 'hue' | 'color'
+   highlightNumbers: boolean
+   highlightPaths: boolean
+   mermaid: boolean
+@@ -81,6 +82,8 @@ export const resolveStyle = (options: PluginOptions): Style => {
+     toolStyle: pick(options.toolStyle, ['chat', 'tree-dim', 'tree-bold', 'classic'] as const, 'chat'),
+     toolOutput: pick(options.toolOutput, ['full', 'quiet', 'rows'] as const, 'full'),
+     diffStyle: pick(options.diffStyle, ['card', 'full', 'marks', 'bar'] as const, 'card'),
++    // LOCAL PATCH (kasasree-mods): diffTint 'color' tints a changed line with its diff color as given, not that color's full hue.
++    diffTint: pick(options.diffTint, ['hue', 'color'] as const, 'hue'),
+     highlightNumbers: options.highlightNumbers !== false,
+     highlightPaths: options.highlightPaths !== false,
+     mermaid: options.mermaid !== false,
+diff --git a/plugins/prismantis/tests/kasasree.test.tsx b/plugins/prismantis/tests/kasasree.test.tsx
+index 4d8b4ad..eaf2566 100644
+--- a/plugins/prismantis/tests/kasasree.test.tsx
++++ b/plugins/prismantis/tests/kasasree.test.tsx
+@@ -1,7 +1,9 @@
+-// LOCAL PATCH (kasasree-mods) tests: toolOutput 'rows' and copyFeedback 'button'.
++// LOCAL PATCH (kasasree-mods) tests: toolOutput 'rows', copyFeedback 'button' and diffTint 'color'.
+ import type { On } from 'claude-code'
+ import { expect, mock, test } from 'claude-code/testing'
+ 
++import { contrast, diffTint, fullHue, tint } from '../hooks/render'
++import { resolveStyle } from '../hooks/theme'
+ import { clipboardEnv, recordCopies, recordToasts, startSession } from './clipboard-env'
+ 
+ const engine = (on: On) =>
+@@ -133,3 +135,29 @@ test('copyFeedback left at toast keeps the upstream toast', async ($, on) => {
+   expect(toasts).toEqual(['Copied'])
+   await ui.unmount()
+ })
++
++const RETRO = { diffAddedColor: '#98C25B', diffRemovedColor: '#E8553C' }
++const patch = { filePath: '/tmp/app.ts', structuredPatch: [{ oldStart: 4, newStart: 4, lines: [' const a = 1', '-const b = 2', '+const b = 3'] }] }
++const editCard = { plugin: 'prismantis', surface: 'terminal' as const, component: 'ToolResult' as const, props: { tool_use_id: 'e-1', tool: 'Edit', output: patch, isErrored: false } }
++
++test('diffTint color: the tint mixes the diff color as given, not its full hue, and code text keeps 4.5:1', () => {
++  const text = resolveStyle(RETRO).theme.codeText!
++  for (const color of [RETRO.diffAddedColor, RETRO.diffRemovedColor]) {
++    expect(diffTint(text, color, true)).toBe(tint('#000000', color, 0.3))
++    expect(diffTint(text, color, true)).not.toBe(diffTint(text, color))
++    expect(contrast(text, diffTint(text, color, true)!)).toBeGreaterThanOrEqual(4.5)
++    expect(diffTint(text, color)).toBe(tint('#000000', fullHue(color), 0.3))
++  }
++})
++
++for (const diffTintOption of [undefined, 'color'] as const) {
++  test(`an edit's diff card ${diffTintOption ? 'with diffTint color tints lines with the retro colors' : 'with diffTint left alone keeps the full-hue tint'}`, { options: { ...RETRO, ...(diffTintOption ? { diffTint: diffTintOption } : {}) } }, async ($, on) => {
++    engine(on)
++    const text = resolveStyle(RETRO).theme.codeText
++    const ui = await $.ui.mount(editCard)
++    const row = (re: RegExp) => ui.find({ type: 'Box', text: re })
++    expect((await row(/^5 \+ const b = 3$/))?.props.backgroundColor).toBe(diffTint(text, RETRO.diffAddedColor, diffTintOption === 'color'))
++    expect((await row(/^5 - const b = 2$/))?.props.backgroundColor).toBe(diffTint(text, RETRO.diffRemovedColor, diffTintOption === 'color'))
++    await ui.unmount()
++  })
++}

@@ -44,6 +44,8 @@ test("prismantis draws the chat instead of skins: tool calls as rows on the righ
   assert.equal(o.headingStyle, "bar")
   assert.match(o.diffAddedColor, /^#[0-9A-F]{6}$/)
   assert.match(o.diffRemovedColor, /^#[0-9A-F]{6}$/)
+  // the tint behind changed lines is mixed from those colours, not from their full hue (plain red and green)
+  assert.equal(o.diffTint, "color")
 })
 
 test("cockpit draws only its panel: no band above the prompt, no status line", () => {
