@@ -1,0 +1,15 @@
+{
+  "tag": "v5",
+  "label": "Ember meters: context-bar and usage-meter on one row above the prompt; the status line keeps only its identity row",
+  "plugins": {
+    "context-bar@kasasree-mods": true,
+    "usage-meter@kasasree-mods": true
+  },
+  "first": ["usage-meter@kasasree-mods"],
+  "options": {
+    "context-bar@kasasree-mods": { "style": "line", "maxWidth": "48", "palette": "{palette:ctx}" },
+    "usage-meter@kasasree-mods": { "palette": "{palette:usage}", "join": "on" }
+  },
+  "env": { "AURORA_DECK_ROWS": "1" },
+  "files": [{ "from": "../v2-win/statusline/aurora-deck.mjs", "to": "~/.rice/current/statusline/aurora-deck.mjs" }]
+}

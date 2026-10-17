@@ -281,7 +281,19 @@ export function renderDeck(input, ctx = {}) {
     if (!fits(left)) left = buildLeft(0, drop)
   }
 
+  // AURORA_DECK_ROWS=1 (set by v5, whose bands above the prompt draw context, 5h, 7d and cost): only the identity row, with
+  // the prompt-cache clock moved onto its right, so no number is shown twice.
+  const oneRow = String(ctx.rows ?? process.env.AURORA_DECK_ROWS ?? "") === "1"
+  const cacheText = () => {
+    if (!cache?.caching_observed || !narrow) return null
+    const exp = Number(cache.expires_at), warm = cache.warm === true && Number.isFinite(exp) && exp * 1000 > nowMs
+    const hit = typeof cache.hit_ratio === "number" ? `${Math.round(cache.hit_ratio * 100)}% ` : ""
+    const soon = warm && exp * 1000 - nowMs < 60000
+    const col = !warm ? P.semantic.err : soon ? P.semantic.warn : P.accent.cyan
+    return `${F(P.base.muted)}cache ${F(P.base.fg)}${hit}${F(col)}${warm ? `◕ ${clock(exp)}` : "◌ cold"}${RESET}`
+  }
   const right = []
+  if (oneRow && cacheText()) right.push(cacheText())
   const dur = fmtDuration(cost.total_duration_ms)
   if (dur && narrow) right.push(`${F(P.base.faint)}◔ ${F(P.base.muted)}${dur}${RESET}`)
   const added = Number(cost.total_lines_added), removed = Number(cost.total_lines_removed)
@@ -289,6 +301,7 @@ export function renderDeck(input, ctx = {}) {
   const l = left.join(" "), r = right.join("  ")
   const space = cols - visibleWidth(l) - visibleWidth(r)
   const row1 = space >= 2 && r ? `${l}${" ".repeat(space)}${r}` : l
+  if (oneRow) return [row1]
 
   // ---- row 2: gauges --------------------------------------------------------------------------
   const barCtx = wide ? 14 : mid ? 12 : 8     // 14, not 16: the spaces after the reset glyphs cost two cells and the whole row must still fit at 124 columns
@@ -301,13 +314,7 @@ export function renderDeck(input, ctx = {}) {
   if (seven && clampPct(seven.used_percentage) !== null)
     parts.push(gauge({ label: "7d", pct: clampPct(seven.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(seven.resets_at, nowMs)}${RESET}` : "" }))
   if (Number.isFinite(cost.total_cost_usd) && mid) parts.push(`${F(P.accent.amber)}$${cost.total_cost_usd.toFixed(2)}${RESET}`)
-  if (cache?.caching_observed && narrow) {
-    const exp = Number(cache.expires_at), warm = cache.warm === true && Number.isFinite(exp) && exp * 1000 > nowMs
-    const hit = typeof cache.hit_ratio === "number" ? `${Math.round(cache.hit_ratio * 100)}% ` : ""
-    const soon = warm && exp * 1000 - nowMs < 60000
-    const col = !warm ? P.semantic.err : soon ? P.semantic.warn : P.accent.cyan
-    parts.push(`${F(P.base.muted)}cache ${F(P.base.fg)}${hit}${F(col)}${warm ? `◕ ${clock(exp)}` : "◌ cold"}${RESET}`)
-  }
+  if (cacheText()) parts.push(cacheText())
   let row2 = parts.join(SEP(P))
   while (visibleWidth(row2) > cols && parts.length > 1) { parts.pop(); row2 = parts.join(SEP(P)) }
 

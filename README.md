@@ -11,6 +11,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
 - **Popular mods, customised:** each of these takes one well-known community mod, pins and reviews it, and makes it part of the v2 rice (its palettes, its taste), with local patches, tests, real-UI screenshots and an `apply`/`revert` that touches only the keys it owns.
   - [`v3-win/`](v3-win/) **Prismantis Ember:** [prismantis](https://github.com/NahumLitvin/prismantis) (the most active reply renderer) draws replies in the ember, amber and crimson palettes: generated presets, a `▍` heading bar, alert colours from the palette, its 630-token per-prompt hint off. Tagged `v3-win`.
   - [`v4-win/`](v4-win/) **Firstmate Calm:** Calm from [Firstmate](https://github.com/kunchenguid/firstmate) turns the spinner into a sailboat and hides tool rows so the transcript is just the conversation. Forked so it runs at all on a normal Claude Code (upstream waits for a pre-launch env flag), with font-safe sails, the palette, no file access, and loaded before skins (mods load in `enabledPlugins` order, a finding of this version). Also fixes lavender inline code in skins alerts. Tagged `v4-win`.
+  - [`v5-win/`](v5-win/) **Ember meters:** [context-bar and usage-meter](https://github.com/hamzafer/claude-code-mods) share one row above the prompt, in warm palette colours (the meter's bars along the palette ramp), and the status line drops to its identity row so each number shows once. Tagged `v5-win`.
 
 ## TL;DR
 
@@ -114,6 +115,7 @@ v1.1-win/                                         ← v1 plus refinements (confi
 v2-win/                                           ← Claude Ember: one palette (4 to pick from), generators, the Bridge pane mod, apply/revert, tests, screenshots
 v3-win/                                           ← prismantis in the rice palettes (also holds tools/kit.mjs, the apply/revert kit v3 to v6 share)
 v4-win/                                           ← Firstmate Calm, forked: sailboat spinner, conversation-only transcript
+v5-win/                                           ← context-bar + usage-meter on one row, status line on one row
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

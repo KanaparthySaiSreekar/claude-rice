@@ -1,0 +1,250 @@
+diff --git a/plugins/context-bar/.claude-plugin/plugin.json b/plugins/context-bar/.claude-plugin/plugin.json
+index ffde2e4..357b2ba 100644
+--- a/plugins/context-bar/.claude-plugin/plugin.json
++++ b/plugins/context-bar/.claude-plugin/plugin.json
+@@ -1,10 +1,31 @@
+ {
+   "name": "context-bar",
+-  "version": "0.1.3",
+-  "description": "Your context window as a stacked bar above the prompt, a color per category, with token counts and the compaction point. /context-bar shows or hides it.",
++  "version": "0.1.3-rice.1",
++  "description": "Your context window as a stacked bar above the prompt, a color per category, with token counts and the compaction point. /context-bar shows or hides it. Rice patch: colors from a palette option, and a one-row line style.",
+   "author": {
+     "name": "Hamza Zafar",
+     "url": "https://github.com/hamzafer"
+   },
+-  "types": "./types/index.d.ts"
++  "types": "./types/index.d.ts",
++  "userConfig": {
++    "style": {
++      "type": "string",
++      "title": "Style",
++      "description": "box: upstream's bordered band with a legend (4 or more rows). line: one row with no border (local patch).",
++      "default": "box",
++      "options": ["box", "line"]
++    },
++    "maxWidth": {
++      "type": "string",
++      "title": "Line width cap",
++      "description": "line style only: at most this many cells (the bar shrinks and the extras go first), so usage-meter can share the row. Empty: the whole width.",
++      "default": ""
++    },
++    "palette": {
++      "type": "string",
++      "title": "Palette",
++      "description": "A JSON object of #RRGGBB colors: used (a list, one per category), messages, free, buffer, ok, warn, err, label, accent, fg. Empty keeps upstream's colors.",
++      "default": ""
++    }
++  }
+ }
+diff --git a/plugins/context-bar/hooks/register.tsx b/plugins/context-bar/hooks/register.tsx
+index 23a6130..fcadbaa 100644
+--- a/plugins/context-bar/hooks/register.tsx
++++ b/plugins/context-bar/hooks/register.tsx
+@@ -18,13 +18,36 @@ const FREE = '#808080' // a mid grey thin line reads as empty on dark and light
+ const BUFFER = '#808080'
+ const GLYPH = { used: '█', free: '─', buffer: '░' } as const
+ 
++// LOCAL PATCH (kasasree-mods): the colours come from the `palette` option, a JSON object the rice writes from its palette
++// file (upstream's are fixed: Tokyo Night blues and purples for the categories, named green/yellow/red for the level), and
++// `style: line` draws the whole band on one row with no border, so it can share a row with usage-meter.
++export type Colors = { used: string[]; messages: string; free: string; buffer: string; ok: string; warn: string; err: string; label: string; accent: string; fg: string }
++export const UPSTREAM_COLORS: Colors = { used: PALETTE, messages: MESSAGES, free: FREE, buffer: BUFFER, ok: 'green', warn: 'yellow', err: 'red', label: '#808080', accent: '#d97757', fg: 'white' }
++const HEX = /^#[0-9a-f]{6}$/i
++
++export function parseColors(option: unknown): Colors {
++  let raw: Record<string, unknown> = {}
++  try {
++    const parsed = typeof option === 'string' && option.trim() ? JSON.parse(option) : {}
++    if (parsed && typeof parsed === 'object') raw = parsed as Record<string, unknown>
++  } catch {}
++  const pick = (key: Exclude<keyof Colors, 'used'>) => (typeof raw[key] === 'string' && HEX.test(raw[key] as string) ? (raw[key] as string) : UPSTREAM_COLORS[key])
++  const used = Array.isArray(raw.used) && raw.used.length > 0 && raw.used.every(c => typeof c === 'string' && HEX.test(c)) ? (raw.used as string[]) : UPSTREAM_COLORS.used
++  return { used, messages: pick('messages'), free: pick('free'), buffer: pick('buffer'), ok: pick('ok'), warn: pick('warn'), err: pick('err'), label: pick('label'), accent: pick('accent'), fg: pick('fg') }
++}
++
++let colors: Colors = UPSTREAM_COLORS
++
+ // Held by the host, so the bar survives a hot reload of this file.
+ const reading = atom({ plugin: 'context-bar', key: 'reading' } as const, null as Reading | null)
+ const isHidden = atom({ plugin: 'context-bar', key: 'isHidden' } as const, false)
+ 
+ let bandOrder: Promise<string[]> | undefined // read once per session: restart to apply
+ 
+-export const register: Register = on => {
++export const register: Register = (on, options = {}) => {
++  colors = parseColors(options.palette)
++  const style = options.style === 'line' ? 'line' : 'box'
++  const maxWidth = Number.parseInt(String(options.maxWidth ?? ''), 10) // line style: at most this many cells, so a band beside it fits
+   on('session.start', async ($, e, next) => {
+     const r = await next(e)
+     await $.command.register({ name: 'context-bar', description: 'Show or hide the context window bar above the prompt' }).catch(() => {}) // a name Claude Code already has is refused: start anyway
+@@ -64,16 +87,29 @@ export const register: Register = on => {
+     const head = `${tokens(r.total)} of ${tokens(r.window)}${r.compactsAt ? ` · compacts at ${tokens(r.compactsAt)}` : ''}`
+     const pct = ` ${r.percent}% `
+     const level = r.compactsAt ? r.total / r.compactsAt : r.total / r.window
++    if (style === 'line') {
++      const line = lineParts(r, Math.min(e.props.bodyColumns - 2, maxWidth > 0 ? maxWidth : Infinity), level)
++      const mine = (
++        <Box key="line" flexDirection="row" paddingX={1} width={line.width + 2}>
++          {line.parts.map((p, i) => (
++            <Text key={String(i)} color={p.color} bold={p.bold}>
++              {p.text}
++            </Text>
++          ))}
++        </Box>
++      )
++      return stackBands(rest, 'context-bar', mine, 'below', await (bandOrder ??= readBandOrder($).catch(() => [])))
++    }
+     const mine = (
+       <Box flexDirection="column" borderStyle="round" borderColor="inactive" paddingX={1}>
+         <Box flexDirection="row" justifyContent="space-between">
+           <Text wrap="truncate-end">
+-            <Text color="#d97757">{'◆ '}</Text>
++            <Text color={colors.accent}>{'◆ '}</Text>
+             <Text bold>context</Text>
+           </Text>
+           <Text wrap="truncate-start">
+             <Text dimColor>{`${head} `}</Text>
+-            <Text bold color="black" backgroundColor={level >= 0.9 ? 'red' : level >= 0.7 ? 'yellow' : 'green'}>{pct}</Text>
++            <Text bold color="black" backgroundColor={level >= 0.9 ? colors.err : level >= 0.7 ? colors.warn : colors.ok}>{pct}</Text>
+           </Text>
+         </Box>
+         <Text>
+@@ -134,8 +170,9 @@ export function toReading(b: {
+   const order = { used: 0, free: 1, buffer: 2 }
+   slices.sort((x, y) => order[x.kind] - order[y.kind]) // stable: used rows keep /context's order
+   let next = 0
++  const c = colors
+   for (const s of slices) {
+-    s.color = s.kind === 'free' ? FREE : s.kind === 'buffer' ? BUFFER : s.name === 'messages' ? MESSAGES : PALETTE[next++ % PALETTE.length]!
++    s.color = s.kind === 'free' ? c.free : s.kind === 'buffer' ? c.buffer : s.name === 'messages' ? c.messages : c.used[next++ % c.used.length]!
+   }
+   return {
+     slices,
+@@ -162,6 +199,26 @@ export function cells(r: Reading, width: number) {
+   return r.slices.map((s, i) => ({ color: s.color, kind: s.kind, text: GLYPH[s.kind].repeat(sizes[i]!) })).filter(c => c.text !== '')
+ }
+ 
++// LOCAL PATCH (kasasree-mods): the `line` style, one row: ◆ context, the stacked bar, the percentage in the level colour,
++// then tokens and the largest category. The bar takes what the row leaves (10 to 32 cells); the widest extras go first.
++export function lineParts(r: Reading, room: number, level: number) {
++  const c = colors
++  const top = r.slices.filter(s => s.kind === 'used').sort((a, b) => b.tokens - a.tokens)[0]
++  const pct = ` ${r.percent}%`
++  const extras = [` · ${tokens(r.total)}/${tokens(r.window)}`, ...(top ? [` · ${top.name} ${tokens(top.tokens)}`] : [])]
++  const fixed = '◆ context '.length + pct.length
++  while (extras.length && fixed + 10 + extras.join('').length > room) extras.pop()
++  const bar = Math.max(10, Math.min(32, room - fixed - extras.join('').length))
++  const parts: { text: string; color?: string; bold?: boolean }[] = [
++    { text: '◆ ', color: c.accent },
++    { text: 'context ', color: c.label },
++    ...cells(r, bar).map(cell => ({ text: cell.text, color: cell.color })),
++    { text: pct, color: level >= 0.9 ? c.err : level >= 0.7 ? c.warn : c.fg, bold: true },
++    ...extras.map(text => ({ text, color: c.label })),
++  ]
++  return { parts, width: parts.reduce((n, p) => n + [...p.text].length, 0) }
++}
++
+ // The legend, packed into lines no wider than `width`.
+ export function legend(r: Reading, width: number) {
+   const lines: Slice[][] = [[]]
+diff --git a/plugins/context-bar/tests/context-bar.test.tsx b/plugins/context-bar/tests/context-bar.test.tsx
+index d4e844a..108510a 100644
+--- a/plugins/context-bar/tests/context-bar.test.tsx
++++ b/plugins/context-bar/tests/context-bar.test.tsx
+@@ -2,6 +2,8 @@ import { describe, expect, test } from 'claude-code/testing'
+ 
+ import { cells, legend, resetBandOrder, share, toReading, tokens } from '../hooks/register'
+ 
++const posix = (p: string) => p.replace(/^[A-Za-z]:(?=[\\/])/, '').replace(/\\/g, '/') // LOCAL PATCH: Windows hands fs hooks C:\\home\\me\\..., the fixtures say /home/me/...
++
+ const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 84 } }
+ 
+ // /context's breakdown as the engine hands it over, for a 1M window.
+@@ -37,8 +39,8 @@ function engine(on: any, store: Record<string, unknown> = {}, files: Record<stri
+   const reads: string[] = []
+   resetBandOrder()
+   on('env.get', (_$: any, e: any) => ({ value: e.name === 'HOME' ? '/home/me' : undefined }))
+-  on('fs.exists', (_$: any, e: any) => ({ value: e.path in files }))
+-  on('fs.read', (_$: any, e: any) => (reads.push(e.path), { value: files[e.path] ?? '' }))
++  on('fs.exists', (_$: any, e: any) => ({ value: posix(e.path) in files }))
++  on('fs.read', (_$: any, e: any) => (reads.push(posix(e.path)), { value: files[posix(e.path)] ?? '' }))
+   on('session.start', (_$: any, e: any) => ({ sessionId: 's', cwd: e.cwd }))
+   on('command.register', () => ({ value: undefined }))
+   on('turn.complete', () => ({ text: '' }))
+diff --git a/plugins/context-bar/tests/rice.test.tsx b/plugins/context-bar/tests/rice.test.tsx
+new file mode 100644
+index 0000000..49cbfc5
+--- /dev/null
++++ b/plugins/context-bar/tests/rice.test.tsx
+@@ -0,0 +1,69 @@
++// LOCAL PATCH (kasasree-mods): the palette option and the one-row line style.
++import { describe, expect, test } from 'claude-code/testing'
++
++import { UPSTREAM_COLORS, cells, lineParts, parseColors, resetBandOrder, toReading } from '../hooks/register'
++
++const EMBER = { used: ['#ffcba4', '#ffc53d', '#ff8f70', '#ffa55c', '#e8553c', '#ffe08a'], messages: '#ff7a1a', free: '#3b352f', buffer: '#80776d', ok: '#8ed69b', warn: '#ffc53d', err: '#ff4d4d', label: '#bfb5aa', accent: '#ff7a1a', fg: '#f8f4ee' }
++const BREAKDOWN = {
++  categories: [
++    { name: 'System prompt', tokens: 3_400, color: 'promptBorder', kind: 'used', isDeferred: false },
++    { name: 'System tools', tokens: 12_000, color: 'inactive', kind: 'used', isDeferred: false },
++    { name: 'Messages', tokens: 186_000, color: 'purple_FOR_SUBAGENTS_ONLY', kind: 'used', isDeferred: false },
++    { name: 'Autocompact buffer', tokens: 50_000, color: 'inactive', kind: 'buffer', isDeferred: false },
++    { name: 'Free space', tokens: 748_600, color: 'promptBorder', kind: 'free', isDeferred: false },
++  ],
++  totalTokens: 201_400, maxTokens: 1_000_000, rawMaxTokens: 1_000_000, percentage: 20, autoCompactThreshold: 950_000, isAutoCompactEnabled: true,
++  gridRows: [], memoryFiles: [], mcpTools: [], agents: [], model: 'opus', apiUsage: null, autocompactSource: 'model-default',
++}
++const BAND = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 120 } }
++
++function engine(on: any) {
++  resetBandOrder()
++  on('env.get', () => ({ value: undefined }))
++  on('session.start', (_$: any, e: any) => ({ sessionId: 's', cwd: e.cwd }))
++  on('command.register', () => ({ value: undefined }))
++  on('store.get', () => ({ value: undefined }))
++  on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: 201_400, window: 1_000_000, percent: 20, breakdown: BREAKDOWN }, rateLimits: {}, cost: { usd: 0 } } }))
++  on('ui.render', ($: any, e: any) => $.ui.resolve(e).Text({ children: 'band below' }))
++}
++const settle = () => new Promise(done => (globalThis as any).setTimeout(done, 20))
++
++describe('rice patch', () => {
++  test('the palette option takes #RRGGBB values and keeps upstream colors for anything missing or malformed', () => {
++    expect(parseColors('')).toEqual(UPSTREAM_COLORS)
++    expect(parseColors('not json')).toEqual(UPSTREAM_COLORS)
++    const c = parseColors(JSON.stringify({ ...EMBER, warn: 'yellow', used: ['#ffcba4', 'blue'] }))
++    expect(c.accent).toBe('#ff7a1a')
++    expect(c.warn).toBe(UPSTREAM_COLORS.warn)
++    expect(c.used).toEqual(UPSTREAM_COLORS.used)
++  })
++
++  test('line style: one row, no border, palette colors, a width usage-meter can join on', { options: { style: 'line', palette: JSON.stringify(EMBER) } }, async ($, on) => {
++    engine(on)
++    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
++    await settle()
++    const ui = await $.ui.mount({ plugin: 'context-bar', surface: 'terminal', ...BAND } as any)
++    expect((await ui.find({ type: 'Text', text: /^◆ $/ }))?.props.color).toBe(EMBER.accent)
++    expect((await ui.find({ type: 'Text', text: /^context $/ }))?.props.color).toBe(EMBER.label)
++    expect((await ui.find({ type: 'Text', text: /^ 20%$/ }))?.props.color).toBe(EMBER.fg)
++    expect(await ui.find({ type: 'Text', text: /messages 186k/ })).toBeDefined()
++    const root: any = await ui.drawn()
++    const band = (root.children as any[]).find(k => k.props?.key === 'band:context-bar')
++    const line = band.children[0]
++    expect(line.props.key).toBe('line')
++    expect(line.props.borderStyle).toBeUndefined()
++    expect(typeof line.props.width).toBe('number')
++    expect(JSON.stringify(root)).not.toContain('#7aa2f7') // no Tokyo Night blue left
++    await ui.unmount()
++  })
++
++  test('the line never outgrows its room: extras go first, the bar keeps at least 10 cells', () => {
++    const r = toReading(BREAKDOWN as any)
++    for (const room of [30, 50, 80, 160]) {
++      const { width, parts } = lineParts(r, room, 0.2)
++      expect(width <= Math.max(room, 10 + 14)).toBe(true)
++      expect(parts.filter(p => /^[█─░]+$/.test(p.text)).reduce((n, p) => n + p.text.length, 0) >= 10).toBe(true)
++    }
++    expect(cells(r, 10).reduce((n, c) => n + c.text.length, 0)).toBe(10)
++  })
++})

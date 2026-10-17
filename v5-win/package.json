@@ -1,0 +1,14 @@
+{
+  "name": "claude-rice-v5-meters",
+  "version": "5.0.0",
+  "private": true,
+  "type": "module",
+  "description": "v5 of the Windows Claude Code rice: context-bar and usage-meter (hamzafer/claude-code-mods) on one row above the prompt, in the palette; the status line keeps its identity row.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "apply": "node tools/rice.mjs apply",
+    "revert": "node tools/rice.mjs revert",
+    "status": "node tools/rice.mjs status"
+  },
+  "engines": { "node": ">=22" }
+}

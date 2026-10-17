@@ -1,0 +1,318 @@
+diff --git a/plugins/usage-meter/.claude-plugin/plugin.json b/plugins/usage-meter/.claude-plugin/plugin.json
+index b11d699..c5f34fb 100644
+--- a/plugins/usage-meter/.claude-plugin/plugin.json
++++ b/plugins/usage-meter/.claude-plugin/plugin.json
+@@ -1,10 +1,25 @@
+ {
+   "name": "usage-meter",
+-  "version": "0.1.1",
+-  "description": "Your plan's 5-hour and 7-day usage as small bars above the prompt, with the reset countdown and the session's cost.",
++  "version": "0.1.1-rice.1",
++  "description": "Your plan's 5-hour and 7-day usage as small bars above the prompt, with the reset countdown and the session's cost. Rice patch: colors from a palette option, a font-safe glyph, and an option to share a row with context-bar.",
+   "author": {
+     "name": "Hamza Zafar",
+     "url": "https://github.com/hamzafer"
+   },
+-  "types": "./types/index.d.ts"
++  "types": "./types/index.d.ts",
++  "userConfig": {
++    "palette": {
++      "type": "string",
++      "title": "Palette",
++      "description": "A JSON object: ramp (a list of #RRGGBB stops for the bars), ok, warn, err, label, fg. Empty keeps upstream's named green, yellow and red.",
++      "default": ""
++    },
++    "join": {
++      "type": "string",
++      "title": "Share a row with context-bar",
++      "description": "on: when context-bar draws its one-row line style beneath this mod and both fit, they share one row (local patch). off: separate rows.",
++      "default": "off",
++      "options": ["on", "off"]
++    }
++  }
+ }
+diff --git a/plugins/usage-meter/hooks/register.tsx b/plugins/usage-meter/hooks/register.tsx
+index 0b0b879..cfa711c 100644
+--- a/plugins/usage-meter/hooks/register.tsx
++++ b/plugins/usage-meter/hooks/register.tsx
+@@ -20,6 +20,36 @@ const warned = atom({ plugin: 'usage-meter', key: 'warned' } as const, {} as Rec
+ type Segment = { text: string; color?: string; dim?: boolean }
+ type Part = { kind: 'window' | 'cost'; isPrimary: boolean; segments: Segment[] }
+ 
++// LOCAL PATCH (kasasree-mods): colours from the `palette` option (the rice writes it from its palette file). With a ramp,
++// each bar cell takes the ramp colour of its place, so a nearly empty bar is pale and a full one hot (as the v2 status line
++// draws its gauges), and the percentage stays plain until 75%. Upstream: named green, yellow and red, and dim grey text.
++// `join: on` puts this row beside context-bar's one-row `line` style when both fit.
++export type Colors = { ramp: string[] | null; ok: string; warn: string; err: string; label: string | null; fg: string | null }
++export const UPSTREAM_COLORS: Colors = { ramp: null, ok: 'green', warn: 'yellow', err: 'red', label: null, fg: null }
++const HEX = /^#[0-9a-f]{6}$/i
++let colors: Colors = UPSTREAM_COLORS
++let join = false
++
++export function parseColors(option: unknown): Colors {
++  let raw: Record<string, unknown> = {}
++  try {
++    const parsed = typeof option === 'string' && option.trim() ? JSON.parse(option) : {}
++    if (parsed && typeof parsed === 'object') raw = parsed as Record<string, unknown>
++  } catch {}
++  const hex = (v: unknown) => (typeof v === 'string' && HEX.test(v) ? v : null)
++  const ramp = Array.isArray(raw.ramp) && raw.ramp.length >= 2 && raw.ramp.every(c => hex(c)) ? (raw.ramp as string[]) : null
++  return { ramp, ok: hex(raw.ok) ?? 'green', warn: hex(raw.warn) ?? 'yellow', err: hex(raw.err) ?? 'red', label: hex(raw.label), fg: hex(raw.fg) }
++}
++
++/** The colour at `t` (0 to 1) along a ramp of #rrggbb stops. */
++export function rampAt(ramp: string[], t: number) {
++  const x = Math.min(Math.max(t, 0), 1) * (ramp.length - 1)
++  const i = Math.min(Math.floor(x), ramp.length - 2)
++  const f = x - i
++  const [a, b] = [ramp[i]!, ramp[i + 1]!].map(h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)))
++  return `#${a!.map((v, k) => Math.round(v + (b![k]! - v) * f).toString(16).padStart(2, '0')).join('')}`
++}
++
+ let bandOrder: Promise<string[]> | undefined // read once per session: restart to apply
+ 
+ // The band order file, as the claude-code-mods checklist saves it; [] on any error.
+@@ -33,7 +63,9 @@ export function resetBandOrder() {
+   bandOrder = undefined
+ }
+ 
+-export const register: Register = on => {
++export const register: Register = (on, options = {}) => {
++  colors = parseColors(options.palette)
++  join = options.join === 'on'
+   let timer: Timer | undefined // one countdown timer, even if session.start fires again
+ 
+   on('session.start', async ($, e, next) => {
+@@ -63,11 +95,20 @@ export const register: Register = on => {
+     const snap = await read($, snapshot)
+     if (e.props.hasSurvey || !snap) return rest
+ 
+-    const parts = fit(build(snap, await $.clock.now()), e.props.bodyColumns - 2)
++    // LOCAL PATCH: with join on and context-bar's line beneath, fit into the room beside it; if nothing fits there, own row.
++    const now = await $.clock.now()
++    let ctxLine = join ? findContextLine(rest) : null
++    const room = ctxLine ? e.props.bodyColumns - 2 - ctxLine.width - 1 - 2 : e.props.bodyColumns - 2
++    let parts = fit(build(snap, now), room)
++    if (ctxLine && (parts.length === 0 || width(parts) > room)) {
++      ctxLine = null
++      parts = fit(build(snap, now), e.props.bodyColumns - 2)
++    }
+     if (parts.length === 0) return rest
+ 
+     const { Box, Text } = $.ui.resolve(e)
+-    const segments: Segment[] = [{ text: '⏱ ', dim: true }]
++    // LOCAL PATCH: ◔ instead of ⏱ (U+23F1 is not in JetBrainsMono Nerd Font Mono; a fallback font drew it two cells wide)
++    const segments: Segment[] = [{ text: '◔ ', dim: true }]
+     parts.forEach((p, i) => {
+       if (i > 0) segments.push({ text: ' · ', dim: true })
+       segments.push(...p.segments)
+@@ -76,12 +117,13 @@ export const register: Register = on => {
+     const mine = (
+       <Box flexDirection="row" paddingX={1}>
+         {segments.map((s, i) => (
+-          <Text key={String(i)} color={s.color} dimColor={s.dim} wrap="truncate">
++          <Text key={String(i)} color={s.color ?? (s.dim ? colors.label ?? undefined : undefined)} dimColor={s.dim && !colors.label} wrap="truncate">
+             {s.text}
+           </Text>
+         ))}
+       </Box>
+     )
++    if (ctxLine) return joinContextLine(rest, ctxLine, mine, colors.label)
+     bandOrder ??= readBandOrder($).catch(() => [])
+     return stackBands(rest, 'usage-meter', mine, 'above', await bandOrder) // above what other mods draw, unless the band order says otherwise
+   })
+@@ -131,10 +173,12 @@ export function build(snap: UsageMeterSnapshot, now: number): Part[] {
+     .sort((a, b) => rank(a.kind) - rank(b.kind))
+   const parts: Part[] = windows.map((w, i) => {
+     const color = colorFor(w.percentUsed)
++    const ramp = colors.ramp
++    const pct = w.percentUsed >= 75 || !colors.fg ? color : colors.fg
+     const segments: Segment[] = [
+       { text: `${label(w.kind)} `, dim: true },
+-      { text: bar(w.percentUsed), color },
+-      { text: ` ${Math.round(w.percentUsed)}%`, color },
++      ...(ramp ? [...bar(w.percentUsed)].map((cell, k) => ({ text: cell, color: rampAt(ramp, (k + 0.5) / CELLS) })) : [{ text: bar(w.percentUsed), color }]),
++      { text: ` ${Math.round(w.percentUsed)}%`, color: ramp ? pct : color },
+     ]
+     const resetMs = resetTime(w)
+     // The first window always says when it resets; the others only once they run high.
+@@ -183,9 +227,31 @@ export function bar(percent: number) {
+ }
+ 
+ export function colorFor(percent: number) {
+-  if (percent >= 90) return 'red'
+-  if (percent >= 75) return 'yellow'
+-  return 'green'
++  if (percent >= 90) return colors.err
++  if (percent >= 75) return colors.warn
++  return colors.ok
++}
++
++// LOCAL PATCH: context-bar's one-row band and this one, side by side on one row, when context-bar sits beneath this mod
++// (loads after it) in `line` style. findContextLine finds its line and width in what the mods beneath drew (null when it
++// is not there, or is upstream's bordered box); joinContextLine puts this mod's row beside it.
++type Node = { type?: string; props?: Record<string, unknown>; children?: unknown[]; part?: unknown }
++export type ContextLine = { column: Node; at: number; band: Node; line: Node; width: number }
++export function findContextLine(rest: unknown): ContextLine | null {
++  const column = rest as Node | null
++  if (!column || column.type !== 'Box' || column.props?.key !== 'bands' || !Array.isArray(column.children)) return null
++  const at = column.children.findIndex(c => (c as Node)?.props?.key === 'band:context-bar')
++  if (at < 0) return null
++  const band = column.children[at] as Node
++  const line = (band.children ?? [])[0] as Node | undefined
++  if (!line || line.props?.key !== 'line' || typeof line.props.width !== 'number') return null
++  return { column, at, band, line, width: line.props.width }
++}
++export function joinContextLine(rest: unknown, found: ContextLine, mine: unknown, labelColor: string | null) {
++  // no `key` on the Text: the engine refuses a Text with one (and then draws its own band instead of ours)
++  const rule = { type: 'Text', props: labelColor ? { color: labelColor } : { dimColor: true }, children: ['│'] }
++  const row = { type: 'Box', props: { key: 'band:context-bar', flexDirection: 'row' }, children: [found.line, rule, mine], ...(found.band.part ? { part: found.band.part } : {}) }
++  return { ...(rest as Node), children: (found.column.children ?? []).map((c, i) => (i === found.at ? row : c)) }
+ }
+ 
+ export function countdown(ms: number) {
+diff --git a/plugins/usage-meter/tests/rice.test.ts b/plugins/usage-meter/tests/rice.test.ts
+new file mode 100644
+index 0000000..9e5e8b9
+--- /dev/null
++++ b/plugins/usage-meter/tests/rice.test.ts
+@@ -0,0 +1,87 @@
++// LOCAL PATCH (kasasree-mods): the palette option (ramp-graded bars), and sharing a row with context-bar.
++import { describe, expect, mock, test } from 'claude-code/testing'
++
++import { UPSTREAM_COLORS, findContextLine, joinContextLine, parseColors, rampAt, resetBandOrder } from '../hooks/register'
++
++const NOW = Date.parse('2026-10-03T12:00:00Z')
++const PALETTE = { ramp: ['#FFE3A3', '#FFC53D', '#FF7A1A', '#F0451E'], ok: '#8ED69B', warn: '#FFC53D', err: '#FF4D4D', label: '#BFB5AA', fg: '#F8F4EE' }
++const band = { component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 } }
++
++function engine(on: any, percent: number, beneath?: unknown) {
++  resetBandOrder()
++  mock.clock(on, { now: NOW })
++  on('env.get', () => ({ value: undefined }))
++  on('session.start', (_$: any, e: any) => ({ sessionId: 's', cwd: e.cwd }))
++  on('session.usage', () => ({ value: { startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: percent }], cost: { usd: 0.42 } } }))
++  on('ui.toast', () => ({ value: undefined }))
++  on('ui.render', ($: any, e: any) => beneath ?? $.ui.resolve(e).Text({ children: 'engine band' }))
++}
++
++const ctx = (width: number) => ({ type: 'Box', props: { key: 'bands', flexDirection: 'column' }, children: [
++  { type: 'Text', props: {}, children: ['other band'] },
++  { type: 'Box', props: { key: 'band:context-bar', flexDirection: 'column' }, children: [{ type: 'Box', props: { key: 'line', width }, children: [] }] },
++] })
++const mine = { type: 'Box', props: { key: 'mine' }, children: [] }
++
++
++describe('rice patch', () => {
++  test('the palette option reads a ramp of at least two #RRGGBB stops and keeps upstream colors otherwise', () => {
++    expect(parseColors('')).toEqual(UPSTREAM_COLORS)
++    expect(parseColors('{"ramp":["#FFE3A3"]}').ramp).toBeNull()
++    expect(parseColors(JSON.stringify(PALETTE)).ramp).toEqual(PALETTE.ramp)
++    expect(rampAt(['#000000', '#ffffff'], 0)).toBe('#000000')
++    expect(rampAt(['#000000', '#ffffff'], 1)).toBe('#ffffff')
++    expect(rampAt(['#000000', '#ffffff'], 0.5)).toBe('#808080')
++  })
++
++  for (const [percent, expected] of [[40, PALETTE.fg], [80, PALETTE.warn], [95, PALETTE.err]] as const) {
++    test(`with a palette, bar cells follow the ramp and ${percent}% is drawn in ${expected}`, { options: { palette: JSON.stringify(PALETTE) } }, async ($, on) => {
++      engine(on, percent)
++      await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
++      const ui = await $.ui.mount({ plugin: 'usage-meter', surface: 'terminal', ...band } as any)
++      const texts: any[] = await ui.findAll({ type: 'Text' })
++      expect(texts[0].text).toBe('◔ ')
++      const cells = texts.filter(t => /^[▁▂▃▄▅▆▇█]$/.test(t.text))
++      expect(cells).toHaveLength(5)
++      expect(cells[0].props.color.toLowerCase()).toBe(rampAt(PALETTE.ramp, 0.1))
++      expect(cells[4].props.color.toLowerCase()).toBe(rampAt(PALETTE.ramp, 0.9))
++      expect(texts.find(t => t.text === ` ${percent}%`)?.props.color).toBe(expected)
++      expect(texts.find(t => t.text === '5h ')?.props.color).toBe(PALETTE.label)
++      await ui.unmount()
++    })
++  }
++
++  test('finds context-bar\'s line, joins beside it, keeps every other band; no line or the box style means no join', () => {
++    const found = findContextLine(ctx(50))!
++    expect(found.width).toBe(50)
++    const joined: any = joinContextLine(ctx(50), found, mine, '#bfb5aa')
++    expect(joined.children).toHaveLength(2)
++    expect(joined.children[0].children).toEqual(['other band'])
++    const row = joined.children[1]
++    expect(row.props.flexDirection).toBe('row')
++    expect(row.children[0].props.key).toBe('line')
++    expect(row.children[1].children).toEqual(['│'])
++    expect(row.children[2]).toBe(mine)
++    expect(findContextLine({ type: 'Text', props: {}, children: ['x'] })).toBeNull()
++    const boxStyle = ctx(50); (boxStyle.children[1] as any).children[0].props = { key: 'x', borderStyle: 'round' }
++    expect(findContextLine(boxStyle)).toBeNull()                            // the bordered box style never joins
++  })
++
++  for (const [columns, together] of [[120, true], [70, true], [60, false]] as const) {
++    test(`in a ${columns}-column band beside a 50-cell context line, the meter ${together ? 'shares its row' : 'takes its own row'}`, { options: { join: 'on', palette: JSON.stringify(PALETTE) } }, async ($, on) => {
++      engine(on, 40, ctx(50))
++      await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
++      const ui = await $.ui.mount({ plugin: 'usage-meter', surface: 'terminal', component: 'AbovePrompt', props: { ...band.props, bodyColumns: columns } } as any)
++      const root: any = await ui.drawn()
++      const keys = (root.children as any[]).map(c => c.props?.key ?? 'text')
++      if (together) {
++        expect(keys).toEqual(['text', 'band:context-bar'])
++        expect((root.children[1] as any).props.flexDirection).toBe('row')
++      } else {
++        expect(keys).toContain('band:usage-meter')
++        expect(keys).toContain('band:context-bar')
++      }
++      await ui.unmount()
++    })
++  }
++})
+diff --git a/plugins/usage-meter/tests/usage-meter.test.ts b/plugins/usage-meter/tests/usage-meter.test.ts
+index bafdeda..707723d 100644
+--- a/plugins/usage-meter/tests/usage-meter.test.ts
++++ b/plugins/usage-meter/tests/usage-meter.test.ts
+@@ -1,6 +1,9 @@
+ import { describe, expect, mock, test } from 'claude-code/testing'
+ 
+ import { bar, colorFor, countdown, resetBandOrder } from '../hooks/register'
++// LOCAL PATCH: the line starts with ◔ (upstream: ⏱, which JetBrainsMono Nerd Font Mono lacks)
++
++const posix = (p: string) => p.replace(/^[A-Za-z]:(?=[\\/])/, '').replace(/\\/g, '/') // LOCAL PATCH: Windows hands fs hooks C:\\home\\me\\..., the fixtures say /home/me/...
+ 
+ const NOW = Date.parse('2026-10-03T12:00:00Z')
+ const at = (ms: number) => new Date(NOW + ms).toISOString()
+@@ -134,7 +137,7 @@ describe('usage-meter', () => {
+     expect((await ui.find({ type: 'Text', text: /^ 120%$/ }))?.props?.color).toBe('red')
+ 
+     await clock.advance(11 * MIN)
+-    expect(await line(ui)).toBe('⏱ spend █████ 120% · $2.00 session')
++    expect(await line(ui)).toBe('◔ spend █████ 120% · $2.00 session')
+     await ui.unmount()
+   })
+ 
+@@ -157,7 +160,7 @@ describe('usage-meter', () => {
+     await start($)
+     const ui = await $.ui.mount({ plugin: 'usage-meter', surface: 'terminal', ...band() } as any)
+     const text = await line(ui)
+-    expect(text).toBe('⏱ $1.50 session')
++    expect(text).toBe('◔ $1.50 session')
+     await ui.unmount()
+   })
+ 
+@@ -179,7 +182,7 @@ describe('usage-meter', () => {
+       cost: { usd: 4.32 },
+     })
+     await start($)
+-    // The whole line is 60 cells, padding aside: "⏱ 5h ██▂▁▁ 42% · resets 2h10 · 7d ▇▁▁▁▁ 18% · $4.32 session".
++    // The whole line is 60 cells, padding aside: "◔ 5h ██▂▁▁ 42% · resets 2h10 · 7d ▇▁▁▁▁ 18% · $4.32 session".
+     const wide = await $.ui.mount({ plugin: 'usage-meter', surface: 'terminal', ...band(64) } as any)
+     expect(await line(wide)).toContain('7d')
+     await wide.unmount()
+@@ -207,8 +210,8 @@ describe('usage-meter', () => {
+     resetBandOrder()
+     const files: Record<string, string> = { '/home/me/.claude/claude-code-mods/bands.json': '{"order":["where-am-i","usage-meter"]}' }
+     on('env.get', (_$: any, e: any) => ({ value: e.name === 'HOME' ? '/home/me' : undefined }))
+-    on('fs.exists', (_$: any, e: any) => ({ value: e.path in files }))
+-    on('fs.read', (_$: any, e: any) => ({ value: files[e.path] ?? '' }))
++    on('fs.exists', (_$: any, e: any) => ({ value: posix(e.path) in files }))
++    on('fs.read', (_$: any, e: any) => ({ value: files[posix(e.path)] ?? '' }))
+     engine(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 42, resetsAt: at(2 * HOUR) }] }, beneath)
+     await start($)
+     const ui = await $.ui.mount({ plugin: 'usage-meter', surface: 'terminal', ...band() } as any)

@@ -40,6 +40,14 @@ test("a full payload gives an identity row, a blank spacer and a gauge row, with
     assert.ok(all.includes(want), `missing "${want}" in:\n${all}`)
 })
 
+test("one-row mode (AURORA_DECK_ROWS=1, used by v5's bands): the identity row alone, carrying the cache clock, no gauges", () => {
+  const rows = deck(payload(), { columns: 124, rows: "1" }).map(strip)
+  assert.equal(rows.length, 1)
+  for (const want of ["Sonnet 5.5", "main", "cache 93%", "◕", "1h12m"]) assert.ok(rows[0].includes(want), `missing "${want}" in ${rows[0]}`)
+  for (const gone of ["ctx", "29%", "94%", "$22.48"]) assert.ok(!rows[0].includes(gone), `"${gone}" belongs to the bands in one-row mode`)
+  for (const columns of [44, 80, 124, 220]) assert.ok(visibleWidth(deck(payload(), { columns, rows: "1" })[0]) <= Math.max(40, columns - 4))
+})
+
 test("no row is ever wider than the terminal", () => {
   for (const columns of [44, 56, 64, 72, 80, 90, 100, 112, 124, 160, 220]) {
     for (const row of deck(payload(), { columns })) assert.ok(visibleWidth(row) <= Math.max(40, columns - 4), `${columns} cols: row is ${visibleWidth(row)} wide`)

@@ -40,13 +40,18 @@ const stateFile = () => path.join(riceDir(), "versions.json")
 export function loadSpec(dir) {
   const spec = JSON.parse(fs.readFileSync(path.join(dir, "version.json"), "utf8"))
   if (!/^v\d+$/.test(spec.tag ?? "")) throw new Error(`version.json in ${dir} has no tag like "v3"`)
-  return spec
+  return { ...spec, dir }
 }
 
 const BUILDERS = {
   bridge: (p) => JSON.stringify(bridgePalette(p)),
   // v4, firstmate-calm: orange hull, cream sails, the dim accent (the prompt frame's colour) for the sea, muted word
   ship: (p) => JSON.stringify({ boat: p.accent.coral, sail: p.base.fg, water: p.theme?.promptBorder ?? p.darker(p.accent.coral, 0.45), label: p.base.muted }),
+  // v5, context-bar: one warm shade per context category (the tool slots), messages in the accent, free and buffer dim
+  ctx: (p) => JSON.stringify({ used: [p.tool.read, p.tool.run, p.tool.search, p.tool.web, p.tool.mcp, p.tool.agent], messages: p.accent.coral, free: p.base.line, buffer: p.base.dim,
+    ok: p.semantic.ok, warn: p.semantic.warn, err: p.semantic.err, label: p.base.muted, accent: p.accent.coral, fg: p.base.fg }),
+  // v5, usage-meter: the bars along the palette ramp, as the v2 status line draws its gauges
+  usage: (p) => JSON.stringify({ ramp: p.ramp, ok: p.semantic.ok, warn: p.semantic.warn, err: p.semantic.err, label: p.base.muted, fg: p.base.fg }),
 }
 export const builderNames = () => Object.keys(BUILDERS)
 
@@ -61,7 +66,10 @@ export function resolve(spec, paletteName) {
     return v
   }
   const options = Object.fromEntries(Object.entries(spec.options ?? {}).map(([plugin, o]) => [plugin, Object.fromEntries(Object.entries(o).map(([k, v]) => [k, fill(v)]))]))
-  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], options }
+  const env = Object.fromEntries(Object.entries(spec.env ?? {}).map(([k, v]) => [k, String(fill(v))]))
+  // "files": [{ "from": <path relative to the version folder>, "to": "~/<path under the home folder>" }]
+  const files = (spec.files ?? []).map((f) => ({ from: path.resolve(spec.dir ?? ".", f.from), to: path.join(home(), String(f.to).replace(/^~[\\/]/, "")) }))
+  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], options, env, files }
 }
 
 /** settings.json text with the version merged in. Pure, so it can be tested on any input. */
@@ -77,11 +85,27 @@ export function merged(text, version) {
   for (const [plugin, o] of Object.entries(version.options)) {
     s.pluginConfigs[plugin] = { ...(s.pluginConfigs[plugin] ?? {}), options: { ...(s.pluginConfigs[plugin]?.options ?? {}), ...o } }
   }
+  if (Object.keys(version.env ?? {}).length) s.env = { ...(s.env ?? {}), ...version.env }
   return JSON.stringify(s, null, 2) + "\n"
 }
 
 const sha = (text) => crypto.createHash("sha256").update(text).digest("hex")
-const touched = (version) => ({ plugins: Object.keys(version.plugins), options: Object.fromEntries(Object.entries(version.options).map(([k, o]) => [k, Object.keys(o)])) })
+const touched = (version) => ({ plugins: Object.keys(version.plugins), options: Object.fromEntries(Object.entries(version.options).map(([k, o]) => [k, Object.keys(o)])), env: Object.keys(version.env ?? {}) })
+
+/** Copy each version file over its target, saving the target first. A target that does not exist (that part of the v2 rice is not applied) is skipped. */
+function copyFiles(version, backup, log) {
+  const done = []
+  for (const [i, f] of version.files.entries()) {
+    if (!fs.existsSync(f.to)) { log(`  skipped ${f.to}: not there (apply the v2 rice first)`); continue }
+    if (fs.readFileSync(f.to).equals(fs.readFileSync(f.from))) continue
+    const saved = path.join(backup, "files", `${i}-${path.basename(f.to)}`)
+    fs.mkdirSync(path.dirname(saved), { recursive: true })
+    fs.copyFileSync(f.to, saved)
+    fs.copyFileSync(f.from, f.to)
+    done.push({ to: f.to, saved })
+  }
+  return done
+}
 
 const readState = () => (fs.existsSync(stateFile()) ? JSON.parse(fs.readFileSync(stateFile(), "utf8")) : { history: [] })
 
@@ -97,15 +121,19 @@ export function apply(spec, paletteName, { dryRun = false, log = console.log } =
   if (version.first.length && order(before) !== order(after)) changes.push(`load first: ${version.first.join(", ")}`)
   for (const [plugin, o] of Object.entries(version.options))
     for (const [k, v] of Object.entries(o)) if (JSON.stringify(was.pluginConfigs?.[plugin]?.options?.[k]) !== JSON.stringify(v)) changes.push(`${plugin} ${k} = ${typeof v === "string" && v.length > 40 ? v.slice(0, 37) + "..." : JSON.stringify(v)}`)
+  for (const [k, v] of Object.entries(version.env)) if (was.env?.[k] !== v) changes.push(`env ${k} = ${v}`)
+  const stale = version.files.filter((f) => fs.existsSync(f.to) && !fs.readFileSync(f.to).equals(fs.readFileSync(f.from)))
+  for (const f of stale) changes.push(`update ${f.to}`)
   if (dryRun) { log(`${version.tag} (${version.palette.key}) would change:\n  ${changes.join("\n  ") || "nothing"}`); return { changes, dryRun: true } }
-  if (before === after) { log(`${version.tag} (${version.palette.key}) is already applied; nothing to do`); return { changes: [] } }
+  if (before === after && !stale.length) { log(`${version.tag} (${version.palette.key}) is already applied; nothing to do`); return { changes: [] } }
   const stamp = new Date().toISOString().replace(/[:.]/g, "-")
   const backup = path.join(riceDir(), "backups", `${stamp}-${version.tag}`)
   fs.mkdirSync(backup, { recursive: true })
   fs.writeFileSync(path.join(backup, "settings.json"), before)
   fs.writeFileSync(file, after)
+  const files = copyFiles(version, backup, log)
   const state = readState()
-  state.history.push({ tag: version.tag, palette: version.palette.key, at: new Date().toISOString(), backup, wrote: sha(after), touched: touched(version) })
+  state.history.push({ tag: version.tag, palette: version.palette.key, at: new Date().toISOString(), backup, wrote: sha(after), touched: touched(version), files })
   fs.writeFileSync(stateFile(), JSON.stringify(state, null, 2) + "\n")
   log(`applied ${version.tag} (${version.palette.key}); backup in ${backup}\n  ${changes.join("\n  ")}\nRestart Claude Code to load the mods.`)
   return { changes, backup }
@@ -130,9 +158,12 @@ export function revert({ log = console.log } = {}) {
       if (Object.keys(opts).length) s.pluginConfigs[plugin] = { ...(s.pluginConfigs[plugin] ?? {}), options: opts }
       else if (s.pluginConfigs[plugin]) { delete s.pluginConfigs[plugin].options; if (!Object.keys(s.pluginConfigs[plugin]).length) delete s.pluginConfigs[plugin] }
     }
+    for (const k of last.touched.env ?? []) put((s.env ??= {}), k, b.env?.[k])
+    if (s.env && !Object.keys(s.env).length && !b.env) delete s.env
     fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2) + "\n")
     how = "only the keys it set (settings.json had other changes since; those stay)"
   }
+  for (const f of last.files ?? []) fs.copyFileSync(f.saved, f.to)
   fs.writeFileSync(stateFile(), JSON.stringify(state, null, 2) + "\n")
   log(`reverted ${last.tag} (${last.palette}), ${how}. Backup: ${last.backup}. Restart Claude Code.`)
   return { ...last, how }
@@ -164,6 +195,7 @@ export function preview(spec, paletteName, { log = console.log } = {}) {
   const bridge = "aurora-bridge@kasasree-mods"
   const settings = {
     theme: `custom:${p.key}`,
+    ...(Object.keys(version.env).length ? { env: version.env } : {}),
     statusLine: { type: "command", command: `exec "${shim.replace(/\\/g, "/")}"`, refreshInterval: 60 },
     enabledPlugins: { "flightdeck@kasasree-mods": false, [bridge]: true, ...version.plugins },
     pluginConfigs: {
