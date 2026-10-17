@@ -1,0 +1,58 @@
+diff --git a/a/tests/pane/lifecycle.test.ts b/b/tests/pane/lifecycle.test.ts
+index 3a1bdc7..b25b8e8 100644
+--- a/a/tests/pane/lifecycle.test.ts
++++ b/b/tests/pane/lifecycle.test.ts
+@@ -34,7 +34,7 @@ const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+ 
+ type Origin = 'plugin' | 'person' | 'unload';
+ 
+-function boot(opts: { binary?: boolean; store?: Record<string, unknown>; isInteractive?: boolean } = {}) {
++function boot(opts: { binary?: boolean; store?: Record<string, unknown>; isInteractive?: boolean; options?: Record<string, boolean> } = {}) {
+   const $ = fakeEngine({
+     now: T0,
+     env: { HOME: '/home/user' },
+@@ -43,7 +43,7 @@ function boot(opts: { binary?: boolean; store?: Record<string, unknown>; isInter
+     files: { [MANIFEST]: manifest },
+   });
+   const { on, dispatch, registrations } = fakeOn($, { surface: SURFACE });
+-  register(on, {});
++  register(on, opts.options ?? {});
+   const start = () =>
+     dispatch(
+       'session.start',
+@@ -399,3 +399,35 @@ test('self-check: HOME unset and a session without an id are named together', as
+   assert.ok(line !== undefined, JSON.stringify($.ui.logs));
+   assert.match(line, /self-check failed: \$\.env\.get\("HOME"\) is unset: no marker can be written; \$\.session\.id\(\) failed: no session — /);
+ });
++
++// LOCAL PATCH (kasasree-mods): openOnStart.
++test('openOnStart: an interactive start opens the pane with an empty or a closed store, on the saved view; never for -p', async () => {
++  for (const [store, view] of [[undefined, 'overview'], [{ pane: { open: false, view: 'files' } }, 'files']] as const) {
++    const { $, start } = boot({ options: { openOnStart: true }, ...(store ? { store } : {}) });
++    await start();
++    await settle();
++    await settle();
++    assert.deepEqual($.ui.opens, [{ id: 'cctop', title: 'cctop' }], JSON.stringify(store));
++    assert.deepEqual(stored($), { open: true, view });
++  }
++  const { $, start } = boot({ options: { openOnStart: true }, isInteractive: false });
++  await start();
++  await settle();
++  await settle();
++  assert.deepEqual($.ui.opens, []);
++});
++
++// LOCAL PATCH (kasasree-mods): Windows has USERPROFILE, not HOME.
++test('self-check: with HOME unset, USERPROFILE is home: self-check ok and the marker lands under it', async () => {
++  const $ = fakeEngine({ now: T0, env: { USERPROFILE: 'C:/Users/u' }, process: binaryScripts(), files: { [MANIFEST]: manifest } });
++  const { on, dispatch } = fakeOn($, { surface: SURFACE });
++  register(on, {});
++  await dispatch('session.start', { cwd: 'C:/Users/u/project', surface: 'terminal', isInteractive: true }, () => ({
++    cwd: 'C:/Users/u/project',
++  }));
++  await settle();
++  await settle();
++  const lines = $.ui.logs.filter((l) => l.startsWith('cctop: plugin '));
++  assert.deepEqual(lines, [`cctop: plugin ${PLUGIN_VERSION} (hooks contract ${TESTED_WITH}) loaded; self-check ok`]);
++  assert.ok($.fs.files.has(`C:/Users/u/.cctop/pane/${SESSION}.json`), JSON.stringify([...$.fs.files.keys()]));
++});

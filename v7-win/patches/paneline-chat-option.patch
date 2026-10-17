@@ -1,0 +1,271 @@
+diff --git a/plugins/paneline/.claude-plugin/plugin.json b/plugins/paneline/.claude-plugin/plugin.json
+index 40e8c4f..7d3783f 100644
+--- a/plugins/paneline/.claude-plugin/plugin.json
++++ b/plugins/paneline/.claude-plugin/plugin.json
+@@ -46,6 +46,12 @@
+       "title": "Render probe",
+       "description": "Log per-component render time to the debug log every 200 renders",
+       "default": false
++    },
++    "chat": {
++      "type": "boolean",
++      "title": "Restyle the chat",
++      "description": "On: paneline draws messages, tool rows, the status row above the prompt and diagrams. Off: only the side pane (local patch)",
++      "default": true
+     }
+   },
+   "repository": "https://github.com/markneonin/paneline",
+diff --git a/plugins/paneline/hooks/register.ts b/plugins/paneline/hooks/register.ts
+index f6c6ca7..3b5c35f 100644
+--- a/plugins/paneline/hooks/register.ts
++++ b/plugins/paneline/hooks/register.ts
+@@ -28,5 +28,7 @@ export const register: Register = (on, options) => {
+   trackSpend(on);
+   registerTabs(on);
+   registerSessionCommand(on, options.autoOpen !== false);
+-  renderChat(on);
++  // LOCAL PATCH (kasasree-mods): chat off leaves the transcript, the band above the prompt and the
++  // prompt's render hint to the other mods; the pane and its tracking run either way.
++  if (options.chat !== false) renderChat(on);
+ };
+diff --git a/plugins/paneline/tests/chat-option.test.tsx b/plugins/paneline/tests/chat-option.test.tsx
+new file mode 100644
+index 0000000..de4bb16
+--- /dev/null
++++ b/plugins/paneline/tests/chat-option.test.tsx
+@@ -0,0 +1,235 @@
++// LOCAL PATCH (kasasree-mods): the `chat` option. Off, paneline keeps its pane and leaves the band above the
++// prompt (and the transcript) to Claude Code and the other mods. The header and helpers below are status-row.test.tsx's.
++import { describe, expect, mock, test } from "claude-code/testing";
++import type { On } from "claude-code";
++import type { Engine } from "claude-code/testing";
++
++import { accentOf, ENGINE_DEFAULT_GREY } from "../hooks/session-color";
++import { colouredPieces, screenRows } from "./band-screen";
++
++const HOME = "/Users/dev";
++const PROJECT = `${HOME}/workspace/projects/paneline`;
++const TRANSCRIPT = "/tmp/session.jsonl";
++const SESSION_START = { cwd: PROJECT, surface: "terminal", isInteractive: true } as const;
++const PANE_TOGGLE = " ".repeat(5);
++const GREY = ENGINE_DEFAULT_GREY;
++const RED = accentOf("red");
++const NOW = 1_800_000_000_000;
++const MINUTE_MS = 60_000;
++const HOUR_MS = 60 * MINUTE_MS;
++const DAY_MS = 24 * HOUR_MS;
++const WIDE = 200;
++const CHIPS = " opus 5.5  high  ~/workspace/projects/paneline ";
++const BAR_CELLS = /[▰▱]+/g;
++const COLUMN_TEXTS = /[≡◷▦][^≡◷▦]*?\d+%/g;
++const ANY_BAR = /[▰▱]/;
++const ANY_METER_CELL = /[≡◷▦▰▱%]/;
++const OLD_LOOK = /ctx|5h|7d|↺|[▁▂▃▄▅▆▇█]/;
++
++type Limit = { percentUsed: number; resetsInMs?: number };
++type Reading = { context?: number; five?: Limit; seven?: Limit };
++
++const FULL_BARS = "▰▰▰▰▱▰▰▰▰▱▱▱▱▰▰▰▰▰▱▱▱";
++const FULL_READING: Reading = {
++  context: 72,
++  five: { percentUsed: 48, resetsInMs: 2 * HOUR_MS },
++  seven: { percentUsed: 59, resetsInMs: 3 * DAY_MS },
++};
++const HIGH_BARS = "▰▰▰▰▰▰▰▰▰▰▰▰▱▰▰▰▰▰▰▰▰";
++const HIGH_READING: Reading = {
++  context: 95,
++  five: { percentUsed: 92, resetsInMs: 2 * HOUR_MS },
++  seven: { percentUsed: 97, resetsInMs: 3 * DAY_MS },
++};
++
++const CHAT_OFF = { options: { chat: false } };
++
++describe("chat option", () => {
++  test("C1 with the option not set, paneline's status rows sit under the engine's row", async ($, on) => {
++    const rows = (await bandOf($, on, FULL_READING, WIDE)).map((row) => row.trim()).filter((row) => row !== "");
++
++    expect(rows[0]).toBe("engine row");
++    expect(rows.length).toBeGreaterThan(1);
++  });
++
++  test("C2 with chat off, the band is the engine's row alone", CHAT_OFF, async ($, on) => {
++    const rows = (await bandOf($, on, FULL_READING, WIDE)).map((row) => row.trim()).filter((row) => row !== "");
++
++    expect(rows).toEqual(["engine row"]);
++  });
++
++  test("C3 with chat off, a new session still opens the pane", CHAT_OFF, async ($, on) => {
++    const world = paneWorldOf(on);
++
++    await $.session.start({ cwd: "/work", surface: "terminal", isInteractive: true });
++    await world.settle();
++
++    expect(world.opened).toEqual(["session"]);
++  });
++});
++
++async function bandOf(
++  $: Engine,
++  on: On,
++  reading: Reading,
++  columns: number,
++  options: WorldOptions = {},
++): Promise<string[]> {
++  const world = worldOf(on, options);
++  await startWith($, world, reading);
++  return screenRows(await mountBand($, columns), columns);
++}
++
++async function startWith(
++  $: Engine,
++  world: { settle: () => Promise<void> },
++  reading: Reading,
++  transcriptPath?: string,
++) {
++  await $.session.start(SESSION_START);
++  await measure($, reading);
++  await $.classic.Stop({
++    stop_hook_active: false,
++    effort: { level: "high" },
++    ...(transcriptPath === undefined ? {} : { transcript_path: transcriptPath }),
++  });
++  await world.settle();
++}
++
++function barsOf(pieces: { text: string }[]): string {
++  return pieces
++    .filter(({ text }) => ANY_BAR.test(text))
++    .map(({ text }) => text)
++    .join("");
++}
++
++function firstBar(rows: string[]): string {
++  return (rows.at(-1) ?? "").match(BAR_CELLS)?.[0] ?? "";
++}
++
++async function meterPieces($: Engine): Promise<{ text: string; color: unknown }[]> {
++  return colouredPieces(await mountBand($, WIDE)).filter(({ text }) => ANY_METER_CELL.test(text));
++}
++
++type WorldOptions = { cwd?: string; engineRow?: string; colorEntries?: string[] };
++
++function worldOf(on: On, options: WorldOptions = {}) {
++  const clock = mock.clock(on, { now: NOW });
++  const cwd = options.cwd ?? PROJECT;
++  const engineRow = options.engineRow ?? "engine row";
++  const colorEntries = options.colorEntries ?? [];
++  mock.env(on, { HOME });
++  on("session.model", () => ({ value: "claude-opus-5-5" }));
++  on("session.cwd", () => ({ value: cwd }));
++  on("session.usage", () => ({
++    value: { startedAt: 0, context: { window: 200_000 }, rateLimits: [] },
++  }));
++  on("session.measure", (_$, e) => ({ changed: e.changed }));
++  on("session.start", (_$, e) => ({ cwd: e.cwd }));
++  on("ui.open", () => ({ value: { isPlaced: true } }));
++  on("command.register", () => ({ value: {} }) as never);
++  on("classic.SessionStart", () => ({}));
++  on("classic.UserPromptSubmit", () => ({}));
++  on("classic.PostModelSwitch", () => ({}));
++  on("classic.CwdChanged", () => ({}));
++  on("classic.Stop", () => ({}));
++  on("classic.PostToolUse", () => ({}));
++  on("ui.render", { component: "AbovePrompt" }, ($, e) => {
++    const { Text } = $.ui.resolve(e);
++    return <Text>{engineRow}</Text>;
++  });
++  on(
++    "process.run",
++    () =>
++      ({
++        value: {
++          exitCode: colorEntries.length === 0 ? 1 : 0,
++          stdout: colorEntries
++            .map(
++              (agentColor) =>
++                `{"type":"agent-color","agentColor":"${agentColor}","sessionId":"s"}\n`,
++            )
++            .join(""),
++          stderr: "",
++        },
++      }) as never,
++  );
++  return { settle: () => clock.settle() };
++}
++
++function measure($: Engine, reading: Reading) {
++  const limit = (kind: string, value: Limit | undefined) =>
++    value === undefined
++      ? []
++      : [
++          {
++            kind,
++            percentUsed: value.percentUsed,
++            ...(value.resetsInMs === undefined
++              ? {}
++              : { resetsAt: new Date(NOW + value.resetsInMs).toISOString() }),
++          },
++        ];
++  return $.session.measure({
++    context:
++      reading.context === undefined
++        ? { window: 200_000 }
++        : { window: 200_000, percent: reading.context },
++    rateLimits: [...limit("five_hour", reading.five), ...limit("seven_day", reading.seven)],
++    changed: ["context", "rateLimits"],
++  });
++}
++
++async function mountBand($: Engine, columns: number) {
++  const band = await $.ui.mount({
++    plugin: "paneline",
++    surface: "terminal",
++    component: "AbovePrompt",
++    props: {
++      hasSurvey: false,
++      isWorking: false,
++      maxRows: 10,
++      bodyColumns: columns,
++      scroll: { offset: 0, bodyRows: 10 },
++      view: {},
++    },
++    viewport: { columns, rows: 40 },
++  });
++  return band.drawn();
++}
++
++// auto-open.test.tsx's world: enough for session.start to run and open the pane.
++function paneWorldOf(on: On): { opened: string[]; settle: () => Promise<void> } {
++  const clock = mock.clock(on);
++  mock.env(on, { HOME: "/home" });
++  const opened: string[] = [];
++  const stored = new Map<string, unknown>();
++  on("config.list", () => ({ value: [{ key: "theme", value: "dark" }] }) as never);
++  on("store.get", (_$, e) => ({ value: stored.get(e.key) }));
++  on("store.set", (_$, e) => {
++    stored.set(e.key, e.value);
++    return { value: undefined };
++  });
++  on("store.delete", (_$, e) => {
++    stored.delete(e.key);
++    return { value: undefined };
++  });
++  on("store.keys", () => ({ value: [...stored.keys()] }));
++  on("session.id", () => ({ value: "s1" }));
++  on("session.model", () => ({ value: "claude-opus-5-5" }));
++  on("session.cwd", () => ({ value: "/work" }));
++  on("session.usage", () => ({
++    value: { startedAt: 0, context: { window: 200_000 }, rateLimits: [] },
++  }));
++  on("session.measure", (_$, e) => ({ changed: e.changed }));
++  on("session.start", (_$, e) => ({ cwd: e.cwd }));
++  on("ui.open", (_$, e) => {
++    opened.push(e.id);
++    return { value: { isPlaced: true } };
++  });
++  on("command.register", () => ({ value: {} }) as never);
++  on("agent.list", () => ({ value: [] }));
++  on("classic.SessionStart", () => ({}));
++  on("process.run", () => ({ value: { exitCode: 1, stdout: "", stderr: "" } }) as never);
++  return { opened, settle: () => clock.settle() };
++}

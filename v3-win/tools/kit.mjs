@@ -1,4 +1,4 @@
-// kit.mjs: switch the live Claude Code setup to a "community mod" version (v3 to v6) and back, and stage a preview of it.
+// kit.mjs: switch the live Claude Code setup to a "community mod" version (v3 to v7) and back, and stage a preview of it.
 // Every one of those versions sits on top of the v2 rice (palette, theme, status line, Bridge pane) and changes only which
 // mods run and how they are configured. Each version folder holds a version.json:
 //

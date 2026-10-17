@@ -13,6 +13,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
   - [`v4-win/`](v4-win/) **Firstmate Calm:** Calm from [Firstmate](https://github.com/kunchenguid/firstmate) turns the spinner into a sailboat and hides tool rows so the transcript is just the conversation. Forked so it runs at all on a normal Claude Code (upstream waits for a pre-launch env flag), with font-safe sails, the palette, no file access, and loaded before skins (mods load in `enabledPlugins` order, a finding of this version). Also fixes lavender inline code in skins alerts. Tagged `v4-win`.
   - [`v5-win/`](v5-win/) **Ember meters:** [context-bar and usage-meter](https://github.com/hamzafer/claude-code-mods) share one row above the prompt, in warm palette colours (the meter's bars along the palette ramp), and the status line drops to its identity row so each number shows once. Tagged `v5-win`.
   - [`v6-win/`](v6-win/) **Breathing ember:** [Mindful-Claude](https://github.com/halluton/Mindful-Claude) guided breathing above the prompt while Claude works; the picture glows along the palette with the breath, in a 5-row band, with font-safe glyphs and an upstream test suite that now actually runs. Tagged `v6-win`.
+- **Panels, side by side:** [`v7-win/`](v7-win/) **Six tabs:** six right-hand panes as tabs of one sidebar on the v2 Ember rice: flightdeck, [paneline](https://github.com/markneonin/paneline), filetree, the Bridge, [cockpit](https://github.com/drkokorev/cockpit-for-claude) and [cctop](https://github.com/tomstagl/cctop), the three new ones pinned and patched (paneline's chat restyle made optional, cctop opens on start and finds home on Windows). Tagged `v7-win`.
 
 ## TL;DR
 
@@ -114,10 +115,11 @@ v1-win/                                           ← checkpoint of the setup ap
                                                   marketplace git history, working folder (see full/README.md)
 v1.1-win/                                         ← v1 plus refinements (config, tests, tools, backups, reasons)
 v2-win/                                           ← Claude Ember: one palette (4 to pick from), generators, the Bridge pane mod, apply/revert, tests, screenshots
-v3-win/                                           ← prismantis in the rice palettes (also holds tools/kit.mjs, the apply/revert kit v3 to v6 share)
+v3-win/                                           ← prismantis in the rice palettes (also holds tools/kit.mjs, the apply/revert kit v3 to v7 share)
 v4-win/                                           ← Firstmate Calm, forked: sailboat spinner, conversation-only transcript
 v5-win/                                           ← context-bar + usage-meter on one row, status line on one row
 v6-win/                                           ← Mindful-Claude breathing band, glowing with the breath
+v7-win/                                           ← six right-hand panes as tabs: flightdeck, paneline, filetree, Bridge, cockpit, cctop
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

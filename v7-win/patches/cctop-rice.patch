@@ -1,0 +1,90 @@
+diff --git a/plugins/cctop/.claude-plugin/plugin.json b/plugins/cctop/.claude-plugin/plugin.json
+index 6f9ae59..f195186 100644
+--- a/plugins/cctop/.claude-plugin/plugin.json
++++ b/plugins/cctop/.claude-plugin/plugin.json
+@@ -5,5 +5,13 @@
+   "author": { "name": "Thomas Stagl" },
+   "homepage": "https://github.com/tomstagl/cctop",
+   "skills": "./skills/",
+-  "keywords": ["claude-code", "dashboard", "tui", "cost", "tokens", "context"]
++  "keywords": ["claude-code", "dashboard", "tui", "cost", "tokens", "context"],
++  "userConfig": {
++    "openOnStart": {
++      "type": "boolean",
++      "title": "Open on start",
++      "description": "Open the pane on every interactive session start, not only when it was open at the last reload (local patch)",
++      "default": false
++    }
++  }
+ }
+diff --git a/plugins/cctop/hooks/pane.tsx b/plugins/cctop/hooks/pane.tsx
+index 9590887..3b26118 100644
+--- a/plugins/cctop/hooks/pane.tsx
++++ b/plugins/cctop/hooks/pane.tsx
+@@ -88,6 +88,8 @@ let hiddenTimer: Timer | null = null;
+ let renderWaiters: (() => void)[] = [];
+ // Whether HIDDEN_STATUS is pinned under the prompt right now.
+ let statusPinned = false;
++// LOCAL PATCH (kasasree-mods): the `openOnStart` option, read at register.
++let openOnStart = false;
+ 
+ // Asks for a redraw as of `now` (the clock's answer, or the trailing timer's
+ // due time) and arms the hidden watch.
+@@ -325,7 +327,7 @@ async function selfCheck($: EngineInterface): Promise<SelfCheck> {
+     problems.push(`$.clock.now() failed: ${message(err)}`);
+   }
+   try {
+-    const home = await $.env.get('HOME');
++    const home = await homeOf($);
+     if (typeof home !== 'string' || home === '') problems.push('$.env.get("HOME") is unset: no marker can be written');
+   } catch (err) {
+     problems.push(`$.env.get("HOME") failed: ${message(err)}`);
+@@ -372,10 +374,17 @@ function pollerEngine($: EngineInterface): PollerEngine {
+     session: { id: () => $.session.id() },
+     fs: { write: (path, text) => $.fs.write(path, text) },
+     ui: { log: (text) => $.ui.log(text) },
+-    home: () => $.env.get('HOME'),
++    home: () => homeOf($),
+   };
+ }
+ 
++// LOCAL PATCH (kasasree-mods): native Windows has no HOME, only USERPROFILE.
++// Without the fallback the self-check logs a failure into the transcript on
++// every start and no marker is written.
++async function homeOf($: EngineInterface): Promise<string | undefined> {
++  return (await $.env.get('HOME')) || (await $.env.get('USERPROFILE'));
++}
++
+ function makePoller($: EngineInterface): Poller {
+   return createPoller(
+     pollerEngine($),
+@@ -417,14 +426,16 @@ function readVersion($: EngineInterface): Promise<void> {
+ // Reopens the pane a reload closed: `$.store` holds `{ open: true, view }`
+ // from the last persistPane. Only where a person is at the prompt, and only
+ // after the binary check, so the poller starts with the pane.
++// LOCAL PATCH (kasasree-mods): with the `openOnStart` option the pane opens
++// on every interactive start, also when the store is empty or says closed.
+ function restorePane($: EngineInterface, isInteractive: boolean): Promise<void> {
+   if (!isInteractive) return Promise.resolve();
+   return $.store
+     .get(STORE_KEY)
+     .then((saved) => {
+-      if (model.open || saved === null || typeof saved !== 'object') return;
+-      const { open, view } = saved as { open?: unknown; view?: unknown };
+-      if (open !== true) return;
++      if (model.open) return;
++      const { open, view } = (saved !== null && typeof saved === 'object' ? saved : {}) as { open?: unknown; view?: unknown };
++      if (open !== true && !openOnStart) return;
+       const known = VIEWS.find((v) => v.view === view);
+       // A restore has nobody to answer; the outcome reaches the person
+       // through the status line (hidden) or the pane itself.
+@@ -673,7 +684,8 @@ function viewBar(
+ // The label before the first tab: whose bar this is.
+ const BAR_LEAD = 'cctop';
+ 
+-export const register: Register = (on) => {
++export const register: Register = (on, options) => {
++  openOnStart = options?.openOnStart === true;
+   model = initialModel();
+   stopUsageTimer();
+   stopRenderTimer();
