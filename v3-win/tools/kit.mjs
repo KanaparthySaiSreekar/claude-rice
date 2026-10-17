@@ -52,6 +52,8 @@ const BUILDERS = {
     ok: p.semantic.ok, warn: p.semantic.warn, err: p.semantic.err, label: p.base.muted, accent: p.accent.coral, fg: p.base.fg }),
   // v5, usage-meter: the bars along the palette ramp, as the v2 status line draws its gauges
   usage: (p) => JSON.stringify({ ramp: p.ramp, ok: p.semantic.ok, warn: p.semantic.warn, err: p.semantic.err, label: p.base.muted, fg: p.base.fg }),
+  // v6, mindful-breath: an ember that brightens as you breathe in: the dim accent, the accent, amber, the palest ramp stop
+  breath: (p) => JSON.stringify({ glow: [p.theme?.promptBorder ?? p.darker(p.accent.coral, 0.45), p.accent.coral, p.accent.amber, p.ramp[0]], accent: p.accent.coral, label: p.base.muted }),
 }
 export const builderNames = () => Object.keys(BUILDERS)
 

@@ -1,0 +1,14 @@
+{
+  "name": "claude-rice-v6-breath",
+  "version": "6.0.0",
+  "private": true,
+  "type": "module",
+  "description": "v6 of the Windows Claude Code rice: Mindful-Claude guided breathing above the prompt while Claude works, glowing along the palette with the breath.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "apply": "node tools/rice.mjs apply",
+    "revert": "node tools/rice.mjs revert",
+    "status": "node tools/rice.mjs status"
+  },
+  "engines": { "node": ">=22" }
+}

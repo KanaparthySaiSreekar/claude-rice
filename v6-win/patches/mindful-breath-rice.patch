@@ -1,0 +1,365 @@
+diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json
+index 89113e4..d1e7aff 100644
+--- a/.claude-plugin/marketplace.json
++++ b/.claude-plugin/marketplace.json
+@@ -72,6 +72,12 @@
+       "source": "./plugins/usage-meter",
+       "description": "5h/7d usage bars and session cost above the prompt (hamzafer/claude-code-mods) pinned at 77f1ebc, palette + shared row patched in",
+       "category": "monitoring"
++    },
++    {
++      "name": "mindful-breath",
++      "source": "./plugins/mindful-breath",
++      "description": "Guided breathing above the prompt while Claude works (halluton/Mindful-Claude) pinned at 411c9c4, palette glow + band height patched in",
++      "category": "interface"
+     }
+   ]
+ }
+diff --git a/plugins/mindful-breath/.claude-plugin/plugin.json b/plugins/mindful-breath/.claude-plugin/plugin.json
+new file mode 100644
+index 0000000..6486d8a
+--- /dev/null
++++ b/plugins/mindful-breath/.claude-plugin/plugin.json
+@@ -0,0 +1,24 @@
++{
++  "name": "mindful-breath",
++  "version": "2.0.0-rice.1",
++  "description": "Guided breathing above the prompt while Claude works: coherent, box, 4-7-8 and the physiological sigh, four animation styles, and the spinner reads the breath. Rice edition of halluton/Mindful-Claude: the picture glows along the palette with the breath, a smaller band, font-safe glyphs, and tests that run under claude plugin test.",
++  "author": { "name": "Anthony (halluton); rice patch by Kasasree" },
++  "homepage": "https://github.com/halluton/Mindful-Claude",
++  "repository": "https://github.com/halluton/Mindful-Claude",
++  "license": "MIT",
++  "keywords": ["breathing", "mindfulness", "hrv", "focus", "terminal", "tui", "function-hooks", "mod"],
++  "userConfig": {
++    "rows": {
++      "type": "string",
++      "title": "Band height",
++      "description": "Rows the band takes while Claude works, 3 to 9: the picture, the phase line and the exercise name (with fewer, the middle of the picture). Upstream: 9.",
++      "default": "9"
++    },
++    "palette": {
++      "type": "string",
++      "title": "Palette",
++      "description": "A JSON object: glow (a list of #RRGGBB stops, empty lungs to full), accent (the phase line), label (the exercise name). Empty keeps upstream's one orange.",
++      "default": ""
++    }
++  }
++}
+diff --git a/plugins/mindful-claude/LICENSE b/plugins/mindful-breath/LICENSE
+similarity index 100%
+rename from plugins/mindful-claude/LICENSE
+rename to plugins/mindful-breath/LICENSE
+diff --git a/plugins/mindful-claude/README.md b/plugins/mindful-breath/README.md
+similarity index 100%
+rename from plugins/mindful-claude/README.md
+rename to plugins/mindful-breath/README.md
+diff --git a/plugins/mindful-claude/hooks/breath/config.ts b/plugins/mindful-breath/hooks/breath/config.ts
+similarity index 100%
+rename from plugins/mindful-claude/hooks/breath/config.ts
+rename to plugins/mindful-breath/hooks/breath/config.ts
+diff --git a/plugins/mindful-claude/hooks/breath/exercises.ts b/plugins/mindful-breath/hooks/breath/exercises.ts
+similarity index 100%
+rename from plugins/mindful-claude/hooks/breath/exercises.ts
+rename to plugins/mindful-breath/hooks/breath/exercises.ts
+diff --git a/plugins/mindful-breath/hooks/breath/glow.ts b/plugins/mindful-breath/hooks/breath/glow.ts
+new file mode 100644
+index 0000000..094ef4e
+--- /dev/null
++++ b/plugins/mindful-breath/hooks/breath/glow.ts
+@@ -0,0 +1,32 @@
++// LOCAL PATCH (kasasree-mods): the band's colours. Upstream draws everything in one Claude orange. With the `palette`
++// option the picture's colour follows the breath along a glow ramp, dim ember with empty lungs to bright at the top of the
++// inhale, so the ember breathes with you; the phase line takes the accent and the exercise name the label colour.
++// Pure: `claude plugin test` covers it.
++
++export type BreathPalette = { glow: string[]; accent: string; label: string | null }
++
++export const UPSTREAM: BreathPalette = { glow: ['#f7835d', '#f7835d'], accent: '#f7835d', label: null }
++
++const HEX = /^#[0-9a-f]{6}$/i
++
++/** The palette a `palette` option names (a JSON object), upstream's single orange for anything missing or malformed. */
++export function parseBreathPalette(option: unknown): BreathPalette {
++  let raw: Record<string, unknown> = {}
++  try {
++    const parsed = typeof option === 'string' && option.trim() ? JSON.parse(option) : {}
++    if (parsed && typeof parsed === 'object') raw = parsed as Record<string, unknown>
++  } catch {}
++  const hex = (v: unknown) => (typeof v === 'string' && HEX.test(v) ? v : null)
++  const glow = Array.isArray(raw.glow) && raw.glow.length >= 2 && raw.glow.every(c => hex(c)) ? (raw.glow as string[]) : UPSTREAM.glow
++  return { glow, accent: hex(raw.accent) ?? UPSTREAM.accent, label: hex(raw.label) }
++}
++
++/** The glow colour at a breath's progress (0 = empty, 1000 = full). */
++export function glowAt(p: BreathPalette, progress: number): string {
++  const ramp = p.glow
++  const x = (Math.min(Math.max(progress, 0), 1000) / 1000) * (ramp.length - 1)
++  const i = Math.min(Math.floor(x), ramp.length - 2)
++  const f = x - i
++  const [a, b] = [ramp[i]!, ramp[i + 1]!].map(h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)))
++  return `#${a!.map((v, k) => Math.round(v + (b![k]! - v) * f).toString(16).padStart(2, '0')).join('')}`
++}
+diff --git a/plugins/mindful-claude/hooks/breath/shapes.ts b/plugins/mindful-breath/hooks/breath/shapes.ts
+similarity index 97%
+rename from plugins/mindful-claude/hooks/breath/shapes.ts
+rename to plugins/mindful-breath/hooks/breath/shapes.ts
+index 3d13369..4194348 100644
+--- a/plugins/mindful-claude/hooks/breath/shapes.ts
++++ b/plugins/mindful-breath/hooks/breath/shapes.ts
+@@ -95,7 +95,7 @@ function dots(grid: Grid, progress: number, width: number): void {
+     const abs = Math.abs(dcol)
+     if (abs > progress) continue
+     const col = centre + Math.trunc((dcol * maxHalf) / 1000)
+-    const ch = abs < 150 ? '✦' : abs < 500 ? '•' : '·'
++    const ch = abs < 150 ? '◆' : abs < 500 ? '•' : '·' // LOCAL PATCH: ◆, not ✦ (U+2726 is not in JetBrainsMono Nerd Font Mono)
+     const line = grid[row]
+     if (line && col >= 0 && col < width) line[col] = ch
+   }
+diff --git a/plugins/mindful-claude/hooks/breathe.tsx b/plugins/mindful-breath/hooks/breathe.tsx
+similarity index 75%
+rename from plugins/mindful-claude/hooks/breathe.tsx
+rename to plugins/mindful-breath/hooks/breathe.tsx
+index e82d71c..4bc1b9f 100644
+--- a/plugins/mindful-claude/hooks/breathe.tsx
++++ b/plugins/mindful-breath/hooks/breathe.tsx
+@@ -2,6 +2,7 @@
+ import type { ClientSurface } from 'claude-code'
+ import { exerciseOf, phaseAt, phaseLine, spinnerWord } from './breath/exercises.ts'
+ import { centre, frame, isStyle, type Style } from './breath/shapes.ts'
++import { glowAt, parseBreathPalette } from './breath/glow.ts'
+ 
+ // The breathing band: a surface module the hooks module mounts above the prompt while Claude
+ // works. It runs on the drawing thread with its own frame clock, ten frames a second like
+@@ -10,10 +11,9 @@ import { centre, frame, isStyle, type Style } from './breath/shapes.ts'
+ //
+ // Never name a local `h` here: every JSX tag compiles to a call of `h`.
+ 
+-type Props = { exercise?: string; style?: string; elapsedMs?: number } | undefined
++type Props = { exercise?: string; style?: string; elapsedMs?: number; palette?: string } | undefined
+ type State = { tick: number; offsetMs: number; line: string }
+ 
+-const COLOR = '#f7835d' // Claude orange
+ const TICK_MS = 100
+ 
+ export default function Breathe(props: Props, surface: ClientSurface<State>) {
+@@ -44,11 +44,15 @@ export default function Breathe(props: Props, surface: ClientSurface<State>) {
+   const artRows = Math.max(0, rows - 2)
+   const art = frame(style, phase.progress, width, artRows)
+ 
++  // LOCAL PATCH: colours from the palette (./breath/glow.ts); upstream drew all of it in one fixed orange
++  const palette = parseBreathPalette(props?.palette)
++  const glow = glowAt(palette, phase.progress)
++
+   return (
+     <Box flexDirection="column" width={width}>
+-      {art.map(line => <Text color={COLOR}>{line}</Text>)}
+-      {rows >= 1 ? <Text color={COLOR}>{centre(phaseLine(phase), width)}</Text> : null}
+-      {rows >= 2 ? <Text color={COLOR} dimColor>{centre(exercise.name, width)}</Text> : null}
++      {art.map(line => <Text color={glow}>{line}</Text>)}
++      {rows >= 1 ? <Text color={palette.accent}>{centre(phaseLine(phase), width)}</Text> : null}
++      {rows >= 2 ? (palette.label ? <Text color={palette.label}>{centre(exercise.name, width)}</Text> : <Text color={palette.accent} dimColor>{centre(exercise.name, width)}</Text>) : null}
+     </Box>
+   )
+ }
+diff --git a/plugins/mindful-claude/hooks/hooks.json b/plugins/mindful-breath/hooks/hooks.json
+similarity index 100%
+rename from plugins/mindful-claude/hooks/hooks.json
+rename to plugins/mindful-breath/hooks/hooks.json
+diff --git a/plugins/mindful-claude/hooks/register.tsx b/plugins/mindful-breath/hooks/register.tsx
+similarity index 87%
+rename from plugins/mindful-claude/hooks/register.tsx
+rename to plugins/mindful-breath/hooks/register.tsx
+index 939cacf..27bfc2f 100644
+--- a/plugins/mindful-claude/hooks/register.tsx
++++ b/plugins/mindful-breath/hooks/register.tsx
+@@ -19,7 +19,15 @@ let phase: { word: string; exercise: string } | undefined
+ 
+ const log = ($: { ui: { log: (text: string) => void } }, what: string) => (err: unknown) => $.ui.log(`mindful-claude: ${what}: ${err}`)
+ 
+-export const register: Register = on => {
++// LOCAL PATCH (kasasree-mods): `rows` sets the band's height (3 to 9; upstream always asks for 9) and `palette` its colours
++// (see ./breath/glow.ts), passed on to the band as a string.
++let bandRows = BAND_ROWS
++let palette = ''
++
++export const register: Register = (on, options = {}) => {
++  const asked = Number.parseInt(String(options.rows ?? ''), 10)
++  bandRows = Number.isFinite(asked) ? Math.min(BAND_ROWS, Math.max(3, asked)) : BAND_ROWS
++  palette = typeof options.palette === 'string' ? options.palette : ''
+   on('session.start', async ($, e, next) => {
+     const r = await next(e)
+     const saved = await $.store.get('config').catch(log($, 'store read failed'))
+@@ -81,14 +89,14 @@ export const register: Register = on => {
+     const elapsedMs = now - running.startedAt
+     if (elapsedMs < config.delay * 1000) return next(e)
+     const { Box, Client } = $.ui.resolve(e)
+-    const rows = Math.min(BAND_ROWS, e.props.maxRows)
++    const rows = Math.min(bandRows, e.props.maxRows)
+     if (rows < 1) return next(e)
+     // the key names the turn: one instance per turn, remounted when the settings change mid-turn
+     const key = `breathe:${running.startedAt}:${config.exercise}:${running.style}`
+     return (
+       <Box flexDirection="column">
+         <Client key={key} module="./breathe.tsx" width={e.viewport?.columns ?? 80} height={rows}
+-          props={{ exercise: config.exercise, style: running.style, elapsedMs }} />
++          props={{ exercise: config.exercise, style: running.style, elapsedMs, palette }} />
+         {await next(e)}
+       </Box>
+     )
+diff --git a/plugins/mindful-claude/tests/config.test.ts b/plugins/mindful-breath/tests/config.test.ts
+similarity index 93%
+rename from plugins/mindful-claude/tests/config.test.ts
+rename to plugins/mindful-breath/tests/config.test.ts
+index e664aaf..35c1aef 100644
+--- a/plugins/mindful-claude/tests/config.test.ts
++++ b/plugins/mindful-breath/tests/config.test.ts
+@@ -1,4 +1,5 @@
+-import { describe, expect, test } from 'bun:test'
++// LOCAL PATCH: claude-code/testing instead of bun:test, so claude plugin test runs these (it cannot import bun:test)
++import { describe, expect, test } from 'claude-code/testing'
+ import { DEFAULTS, HELP, applyCommand, readConfig, statusLine } from '../hooks/breath/config.ts'
+ 
+ describe('config', () => {
+diff --git a/plugins/mindful-claude/tests/exercises.test.ts b/plugins/mindful-breath/tests/exercises.test.ts
+similarity index 94%
+rename from plugins/mindful-claude/tests/exercises.test.ts
+rename to plugins/mindful-breath/tests/exercises.test.ts
+index 446e849..30476ef 100644
+--- a/plugins/mindful-claude/tests/exercises.test.ts
++++ b/plugins/mindful-breath/tests/exercises.test.ts
+@@ -1,4 +1,5 @@
+-import { describe, expect, test } from 'bun:test'
++// LOCAL PATCH: claude-code/testing instead of bun:test, so claude plugin test runs these (it cannot import bun:test)
++import { describe, expect, test } from 'claude-code/testing'
+ import { EXERCISES, cycleMs, ease, exerciseOf, phaseAt, phaseLine, resolveExercise, secondsLeft } from '../hooks/breath/exercises.ts'
+ 
+ describe('exercises', () => {
+diff --git a/plugins/mindful-breath/tests/rice.test.tsx b/plugins/mindful-breath/tests/rice.test.tsx
+new file mode 100644
+index 0000000..0e3cdfc
+--- /dev/null
++++ b/plugins/mindful-breath/tests/rice.test.tsx
+@@ -0,0 +1,49 @@
++// LOCAL PATCH (kasasree-mods): the glow palette, the band height option, and glyphs the terminal font has.
++import { describe, expect, mock, test } from 'claude-code/testing'
++import { UPSTREAM, glowAt, parseBreathPalette } from '../hooks/breath/glow.ts'
++import { STYLES, frame } from '../hooks/breath/shapes.ts'
++
++const EMBER = { glow: ['#B85A1E', '#FF7A1A', '#FFC53D', '#FFE3A3'], accent: '#FF7A1A', label: '#BFB5AA' }
++// Code points JetBrainsMono Nerd Font Mono has, of those the shapes can draw (read from its cmap, 2026-10-17).
++const IN_FONT = new Set([...' ▁▂▃▄▅▆▇█━─╌┈░▒▓◆•·'].map(c => c.codePointAt(0)!))
++
++describe('rice patch', () => {
++  test('the palette option takes a glow ramp of #RRGGBB stops; anything else keeps upstream\'s single orange', () => {
++    expect(parseBreathPalette('')).toEqual(UPSTREAM)
++    expect(parseBreathPalette('{"glow":["#ff0000"]}').glow).toEqual(UPSTREAM.glow)
++    expect(parseBreathPalette(JSON.stringify(EMBER))).toEqual(EMBER)
++  })
++
++  test('the glow follows the breath: the first stop with empty lungs, the last at the top of the inhale', () => {
++    const p = parseBreathPalette(JSON.stringify(EMBER))
++    expect(glowAt(p, 0)).toBe('#b85a1e')
++    expect(glowAt(p, 1000)).toBe('#ffe3a3')
++    expect(glowAt(p, 500)).not.toBe(glowAt(p, 0))
++    expect(glowAt(UPSTREAM, 300)).toBe('#f7835d')
++  })
++
++  test('every glyph any style draws, at any point of the breath, is in the terminal font', () => {
++    const missing = new Set<string>()
++    for (const style of STYLES) for (let progress = 0; progress <= 1000; progress += 50)
++      for (const line of frame(style, progress, 100)) for (const ch of line) if (!IN_FONT.has(ch.codePointAt(0)!)) missing.add(ch)
++    expect([...missing]).toEqual([])
++  })
++
++  for (const [rows, expected] of [['5', 5], ['1', 3], ['40', 9], ['', 9]] as const) {
++    test(`rows "${rows}" asks for a ${expected}-row band, and the band gets the palette`, { options: { rows, palette: JSON.stringify(EMBER) } }, async ($, on) => {
++      mock.clock(on, { now: 1_000_000 })
++      on('session.start', (_$: any, e: any) => ({ sessionId: 's', cwd: e.cwd }))
++      on('store.get', () => ({ value: undefined }))
++      on('command.register', () => ({ value: undefined }))
++      on('ui.render', ($: any, e: any) => $.ui.resolve(e).Text({ children: 'prompt' }))
++      await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' } as any)
++      const ui = await $.ui.mount({ plugin: 'mindful-breath', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: true, maxRows: 20, bodyColumns: 100 }, viewport: { columns: 100, rows: 40 } } as any)
++      const client = JSON.parse(JSON.stringify(await ui.drawn()), (_k, v) => v)
++      const find = (n: any): any => (n && typeof n === 'object' ? (n.type === 'Client' ? n : [n.children, n.props?.children].flat().map(find).find(Boolean)) : undefined)
++      const c = find(client)
++      expect(c?.props.height).toBe(expected)
++      expect(c?.props.props.palette).toBe(JSON.stringify(EMBER))
++      await ui.unmount()
++    })
++  }
++})
+diff --git a/plugins/mindful-claude/tests/shapes.test.ts b/plugins/mindful-breath/tests/shapes.test.ts
+similarity index 88%
+rename from plugins/mindful-claude/tests/shapes.test.ts
+rename to plugins/mindful-breath/tests/shapes.test.ts
+index 0d84b4c..ff50bf3 100644
+--- a/plugins/mindful-claude/tests/shapes.test.ts
++++ b/plugins/mindful-breath/tests/shapes.test.ts
+@@ -1,4 +1,5 @@
+-import { describe, expect, test } from 'bun:test'
++// LOCAL PATCH: claude-code/testing instead of bun:test, so claude plugin test runs these (it cannot import bun:test)
++import { describe, expect, test } from 'claude-code/testing'
+ import { ART_ROWS, STYLES, boxWidth, centre, frame, pickStyle, scaledHalf } from '../hooks/breath/shapes.ts'
+ 
+ const width = (line: string) => [...line].length
+@@ -16,7 +17,8 @@ describe('shapes', () => {
+     expect(scaledHalf(1000, 80)).toBe(30)
+   })
+ 
+-  test.each(STYLES)('%s: empty at 0, within the box at 1000, rows as asked', style => {
++  // LOCAL PATCH: a loop instead of bun's test.each, which claude-code/testing does not have
++  for (const style of STYLES) test(`${style}: empty at 0, within the box at 1000, rows as asked`, () => {
+     const empty = frame(style, 0, 80)
+     expect(empty).toHaveLength(ART_ROWS)
+     expect(empty.every(line => line.trim() === '')).toBe(true)
+@@ -52,7 +54,7 @@ describe('shapes', () => {
+   test('dots: the centre star shows first, the far ones last', () => {
+     const early = frame('dots', 100, 80).join('\n')
+     const late = frame('dots', 1000, 80).join('\n')
+-    expect(early).toContain('✦')
++    expect(early).toContain('◆') // LOCAL PATCH: the centre dot is ◆
+     expect(early).not.toContain('·')
+     expect(late).toContain('·')
+   })
+diff --git a/plugins/mindful-claude/tsconfig.json b/plugins/mindful-breath/tsconfig.json
+similarity index 100%
+rename from plugins/mindful-claude/tsconfig.json
+rename to plugins/mindful-breath/tsconfig.json
+diff --git a/plugins/mindful-claude/.claude-plugin/marketplace.json b/plugins/mindful-claude/.claude-plugin/marketplace.json
+deleted file mode 100644
+index 8db6098..0000000
+--- a/plugins/mindful-claude/.claude-plugin/marketplace.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "name": "mindful-claude",
+-  "owner": { "name": "Anthony" },
+-  "metadata": { "description": "mindful-claude: breathe while Claude works" },
+-  "plugins": [
+-    {
+-      "name": "mindful-claude",
+-      "source": "./",
+-      "description": "Guided breathing exercises above the Claude Code prompt while Claude works; the spinner reads the breath",
+-      "homepage": "https://github.com/halluton/Mindful-Claude",
+-      "repository": "https://github.com/halluton/Mindful-Claude",
+-      "license": "MIT"
+-    }
+-  ]
+-}
+diff --git a/plugins/mindful-claude/.claude-plugin/plugin.json b/plugins/mindful-claude/.claude-plugin/plugin.json
+deleted file mode 100644
+index 35ce9a1..0000000
+--- a/plugins/mindful-claude/.claude-plugin/plugin.json
++++ /dev/null
+@@ -1,10 +0,0 @@
+-{
+-  "name": "mindful-claude",
+-  "version": "2.0.0",
+-  "description": "Guided breathing exercises above the prompt while Claude works: coherent, box, 4-7-8 and the physiological sigh, four animation styles, and the spinner reads the breath. Appears when Claude starts, disappears when Claude answers. Needs function hooks (early access) and an interactive terminal.",
+-  "author": { "name": "Anthony" },
+-  "homepage": "https://github.com/halluton/Mindful-Claude",
+-  "repository": "https://github.com/halluton/Mindful-Claude",
+-  "license": "MIT",
+-  "keywords": ["breathing", "mindfulness", "hrv", "focus", "terminal", "tui", "function-hooks", "mod"]
+-}

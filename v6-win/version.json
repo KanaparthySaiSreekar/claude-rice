@@ -1,0 +1,11 @@
+{
+  "tag": "v6",
+  "label": "Breathing ember: Mindful-Claude's guided breathing above the prompt while Claude works, glowing with the breath",
+  "plugins": {
+    "mindful-breath@kasasree-mods": true
+  },
+  "first": ["mindful-breath@kasasree-mods"],
+  "options": {
+    "mindful-breath@kasasree-mods": { "rows": "5", "palette": "{palette:breath}" }
+  }
+}
