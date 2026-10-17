@@ -15,11 +15,11 @@
   },
   "accent": {
     "coral": "#FFD60A",
-    "coralLight": "#FFE766",
+    "coralLight": "#FFEB66",
     "pink": "#FFB000",
-    "violet": "#E8E0BE",
-    "blue": "#FFF3B0",
-    "cyan": "#E0C25C",
+    "violet": "#FF7A3D",
+    "blue": "#FFC9A0",
+    "cyan": "#E8D88A",
     "mint": "#A5DE72",
     "amber": "#FF9F1C",
     "red": "#FF5A4D"
@@ -34,6 +34,6 @@
     "ok": "#A5DE72",
     "warn": "#FF9F1C",
     "err": "#FF5A4D",
-    "info": "#FFF3B0"
+    "info": "#FFC9A0"
   }
 }

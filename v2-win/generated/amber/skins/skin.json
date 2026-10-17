@@ -10,12 +10,12 @@
     "ok": "#A5DE72",
     "err": "#FF5A4D",
     "warn": "#FF9F1C",
-    "read": "#FFF3B0",
+    "read": "#FFC9A0",
     "write": "#FFD60A",
-    "run": "#FF9F1C",
-    "search": "#E8E0BE",
-    "web": "#E0C25C",
-    "mcp": "#FF6A5C",
+    "run": "#FF8A1F",
+    "search": "#FFB000",
+    "web": "#FFEB66",
+    "mcp": "#F2542D",
     "other": "#B3AF98"
   },
   "spinner": [

@@ -10,10 +10,10 @@
     "ok": "#86D99C",
     "err": "#FF5C5C",
     "warn": "#FFB347",
-    "read": "#F6EEEE",
+    "read": "#FFC4C0",
     "write": "#FF4040",
     "run": "#FFB347",
-    "search": "#E0A8A8",
+    "search": "#FF9AA2",
     "web": "#FF7B73",
     "mcp": "#FF5C8A",
     "other": "#B3A4A4"

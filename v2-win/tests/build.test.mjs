@@ -151,3 +151,53 @@ test("the mod's built-in defaults are the ember palette (so it looks right with 
   for (const [k, v] of Object.entries(b.tool)) assert.ok(lit.includes(`${k}: '${v}'`), `EMBER.tool.${k} should be ${v}`)
   assert.ok(lit.includes(`ramp: [${b.ramp.map((c) => `'${c}'`).join(", ")}]`), "EMBER.ramp")
 })
+
+// ---------------------------------------------------------------------------------------------
+// detail colour: the plain palettes once turned every "highlight" role into a near-white (2026-10-17: "everything in the text is white")
+// ---------------------------------------------------------------------------------------------
+import { toOklab } from "../tools/lib/color.mjs"
+
+const chromaOf = (hex) => { const [, a, b] = toOklab(parseHex(hex)); return Math.hypot(a, b) }
+const hueOf = (hex) => { const [, a, b] = toOklab(parseHex(hex)); return (Math.atan2(b, a) * 180) / Math.PI }
+const distance = (x, y) => { const A = toOklab(parseHex(x)), B = toOklab(parseHex(y)); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]) }
+const ROLES = ["read", "write", "run", "search", "web", "mcp", "agent"]   // paths/types, edits, shell/strings, inline code/numbers, URLs/keywords, versions/functions, subagents
+
+test("every highlight role in a plain palette is a real colour, not a white", () => {
+  for (const name of PLAIN) {
+    const q = getPalette(PAL, name)
+    for (const k of ROLES) assert.ok(chromaOf(q.tool[k]) >= 0.06, `${name} tool.${k} ${q.tool[k]} is too close to white (chroma ${chromaOf(q.tool[k]).toFixed(3)})`)
+    for (const k of ["coralLight", "pink", "violet", "blue", "cyan", "amber", "red"]) assert.ok(chromaOf(q.accent[k]) >= 0.06, `${name} accent.${k} ${q.accent[k]} is too close to white`)
+  }
+})
+
+test("the highlight roles of a plain palette do not look alike", () => {
+  for (const name of PLAIN) {
+    const q = getPalette(PAL, name)
+    for (let i = 0; i < ROLES.length; i++) for (let j = i + 1; j < ROLES.length; j++) {
+      const d = distance(q.tool[ROLES[i]], q.tool[ROLES[j]])
+      assert.ok(d >= 0.05, `${name}: tool.${ROLES[i]} ${q.tool[ROLES[i]]} and tool.${ROLES[j]} ${q.tool[ROLES[j]]} are only ${d.toFixed(3)} apart`)
+    }
+  }
+})
+
+test("a plain palette has no cool synth hues: every tinted colour is red-to-yellow, except green for success", () => {
+  for (const name of PLAIN) {
+    const q = getPalette(PAL, name)
+    const colours = [...Object.entries(q.accent).filter(([k]) => k !== "mint"), ...Object.entries(q.tool),
+      ...Object.entries(q.ansi).filter(([k]) => !/green|black|white/i.test(k))]
+    for (const [k, v] of colours) {
+      if (chromaOf(v) < 0.03) continue                        // neutral greys are fine
+      const h = hueOf(v)
+      assert.ok(h >= -40 && h <= 110, `${name} ${k} ${v} has hue ${h.toFixed(0)}° (blue/purple/cyan are not part of this palette)`)
+    }
+  }
+})
+
+test("a palette can pin Claude Code theme tokens, and one that does not leaves them mapped from its accents", () => {
+  const e = getPalette(PAL, "ember")
+  assert.equal(claudeTheme(e).overrides.promptBorder, e.theme.promptBorder)
+  assert.notEqual(e.theme.promptBorder, e.accent.violet)
+  const a = getPalette(PAL, "aurora")
+  assert.equal(a.theme, undefined)
+  assert.equal(claudeTheme(a).overrides.promptBorder, a.accent.violet)
+})

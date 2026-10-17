@@ -61,12 +61,12 @@ function prompt {
         if ($head -match 'ref:\s*refs/heads/(.+)') { $branch = $Matches[1].Trim() }
     } catch { }
 
-    $violet = "$esc[38;2;241;226;226m"
+    $violet = "$esc[38;2;255;154;162m"
     $pink   = "$esc[38;2;255;92;138m"
     $faint  = "$esc[38;2;158;143;143m"
     $arrow  = if ($ok) { "$esc[38;2;255;64;64m" } else { "$esc[38;2;255;92;92m" }
     $reset  = "$esc[0m"
-    $git    = if ($branch) { " $faint`u{2387} $pink$branch" } else { '' }
+    $git    = if ($branch) { " $faint`u{2325} $pink$branch" } else { '' }
     "`n$violet $path$git $arrow`u{276F}$reset "
 }
 
@@ -94,14 +94,14 @@ function ls {
             switch -Regex ($i.Extension.ToLower()) {
                 '\.(ps1|psm1|psd1|sh|bat|cmd)$'                                         { $icon="`u{f1c9}"; $rgb='255;179;71'; break }   # script
                 '\.(py|js|mjs|ts|jsx|tsx|c|cpp|h|cs|go|rs|java|rb|php|lua|html|css)$'   { $icon="`u{f1c9}"; $rgb='255;123;115'; break } # code
-                '\.(json|ya?ml|toml|xml|ini|cfg|conf|env)$'                             { $icon="`u{f1c9}"; $rgb='224;168;168'; break }    # config
+                '\.(json|ya?ml|toml|xml|ini|cfg|conf|env)$'                             { $icon="`u{f1c9}"; $rgb='255;208;168'; break }    # config
                 '\.(md|markdown|rst|txt|log|nfo)$'                                      { $icon="`u{f15c}"; $rgb='191;176;176'; break } # text
                 '\.(pdf|docx?|odt|rtf)$'                                                { $icon="`u{f1c1}"; $rgb='255;92;92'; break }     # docs
                 '\.(xlsx?|csv|ods)$'                                                    { $icon="`u{f1c3}"; $rgb='134;217;156'; break }    # sheets
                 '\.(pptx?|odp)$'                                                        { $icon="`u{f1c4}"; $rgb='255;64;64'; break }   # slides
-                '\.(png|jpe?g|gif|bmp|webp|svg|ico|tiff?)$'                             { $icon="`u{f1c5}"; $rgb='241;226;226'; break }  # images
+                '\.(png|jpe?g|gif|bmp|webp|svg|ico|tiff?)$'                             { $icon="`u{f1c5}"; $rgb='255;154;162'; break }  # images
                 '\.(mp4|mkv|avi|mov|webm|flv|wmv)$'                                     { $icon="`u{f1c8}"; $rgb='255;92;138'; break }    # video
-                '\.(mp3|wav|flac|ogg|m4a|aac)$'                                         { $icon="`u{f1c7}"; $rgb='246;238;238'; break }    # audio
+                '\.(mp3|wav|flac|ogg|m4a|aac)$'                                         { $icon="`u{f1c7}"; $rgb='255;196;192'; break }    # audio
                 '\.(zip|rar|7z|tar|gz|xz|bz2)$'                                         { $icon="`u{f1c6}"; $rgb='190;132;50';  break } # archives
                 '\.(exe|msi|com|appx)$'                                                 { $icon="`u{f013}"; $rgb='255;92;92'; break }     # executables
                 default                                                                  { $icon="`u{f15b}"; $rgb='191;176;176' }     # other

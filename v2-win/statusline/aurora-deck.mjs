@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 // aurora-deck.mjs: the v2 status line. One file, no dependencies.
 //
-//   row 1  identity pills:  ✦ model  ▇ effort  ⌂ folder  ⎇ branch ✱dirty ↑ahead  #PR       … ⏱ session  +added −removed
-//   row 2  gauges:          ctx ▕gradient bar▏ 29% 293k/1.0M │ 5h ▕bar▏ 15% ↻2h26m │ 7d ▕bar▏ 94% ↻6h06m ! │ $22.48 │ cache 93% ◷ 20:56
+//   row 1  identity pills:  ◆ model  ▇ effort  ⌂ folder  ⌥ branch ●dirty ↑ahead  #PR       … ◔ session  +added −removed
+//   (a blank spacer row, so the two do not touch)
+//   row 2  gauges:          ctx ▕gradient bar▏ 29% 293k/1.0M │ 5h ▕bar▏ 15% ◔ 2h26m │ 7d ▕bar▏ 94% ◔ 6h06m ! │ $22.48 │ cache 93% ◕ 20:56
+//
+// Every glyph here is one the terminal font (JetBrainsMono NFM) really has. A glyph it lacks is drawn from a
+// fallback font at another width and spills into the next cell, which is how the old reset arrow ended up
+// touching its text. tests/statusline.test.mjs checks the glyph list against the font-safe set.
 //
 // Reads Claude Code's status-line JSON on stdin (documented at code.claude.com/docs/en/statusline),
 // sizes itself from COLUMNS, and ALWAYS exits 0 with at least one row: a non-zero exit blanks the
@@ -47,14 +52,15 @@ const F = (hex) => fgc(hexToRgb(hex))
 const Bg = (hex) => bgc(hexToRgb(hex))
 
 export const DEFAULT_PALETTE = {
-  key: "aurora", label: "Claude Aurora",
-  base: { bg: "#0C0A18", surface: "#14112B", raised: "#1B1740", hover: "#241F52", line: "#332D66", selection: "#3B3478", fg: "#ECE8FA", muted: "#A29DC8", faint: "#8A84B8", dim: "#6C66A3" },
-  accent: { coral: "#FF8F66", coralLight: "#FFB08F", pink: "#FF5FA2", violet: "#A78BFA", blue: "#5BA8FF", cyan: "#4DE3D8", mint: "#62EBB0", amber: "#FFC857", red: "#FF6B88" },
-  ramp: ["#4DE3D8", "#5BA8FF", "#A78BFA", "#FF5FA2", "#FF8F66"],
-  semantic: { ok: "#62EBB0", warn: "#FFC857", err: "#FF6B88", info: "#5BA8FF" },
+  key: "ember", label: "Claude Ember",
+  base: { bg: "#0A0908", surface: "#121110", raised: "#1B1917", hover: "#25221F", line: "#3B352F", selection: "#4A3622", fg: "#F8F4EE", muted: "#BFB5AA", faint: "#9E948A", dim: "#80776D" },
+  accent: { coral: "#FF7A1A", coralLight: "#FFA55C", pink: "#FF5A36", violet: "#FF8F70", blue: "#FFCBA4", cyan: "#FFE08A", mint: "#8ED69B", amber: "#FFC53D", red: "#FF4D4D" },
+  ramp: ["#FFE3A3","#FFC53D","#FF7A1A","#F0451E"],
+  semantic: { ok: "#8ED69B", warn: "#FFC53D", err: "#FF4D4D", info: "#FFCBA4" },
 }
 
-export function loadPalette(file = path.join(os.homedir(), ".rice", "current", "statusline", "palette.json")) {
+// AURORA_DECK_PALETTE points a throwaway preview at another palette without touching the applied one (tools/preview-claude.mjs).
+export function loadPalette(file = process.env.AURORA_DECK_PALETTE || path.join(os.homedir(), ".rice", "current", "statusline", "palette.json")) {
   try { return { ...DEFAULT_PALETTE, ...JSON.parse(fs.readFileSync(file, "utf8")) } } catch { return DEFAULT_PALETTE }
 }
 
@@ -240,23 +246,23 @@ export function renderDeck(input, ctx = {}) {
   // ---- row 1: identity pills ------------------------------------------------------------------
   const buildLeft = (folderMax, drop) => {
     const left = []
-    left.push(pill(`✦ ${model}${fast ? " ⚡" : ""}`, P.accent.coral, P.base.bg, caps, true))
+    left.push(pill(`◆ ${model}${fast ? " ⚡" : ""}`, P.accent.coral, P.base.bg, caps, true))
     if (effort && !drop.has("effort") && (mid || effort === "max")) left.push(pill(`${effortMeter(effort)} ${effort}`, P.base.raised, effort === "max" ? P.accent.pink : P.accent.coralLight, caps))
     if (folderMax > 0) {
       const name = folder.length > folderMax ? folder.slice(0, Math.max(1, folderMax - 1)) + "…" : folder
       left.push(pill(`${F(P.accent.violet)}⌂${F(P.base.fg)} ${name}`, P.base.raised, P.base.fg, caps))
     }
     if (git?.branch && !drop.has("git")) {
-      let g = `${F(P.base.faint)}⎇ ${F(P.accent.pink)}${clean(git.branch, 28)}`
-      if (git.dirty) g += ` ${F(P.accent.amber)}✱${git.dirty}`
+      let g = `${F(P.base.faint)}⌥ ${F(P.accent.pink)}${clean(git.branch, 28)}`
+      if (git.dirty) g += ` ${F(P.accent.amber)}●${git.dirty}`
       if (git.ahead) g += ` ${F(P.accent.mint)}↑${git.ahead}`
       if (git.behind) g += ` ${F(P.accent.coral)}↓${git.behind}`
-      if (git.conflicts) g += ` ${F(P.semantic.err)}✖${git.conflicts}`
+      if (git.conflicts) g += ` ${F(P.semantic.err)}✕${git.conflicts}`
       left.push(pill(g, P.base.raised, P.base.fg, caps))
     }
     if (pr?.number && mid && !drop.has("pr")) {
       const rs = pr.review_state
-      const [icon, color] = rs === "approved" ? ["✓", P.semantic.ok] : rs === "changes_requested" ? ["✖", P.semantic.err] : rs === "draft" ? ["◌", P.base.muted] : ["●", P.semantic.warn]
+      const [icon, color] = rs === "approved" ? ["✓", P.semantic.ok] : rs === "changes_requested" ? ["✕", P.semantic.err] : rs === "draft" ? ["◌", P.base.muted] : ["●", P.semantic.warn]
       left.push(pill(`${F(P.base.muted)}#${pr.number} ${F(color)}${icon}`, P.base.raised, P.base.fg, caps))
     }
     if (input?.agent?.name && wide && !drop.has("agent")) left.push(pill(`${F(P.accent.violet)}◈ ${clean(input.agent.name, 18)}`, P.base.raised, P.base.fg, caps))
@@ -285,27 +291,29 @@ export function renderDeck(input, ctx = {}) {
   const row1 = space >= 2 && r ? `${l}${" ".repeat(space)}${r}` : l
 
   // ---- row 2: gauges --------------------------------------------------------------------------
-  const barCtx = wide ? 16 : mid ? 12 : 8
+  const barCtx = wide ? 14 : mid ? 12 : 8     // 14, not 16: the spaces after the reset glyphs cost two cells and the whole row must still fit at 124 columns
   const barQ = wide ? 9 : mid ? 7 : 5
   const parts = []
   parts.push(gauge({ label: "ctx", pct: ctxPct, cells: barCtx, P, warn: 70, crit: 88,
     extra: wide && Number.isFinite(ctxUsed) ? ` ${F(P.base.faint)}${fmtTokens(ctxUsed)}/${fmtTokens(ctxSize)}${RESET}` : "" }))
   if (five && clampPct(five.used_percentage) !== null)
-    parts.push(gauge({ label: "5h", pct: clampPct(five.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}↻${fmtReset(five.resets_at, nowMs)}${RESET}` : "" }))
+    parts.push(gauge({ label: "5h", pct: clampPct(five.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(five.resets_at, nowMs)}${RESET}` : "" }))
   if (seven && clampPct(seven.used_percentage) !== null)
-    parts.push(gauge({ label: "7d", pct: clampPct(seven.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}↻${fmtReset(seven.resets_at, nowMs)}${RESET}` : "" }))
+    parts.push(gauge({ label: "7d", pct: clampPct(seven.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(seven.resets_at, nowMs)}${RESET}` : "" }))
   if (Number.isFinite(cost.total_cost_usd) && mid) parts.push(`${F(P.accent.amber)}$${cost.total_cost_usd.toFixed(2)}${RESET}`)
   if (cache?.caching_observed && narrow) {
     const exp = Number(cache.expires_at), warm = cache.warm === true && Number.isFinite(exp) && exp * 1000 > nowMs
     const hit = typeof cache.hit_ratio === "number" ? `${Math.round(cache.hit_ratio * 100)}% ` : ""
     const soon = warm && exp * 1000 - nowMs < 60000
     const col = !warm ? P.semantic.err : soon ? P.semantic.warn : P.accent.cyan
-    parts.push(`${F(P.base.muted)}cache ${F(P.base.fg)}${hit}${F(col)}${warm ? `◷ ${clock(exp)}` : "◌ cold"}${RESET}`)
+    parts.push(`${F(P.base.muted)}cache ${F(P.base.fg)}${hit}${F(col)}${warm ? `◕ ${clock(exp)}` : "◌ cold"}${RESET}`)
   }
   let row2 = parts.join(SEP(P))
   while (visibleWidth(row2) > cols && parts.length > 1) { parts.pop(); row2 = parts.join(SEP(P)) }
 
-  return [row1, row2]
+  // Claude Code drops a line that is empty (or only an escape code), so the spacer carries a zero-width space (U+200B, which the
+  // font has and JS does not trim). Measured in the real UI 2026-10-17: "" and ESC[0m gave no gap, U+200B gave one clear row.
+  return [row1, "\u200b", row2]
 }
 
 // ---------------------------------------------------------------------------------------------

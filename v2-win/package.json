@@ -1,6 +1,6 @@
 {
   "name": "claude-ember-rice",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "v2 of the Windows Claude Code rice: one palette (ember, amber, crimson or aurora) drives Windows Terminal, the Claude Code theme, the skins mod, the status line, the Bridge pane, Rio and PowerShell. No dependencies.",

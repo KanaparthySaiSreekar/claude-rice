@@ -66,7 +66,7 @@ function prompt {
     $faint  = "$esc[38;2;138;132;184m"
     $arrow  = if ($ok) { "$esc[38;2;255;143;102m" } else { "$esc[38;2;255;107;136m" }
     $reset  = "$esc[0m"
-    $git    = if ($branch) { " $faint`u{2387} $pink$branch" } else { '' }
+    $git    = if ($branch) { " $faint`u{2325} $pink$branch" } else { '' }
     "`n$violet $path$git $arrow`u{276F}$reset "
 }
 

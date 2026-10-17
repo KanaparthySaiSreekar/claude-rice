@@ -30,11 +30,13 @@ const payload = (over = {}) => ({
 const git = { branch: "main", ahead: 1, behind: 0, dirty: 3, conflicts: 0 }
 const deck = (input, ctx = {}) => renderDeck(input, { palette: P, now: NOW, git, ...ctx })
 
-test("a full payload gives two rows with every vital on screen", () => {
+test("a full payload gives an identity row, a blank spacer and a gauge row, with every vital on screen", () => {
   const rows = deck(payload(), { columns: 124 }).map(strip)
-  assert.equal(rows.length, 2)
+  assert.equal(rows.length, 3)
+  assert.equal(rows[1], "\u200b", "a spacer row between the two; empty or escape-only lines are dropped by Claude Code, a zero-width space is kept")
+  assert.ok(rows[0].includes("Sonnet") && rows[2].includes("ctx"))
   const all = rows.join("\n")
-  for (const want of ["Sonnet 5.5", "xhigh", "claude-code-mods-research", "main", "✱3", "↑1", "29%", "15%", "94%", "↻2h26m", "↻6h06m", "$22.48", "93%", "1h12m", "+156", "−23", "293k/1.0M"])
+  for (const want of ["Sonnet 5.5", "xhigh", "claude-code-mods-research", "main", "●3", "↑1", "29%", "15%", "94%", "◔ 2h26m", "◔ 6h06m", "$22.48", "93%", "1h12m", "+156", "−23", "293k/1.0M"])
     assert.ok(all.includes(want), `missing "${want}" in:\n${all}`)
 })
 
@@ -52,24 +54,24 @@ test("missing or null data renders an empty state, never throws", () => {
 })
 
 test("hot quotas turn red and get a bang; calm ones stay plain", () => {
-  const hot = deck(payload(), { columns: 124 })[1]
-  const red = `38;2;${[255, 107, 136].join(";")}`
+  const hot = deck(payload(), { columns: 124 })[2]
+  const red = `38;2;${[1, 3, 5].map((i) => parseInt(P.semantic.err.slice(i, i + 2), 16)).join(";")}`   // the palette's own error colour
   assert.ok(hot.includes(red), "94% should use the error colour")
   assert.ok(strip(hot).includes("94%") && strip(hot).includes("!"))
-  const calm = deck(payload({ rate_limits: { five_hour: { used_percentage: 15 }, seven_day: { used_percentage: 20 } } }), { columns: 124 })[1]
+  const calm = deck(payload({ rate_limits: { five_hour: { used_percentage: 15 }, seven_day: { used_percentage: 20 } } }), { columns: 124 })[2]
   assert.ok(!strip(calm).includes("!"))
 })
 
 test("the cache segment warns when it is about to expire and says cold when it has", () => {
-  const soon = strip(deck(payload({ prompt_cache: { warm: true, caching_observed: true, expires_at: NOW / 1000 + 30 } }), { columns: 124 })[1])
-  assert.match(soon, /◷/)
-  const cold = strip(deck(payload({ prompt_cache: { warm: false, caching_observed: true, expires_at: null } }), { columns: 124 })[1])
+  const soon = strip(deck(payload({ prompt_cache: { warm: true, caching_observed: true, expires_at: NOW / 1000 + 30 } }), { columns: 124 })[2])
+  assert.match(soon, /◕/)
+  const cold = strip(deck(payload({ prompt_cache: { warm: false, caching_observed: true, expires_at: null } }), { columns: 124 })[2])
   assert.match(cold, /cold/)
-  const none = strip(deck(payload({ prompt_cache: { caching_observed: false } }), { columns: 124 })[1])
+  const none = strip(deck(payload({ prompt_cache: { caching_observed: false } }), { columns: 124 })[2])
   assert.ok(!/cache/.test(none))
 })
 
-test("gradient bar: right number of cells, monotonic fill, partial blocks, cool-to-warm colour", () => {
+test("gradient bar: right number of cells, monotonic fill, partial blocks, pale-to-hot colour", () => {
   const cells = (pct, n = 10) => strip(gradientBar(pct, n, P))
   assert.equal(cells(0).length, 10); assert.equal(cells(100).length, 10)
   assert.equal(cells(100), "█".repeat(10)); assert.equal(cells(0), " ".repeat(10))
@@ -78,8 +80,8 @@ test("gradient bar: right number of cells, monotonic fill, partial blocks, cool-
   for (const pct of [0, 5, 12, 29, 47, 63, 80, 94, 100]) { const f = filled(pct); assert.ok(f >= last - 1e-9); last = f }
   assert.ok(/[▏▎▍▌▋▊▉]/.test(cells(29)), "29% of 10 cells lands mid-cell")
   const first = /38;2;(\d+);(\d+);(\d+)/.exec(gradientBar(100, 10, P)), lastC = [...gradientBar(100, 10, P).matchAll(/38;2;(\d+);(\d+);(\d+)/g)].pop()
-  assert.ok(Number(first[3]) > Number(first[1]), "first cell is cool (blue/cyan)")
-  assert.ok(Number(lastC[1]) > Number(lastC[3]), "last cell is warm (red/coral)")
+  const lum = (m) => 0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3])
+  assert.ok(lum(first) > lum(lastC), "the bar starts at the pale end of the palette's ramp and finishes at the hot end")
   assert.equal(gradientBar(null, 6, P).replace(/\u001b\[[0-9;]*m/g, "").trim(), "")
 })
 
@@ -152,7 +154,31 @@ test("effort is a five-segment meter", () => {
 
 test("the status line's embedded default palette matches palettes.json (no silent drift)", async () => {
   const { getPalette } = await import("../tools/lib/palette.mjs")
-  const real = getPalette(path.join(here, "..", "palette", "palettes.json"), "aurora")
+  const real = getPalette(path.join(here, "..", "palette", "palettes.json"), "ember")
   for (const group of ["base", "accent", "semantic"]) assert.deepEqual(P[group], real[group], `${group} differs from palettes.json`)
   assert.deepEqual(P.ramp, real.ramp)
+})
+
+// Glyphs that exist in JetBrainsMono NFM (read from the font's cmap with WPF's GlyphTypeface, 2026-10-17). A glyph the font lacks
+// is drawn from a fallback font at another width and spills into the next cell: the old reset arrow touched its time that way.
+const FONT_SAFE = new Set([..."–−…│▏▎▍▌▋▊▉█▐▕▇◆◇◌◔◕◈●○✓✕⚡⌂⌥↑↓·•→"])   // the last two are the Powerline pill caps
+test("the status line draws only glyphs the terminal font really has", () => {
+  const src = fs.readFileSync(DECK, "utf8").split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n")
+  const bad = [...new Set([...src].filter((c) => c.codePointAt(0) > 127 && c !== " " && !FONT_SAFE.has(c)))]
+  assert.deepEqual(bad, [], `not in the font: ${bad.join(" ")}`)
+})
+
+test("a reset time never touches the glyph before it", () => {
+  const row = strip(deck(payload(), { columns: 124 })[2])
+  for (const m of row.matchAll(/◔(.)/g)) assert.equal(m[1], " ", `glyph runs into "${m[1]}" in: ${row}`)
+})
+
+test("AURORA_DECK_PALETTE points the status line at another palette (used by the throwaway previews)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "deck-pal-"))
+  const file = path.join(dir, "palette.json")
+  fs.writeFileSync(file, JSON.stringify({ accent: { ...P.accent, coral: "#123456" } }))
+  const r = spawnSync(process.execPath, [DECK], { input: JSON.stringify(payload()), encoding: "utf8", env: { ...process.env, AURORA_DECK_PALETTE: file } })
+  assert.equal(r.status, 0)
+  assert.ok(r.stdout.includes("38;2;18;52;86") || r.stdout.includes("48;2;18;52;86"), "the model pill should use the override's coral #123456")
+  fs.rmSync(dir, { recursive: true, force: true })
 })

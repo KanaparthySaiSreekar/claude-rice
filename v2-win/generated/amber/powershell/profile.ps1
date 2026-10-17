@@ -26,7 +26,7 @@ Set-PSReadLineKeyHandler -Key Ctrl+z     -Function Undo
 # --- Syntax highlight colours (Claude Amber) ---
 Set-PSReadLineOption -Colors @{
     Command                = "#FFD60A"
-    Parameter              = "#FFE766"
+    Parameter              = "#FFEB66"
     String                 = "#A5DE72"
     Number                 = "#FF9F1C"
     Operator               = "#FFB000"
@@ -61,12 +61,12 @@ function prompt {
         if ($head -match 'ref:\s*refs/heads/(.+)') { $branch = $Matches[1].Trim() }
     } catch { }
 
-    $violet = "$esc[38;2;232;224;190m"
+    $violet = "$esc[38;2;255;122;61m"
     $pink   = "$esc[38;2;255;176;0m"
     $faint  = "$esc[38;2;157;154;133m"
     $arrow  = if ($ok) { "$esc[38;2;255;214;10m" } else { "$esc[38;2;255;90;77m" }
     $reset  = "$esc[0m"
-    $git    = if ($branch) { " $faint`u{2387} $pink$branch" } else { '' }
+    $git    = if ($branch) { " $faint`u{2325} $pink$branch" } else { '' }
     "`n$violet $path$git $arrow`u{276F}$reset "
 }
 
@@ -93,15 +93,15 @@ function ls {
         } else {
             switch -Regex ($i.Extension.ToLower()) {
                 '\.(ps1|psm1|psd1|sh|bat|cmd)$'                                         { $icon="`u{f1c9}"; $rgb='255;159;28'; break }   # script
-                '\.(py|js|mjs|ts|jsx|tsx|c|cpp|h|cs|go|rs|java|rb|php|lua|html|css)$'   { $icon="`u{f1c9}"; $rgb='255;231;102'; break } # code
-                '\.(json|ya?ml|toml|xml|ini|cfg|conf|env)$'                             { $icon="`u{f1c9}"; $rgb='224;194;92'; break }    # config
+                '\.(py|js|mjs|ts|jsx|tsx|c|cpp|h|cs|go|rs|java|rb|php|lua|html|css)$'   { $icon="`u{f1c9}"; $rgb='255;235;102'; break } # code
+                '\.(json|ya?ml|toml|xml|ini|cfg|conf|env)$'                             { $icon="`u{f1c9}"; $rgb='232;216;138'; break }    # config
                 '\.(md|markdown|rst|txt|log|nfo)$'                                      { $icon="`u{f15c}"; $rgb='190;187;164'; break } # text
                 '\.(pdf|docx?|odt|rtf)$'                                                { $icon="`u{f1c1}"; $rgb='255;90;77'; break }     # docs
                 '\.(xlsx?|csv|ods)$'                                                    { $icon="`u{f1c3}"; $rgb='165;222;114'; break }    # sheets
                 '\.(pptx?|odp)$'                                                        { $icon="`u{f1c4}"; $rgb='255;214;10'; break }   # slides
-                '\.(png|jpe?g|gif|bmp|webp|svg|ico|tiff?)$'                             { $icon="`u{f1c5}"; $rgb='232;224;190'; break }  # images
+                '\.(png|jpe?g|gif|bmp|webp|svg|ico|tiff?)$'                             { $icon="`u{f1c5}"; $rgb='255;122;61'; break }  # images
                 '\.(mp4|mkv|avi|mov|webm|flv|wmv)$'                                     { $icon="`u{f1c8}"; $rgb='255;176;0'; break }    # video
-                '\.(mp3|wav|flac|ogg|m4a|aac)$'                                         { $icon="`u{f1c7}"; $rgb='255;243;176'; break }    # audio
+                '\.(mp3|wav|flac|ogg|m4a|aac)$'                                         { $icon="`u{f1c7}"; $rgb='255;201;160'; break }    # audio
                 '\.(zip|rar|7z|tar|gz|xz|bz2)$'                                         { $icon="`u{f1c6}"; $rgb='190;117;18';  break } # archives
                 '\.(exe|msi|com|appx)$'                                                 { $icon="`u{f013}"; $rgb='255;90;77'; break }     # executables
                 default                                                                  { $icon="`u{f15b}"; $rgb='190;187;164' }     # other

@@ -17,9 +17,9 @@
     "coral": "#FF7A1A",
     "coralLight": "#FFA55C",
     "pink": "#FF5A36",
-    "violet": "#E6D8C3",
-    "blue": "#FFF6E8",
-    "cyan": "#FFC999",
+    "violet": "#FF8F70",
+    "blue": "#FFCBA4",
+    "cyan": "#FFE08A",
     "mint": "#8ED69B",
     "amber": "#FFC53D",
     "red": "#FF4D4D"
@@ -34,6 +34,6 @@
     "ok": "#8ED69B",
     "warn": "#FFC53D",
     "err": "#FF4D4D",
-    "info": "#FFF6E8"
+    "info": "#FFCBA4"
   }
 }

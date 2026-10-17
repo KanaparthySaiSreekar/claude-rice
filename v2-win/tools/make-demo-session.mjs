@@ -109,6 +109,7 @@ The status line is now two rows and still fast.
 - **Row 1:** model, effort, folder, git branch with dirty and unpushed counts.
 - **Row 2:** context, 5h and 7d as gradient bars that warm from cyan to coral as they fill.
 - **Cost:** about 40 ms a refresh, with git cached for three seconds.
+- **Where:** edited statusline/aurora-deck.mjs in v2.1.0, took 3m 20s, see https://github.com/KanaparthySaiSreekar/claude-code-mods-research for the rest.
 
 ## What changed
 

@@ -2,7 +2,7 @@
 
 A from-scratch visual rice for Claude Code on Windows 11 and Windows Terminal. **One palette** drives everything: the terminal (flat near-black, an orange tab and frame, a soft glow on bright text), the Claude Code theme, the transcript skin, a two-row status line, a first-party **Bridge** pane on the right, PowerShell and Rio. It replaces the minimal v1.1 setup.
 
-The default look is **black, hot orange and warm white**, and nothing else. There is no background picture. Two sibling palettes are one command away (`amber`: black and electric yellow, `crimson`: black and signal red), and the original indigo-and-aurora look is still there as `aurora`.
+The default look is **black, hot orange and warm white**, with no background picture, and every kind of detail has its own warm shade so the text is not one flat white: orange headings and numbers, gold bold labels, peach paths, flame version numbers, salmon inline code, apricot links. Two sibling palettes are one command away (`amber`: black and electric yellow, `crimson`: black and signal red), and the original indigo-and-aurora look is still there as `aurora`.
 
 ![Claude Code in the Ember rice: orange headings, white text on black, a one-row-per-call rail, the Bridge pane on the right and the status line](docs/screenshots/claude-code-ui.png)
 
@@ -10,7 +10,9 @@ The default look is **black, hot orange and warm white**, and nothing else. Ther
 
 ## Pick a palette
 
-![The Bridge pane's heartbeat, timeline and bars in ember, amber and crimson](docs/screenshots/palettes.png)
+![The same reply in ember, amber and crimson: headings, bold labels, bullets, numbers, paths, versions, links and table headers each in their own shade](docs/screenshots/palettes.png)
+
+*All three photographed in the real Claude Code UI (the Bridge pane too, which is outside these crops).*
 
 ```powershell
 node tools/rice.mjs apply ember     # orange, white, black (default)
@@ -30,13 +32,13 @@ Each `apply` backs up what it touches first, and switching from a palette with a
 | Status line | claude-hud: folder + git + cache clock | **Aurora Deck** (the name is historical): two rows, pills and gradient gauges for model, effort, folder, git, PR, context, 5h, 7d, cost, cache |
 | Transcript | `claude-warm` skin, rail off | skin in the palette, **rail on, one row per tool call** (local patch) |
 | Right pane | flightdeck | **Bridge**, our own: heartbeat, per-call timeline, gate, agents, hot files, last turn |
-| Prompt | brown path and `»` | pale path, red `⎇ branch`, an orange `❯` that goes red after a failed command |
+| Prompt | brown path and `»` | pale path, red `⌥ branch`, an orange `❯` that goes red after a failed command |
 
 ## Use it
 
 ```powershell
 cd v2-win
-npm test                              # 43 tests, no dependencies
+npm test                              # 50 tests, no dependencies
 node tools/rice.mjs apply --dry-run   # what it would touch
 node tools/rice.mjs apply             # back up every file, then install the default palette
 node tools/rice.mjs status
@@ -94,8 +96,10 @@ claude plugin validate .
 
 `statusline/aurora-deck.mjs` is one file with no dependencies. It reads Claude Code's documented status-line JSON and draws:
 
-- **Row 1, identity pills:** model (with ⚡ when fast mode is on), a five-pip effort meter, folder, git branch with `✱` changed files, `↑` unpushed and `↓` behind, the open PR with its review state, the agent name and vim mode when present, and on the right the session clock and lines added and removed.
-- **Row 2, gauges:** context, 5h and 7d as gradient bars with 1/8-cell precision. The colour follows the cell's place on the palette's ramp, so a nearly empty bar is pale and a nearly full one is hot. The percentage goes amber then red with a `!` as a quota runs out, with the reset countdown beside it, then cost and the prompt-cache clock (`◷ 22:27`, amber in the last minute, `cold` after it expires).
+- **Row 1, identity pills:** model (with ⚡ when fast mode is on), a five-pip effort meter, folder, git branch with `●` changed files, `↑` unpushed and `↓` behind, the open PR with its review state, the agent name and vim mode when present, and on the right the session clock and lines added and removed.
+- **A spacer row** between the two. Claude Code drops a status-line row that is empty or holds only an escape code (measured: both gave no gap), so the spacer carries a zero-width space.
+- **Row 2, gauges:** context, 5h and 7d as gradient bars with 1/8-cell precision. The colour follows the cell's place on the palette's ramp, so a nearly empty bar is pale and a nearly full one is hot. The percentage goes amber then red with a `!` as a quota runs out, with the reset countdown beside it (`◔ 2h26m`), then cost and the prompt-cache clock (`◕ 22:27`, amber in the last minute, `cold` after it expires).
+- **Only glyphs the font has.** A glyph missing from JetBrainsMono NFM is drawn from a fallback font at another width and spills into the next cell; that is how the old reset arrow `↻` ended up touching its time. Every glyph the line draws is now in the font (read from the font's own glyph table), and a test fails if a new one is added that is not.
 - **Width:** it sizes itself from `COLUMNS`. Windows of about 112 columns and up get everything. Below that the bars shrink and the extras go in tiers: token counts, lines changed, the agent and vim pills first, then reset times, cost and the PR and effort pills, then the session and cache clocks. Anything that still does not fit is cut from the right, and the identity row finally shortens the folder name with an ellipsis. A test checks that no row is wider than the terminal at any width from 44 to 220 columns.
 - **Never blank:** Claude Code blanks the row on a non-zero exit, so any error prints a one-word fallback and exits 0. Missing or null data renders an empty state.
 - **Fast:** about 40 ms of Node, about 170 ms end to end through Git Bash (`exec` of a `.cmd` shim, which also avoids stranded `node.exe` processes). `git status` is cached for 3 seconds with a 1.5 s timeout, falling back to reading `.git/HEAD`.
@@ -116,21 +120,23 @@ claude plugin validate .
 
 - **Theme (`claude/theme.json`, 72 tokens):** includes tokens the documentation leaves out. `composerSidebarBackground` is the fill of side panes (a neutral grey in the stock dark theme); `clawd_body` and `clawd_background` colour the mascot; `claudeBlue_FOR_SYSTEM_SPINNER`, `skill`, `professionalBlue` and `chromeYellow` are the rest. A test checks every token name against the table inside Claude Code, because an unknown token is silently ignored.
 - **Skin `claude-<palette>`:** all 15 palette slots, rail on, usage band off (so usage is shown once).
+- **Detail colour comes from the tool colours.** The skin draws a reply's highlights from its seven tool slots: `read` is paths, types and properties; `write` is edits and variables; `run` is shell rows, strings and (patched) **bold text**; `search` is inline code, numbers and literals; `web` is links and keywords; `mcp` is version numbers and function names. If those slots are near-white the whole reply is white, which is exactly what the first Ember did. Each plain palette now gives every slot its own warm shade (`palette/palettes.json`), and tests fail if a slot is too close to white, if two slots look alike (OKLab distance under 0.05), or if a blue, purple or cyan sneaks back in. A palette can also pin single theme tokens with a `"theme"` block (the prompt frame is a dim accent instead of a pale tint).
+- **Three small skin patches** on top of the rail one (`patches/skins-bold-bullets-table-headers.patch`): bold takes the `run` colour, bullet marks take the accent, table header rows take the accent. One commit in the local marketplace (`5486b65`), so its tamper check stays clean.
 - **Rail on one row:** `patches/skins-rail-on-the-node-row.patch` makes a tool call `┣━● Run 1` instead of a connector row plus a node row. It is a commit in your local marketplace (`c61bd3d`), so its tamper check stays clean.
 - **Right pane:** the Bridge. `apply` enables it and switches flightdeck off (still installed; `revert` or a one-line settings change brings it back). If the Bridge is not installed, `apply` keeps flightdeck and recolours it through the theme, as in the first v2.
 - **claude-hud** is switched off (its files are untouched).
 
 ## What I verified, and how
 
-- **43 rice tests** (status line 16, palette and theme 14, apply and revert 13, against a throwaway copy of your layout: merges keep unrelated keys, applying twice changes nothing, revert is byte-identical, switching to a palette with no art removes the old picture) and **39 Bridge tests** (31 unit tests, 8 against the engine's own `claude plugin test` harness), plus `claude plugin validate`.
-- **The real UI:** Claude Code 2.1.300 resuming a synthetic transcript and photographed with a harness that captures only its own window (`tools/preview/`). The Bridge, the theme, the status line and the rail were all confirmed there, in the preview and again after `apply`.
+- **50 rice tests** (status line 19, palette and theme 18, apply and revert 13, against a throwaway copy of your layout: merges keep unrelated keys, applying twice changes nothing, revert is byte-identical, switching to a palette with no art removes the old picture) and **39 Bridge tests** (31 unit tests, 8 against the engine's own `claude plugin test` harness), plus `claude plugin validate`.
+- **The real UI, in all three palettes:** Claude Code 2.1.300 resuming a synthetic transcript and photographed with a harness that captures only its own window (`tools/preview/`). The Bridge, the theme, the status line, the rail and the detail colours were confirmed there for ember, amber and crimson (`docs/screenshots/palettes.png`). The status line spacer was tried three ways in that UI (empty line, escape-only line, zero-width space); only the last produced a gap.
 - **That the heartbeat really animates:** four captures of the same window 500 ms apart. Working (demo data), the heartbeat region changed by 1,000 to 1,300 sampled pixels between frames; idle, by 100 to 140 (a slow drift); the transcript, used as a control, by 0. (`shot.ps1 -Burst 4 -BurstMs 500` does it.)
 - **The mod loads cleanly in a real session:** the debug log lists its eight events, shows the pane placed, and has no refused or skipped hook.
 
 ## What I did not verify
 
 - **A live model turn with the Bridge running.** Its counting was verified by raising the real events through the engine's harness (tool calls, gate checks, agent spawns, turn ends) and its look by the demo state, but I did not watch it through an actual conversation. Two things to watch for: a subagent's end is detected from its own `turn.complete`, and a **resumed session does not replay history into the pane** (hooks only see live events), so it starts empty and fills as you work.
-- **Amber and crimson in the real UI.** Their colours are audited and drawn in the swatch image above, but only Ember was photographed in Claude Code itself.
+- **Diff colours.** The code inside an Edit row's diff is coloured by Claude Code's own highlighter (a fixed Monokai-style set: pink, cyan, green, purple). The theme has no syntax tokens, so that is the one place a cool hue still shows. The only control is the `syntaxHighlightingDisabled` setting, which would make diff code plain white; I left it on. Replacing that renderer with the skin's own palette-coloured one is possible but was not attempted.
 - How it looks in **your live session**: I never captured your open window.
 - **Real usage numbers** in the deck (the demo has no API response), **Rio** (its elevated ConPTY step has not been run), and the **battery cost** of the shader and the heartbeat (idle is 2 fps, but I did not measure CPU).
 
@@ -144,7 +150,7 @@ mods/aurora-bridge/ the Bridge pane (hooks/, types/, tests/); the loaded copy li
 statusline/         aurora-deck.mjs
 art/                aurora-art.mjs (only the aurora palette uses it)
 shaders/            glow.hlsl
-patches/            skins-rail-on-the-node-row.patch
+patches/            skins-rail-on-the-node-row.patch, skins-bold-bullets-table-headers.patch
 generated/<name>/   what the build produces for each palette (except the 4 MB aurora art)
 tests/              statusline, build, apply
 docs/               FINDINGS.md, screenshots/
@@ -154,6 +160,7 @@ See [`docs/FINDINGS.md`](docs/FINDINGS.md) for the non-obvious things this turne
 
 ## Next, if you want it
 
-- Look at **amber** or **crimson** in the real UI (`apply`, restart, `claude --continue`) and keep whichever you like; delete the other two from `palettes.json` if you want it tidy.
+- Keep whichever of **ember**, **amber** and **crimson** you like; delete the others from `palettes.json` if you want it tidy.
+- Draw **diffs with the skin's own colours** (the last cool hues left), by routing the Edit row's diff through the skin's palette-coloured renderer.
 - A Bridge **panel picker** (an option to hide Hot files or Agents) and a small `claude --resume` replay that rebuilds the timeline from the transcript.
 - Two or three **community visual mods**, each vetted first (read the source, `claude plugin validate`, pin the commit).

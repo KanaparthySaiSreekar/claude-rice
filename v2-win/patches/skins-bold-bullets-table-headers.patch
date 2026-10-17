@@ -1,0 +1,65 @@
+From 5486b653788c2a2cebe5bab10079bc7ae2c423e1 Mon Sep 17 00:00:00 2001
+From: KanaparthySaiSreekar <kanapasai@gmail.com>
+Date: Sat, 17 Oct 2026 10:04:06 +0530
+Subject: [PATCH] skins: colour for bold text, bullet marks and table headers;
+ aurora-bridge: ember tool colours
+
+Detail colour on the plain palettes. In a reply, bold text now takes the
+`run` slot instead of plain fg, a bullet's mark takes `user` instead of
+`muted`, and a table's header row takes `user` instead of fg. aurora-bridge's
+built-in Ember defaults follow the palette's new tool colours (read, search,
+agent). README records the patch and the state of the skins test suite
+(216 pass, 4 fail with or without this patch).
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ plugins/skins/hooks/prose.tsx | 5 ++++-
+ plugins/skins/hooks/rows.tsx  | 3 ++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/plugins/skins/hooks/prose.tsx b/plugins/skins/hooks/prose.tsx
+index 8a05d42..2a3320d 100644
+--- a/plugins/skins/hooks/prose.tsx
++++ b/plugins/skins/hooks/prose.tsx
+@@ -17,7 +17,10 @@ const glyphs = (look: Look): Glyphs =>
+   look.prefs.icons === 'ascii' ? { mark: '-', done: '[x]', open: '[ ]' } : { mark: '•', done: '☑', open: '☐' }
+ 
+ // The slot each highlighted kind of text takes from the skin.
++// LOCAL PATCH (kasasree-mods): bold text takes the `run` slot (it was plain `fg` in bold weight) and the bullet mark below
++// takes `user` (it was `muted`), so a reply has colour in its labels and lists, not only in its headings. See README.md.
+ const SLOTS: Partial<Record<RunStyle, keyof Palette>> = {
++  bold: 'run',
+   code: 'search',
+   number: 'user',
+   duration: 'user',
+@@ -73,7 +76,7 @@ function lineRow(look: Look, line: Line) {
+ 
+   return (
+     <Box flexDirection="row" paddingLeft={line.depth * 2}>
+-      <Text color={look.skin.palette.muted}>{`${mark} `}</Text>
++      <Text color={look.skin.palette.user}>{`${mark} `}</Text>
+       {body}
+     </Box>
+   )
+diff --git a/plugins/skins/hooks/rows.tsx b/plugins/skins/hooks/rows.tsx
+index 1f7d2c0..d14f9e7 100644
+--- a/plugins/skins/hooks/rows.tsx
++++ b/plugins/skins/hooks/rows.tsx
+@@ -345,12 +345,13 @@ export function tableRows(look: Look, table: Table, maxWidth: number, control?:
+     isFluid
+       ? { width: 0, flexGrow: (widths[i] ?? 0) + CELL_PAD * 2, flexShrink: 1 }
+       : { width: (widths[i] ?? 0) + CELL_PAD * 2, flexShrink: 0 }
++  // LOCAL PATCH (kasasree-mods): the header row takes the accent (`user`) instead of plain `fg`. See README.md.
+   const row = (cells: readonly string[], isHeader: boolean, band: string | undefined) => (
+     <Box flexDirection="row" {...(band === undefined ? {} : { backgroundColor: band })}>
+       {cells.map((cell, i) => (
+         <Box {...size(i)} flexDirection="column" paddingX={CELL_PAD} alignItems={JUSTIFY[table.align[i] ?? 'left']}>
+           {wrapLines(cell, widths[i] ?? 0, MAX_CELL_LINES).map(line => (
+-            <Text color={palette.fg} bold={isHeader} wrap="truncate-end">
++            <Text color={isHeader ? palette.user : palette.fg} bold={isHeader} wrap="truncate-end">
+               {line}
+             </Text>
+           ))}
+-- 
+2.55.0.windows.3
+

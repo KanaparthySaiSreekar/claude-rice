@@ -35,7 +35,8 @@ function seed(paletteName) {
   fs.writeFileSync(STORE, JSON.stringify(store))
   // 3. the status line shim + the per-process settings
   const shim = path.join(PREVIEW, "deck.cmd")
-  fs.writeFileSync(shim, `@echo off\r\n"${process.execPath}" "${path.join(repoRoot, "statusline", "aurora-deck.mjs")}"\r\n`)
+  const palFile = path.join(RICE, "builds", p.key, "statusline", "palette.json")   // the previewed palette, not the applied one
+  fs.writeFileSync(shim, `@echo off\r\nset "AURORA_DECK_PALETTE=${palFile}"\r\n"${process.execPath}" "${path.join(repoRoot, "statusline", "aurora-deck.mjs")}"\r\n`)
   const settings = {
     theme: `custom:${p.key}`,
     statusLine: { type: "command", command: `exec "${shim.replace(/\\/g, "/")}"`, refreshInterval: 60 },

@@ -37,7 +37,7 @@ export const EMBER: Palette = {
   err: '#FF4D4D',
   coral: '#FF7A1A',
   ramp: ['#FFE3A3', '#FFC53D', '#FF7A1A', '#F0451E'],
-  tool: { read: '#FFF6E8', write: '#FF7A1A', run: '#FFC53D', search: '#E6D8C3', web: '#FFA55C', mcp: '#E8553C', agent: '#FFD9B0', other: '#B3A99E' },
+  tool: { read: '#FFCBA4', write: '#FF7A1A', run: '#FFC53D', search: '#FF8F70', web: '#FFA55C', mcp: '#E8553C', agent: '#FFE08A', other: '#B3A99E' },
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/

@@ -97,6 +97,8 @@ export function claudeTheme(p) {
       rainbow_blue: a.blue, rainbow_blue_shimmer: an.brightBlue,
       rainbow_indigo: indigo, rainbow_indigo_shimmer: p.lighter(indigo, 0.2),
       rainbow_violet: a.violet, rainbow_violet_shimmer: an.brightPurple,
+      // a palette can pin individual tokens (the plain ones dim the prompt frame, which would otherwise take a pale accent)
+      ...(p.theme ?? {}),
     },
   }
 }
@@ -258,7 +260,7 @@ function prompt {
     $faint  = "$esc[38;2;${rgbStr(p.base.faint)}m"
     $arrow  = if ($ok) { "$esc[38;2;${rgbStr(a.coral)}m" } else { "$esc[38;2;${rgbStr(a.red)}m" }
     $reset  = "$esc[0m"
-    $git    = if ($branch) { " $faint\`u{2387} $pink$branch" } else { '' }
+    $git    = if ($branch) { " $faint\`u{2325} $pink$branch" } else { '' }
     "\`n$violet $path$git $arrow\`u{276F}$reset "
 }
 
