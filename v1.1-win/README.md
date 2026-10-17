@@ -23,7 +23,7 @@ Flightdeck's main panel already shows the model, effort, context %, 5h and 7d us
 Flightdeck contains no git code and, by design, no process or file access (`$.state`, `$.command`, `$.ui` and `$.session.usage` only), which is why it was chosen. Adding git would have changed what that reviewed mod is allowed to do. The branch went into the tab title instead.
 
 ### 3. The tab title reads `.git/HEAD`, it does not run git
-`config/claude/hooks-tab-title.mjs` walks up from the working directory to the nearest `.git` (a folder, or a file for worktrees), reads `HEAD`, and prints `folder ⎇ branch`. No process is started, so nothing inside a repository you merely enter can run, and it costs the same as before (35 ms against 37 ms). A detached HEAD or a folder that is not a repo shows the folder name only.
+`config/claude/hooks-tab-title.mjs` walks up from the working directory to the nearest `.git` (a folder, or a file for worktrees), reads `HEAD`, and prints `folder ⎇ branch`. No process is started, so nothing inside a repository you merely enter can run, and it costs the same as before (35 ms against 37 ms). *(Re-measured 2026-10-17 with Node 26.4: 126 ms for both the old and the new hook, against 114 ms for Node starting an empty script. The absolute numbers follow Node's start time; reading `HEAD` still adds nothing measurable. The suite's "previous hook was ~37 ms" is the 2026-10-16 figure.)* A detached HEAD or a folder that is not a repo shows the folder name only.
 
 `tools/test-title.mjs` is a 20-case suite for it: the three titles, a subfolder, a worktree with a slashed branch name, a detached HEAD, garbage `HEAD` and `.git` files, a missing directory, six kinds of bad input, control characters smuggled into folder and branch names, the 80-character cut, and "imports no `child_process`". All 20 pass.
 
@@ -56,7 +56,7 @@ It comes from running the old winget build. Measured on 2026-10-16: the running 
 Some scripts take a scratch folder as an argument or assume the paths of the machine they were written on.
 
 ## Not verified
-- Whether Claude Code's live status-line payload carries `prompt_cache`. The HUD's source says it does and the renders with sample data are correct, but it was not observed from inside the session.
+- Whether Claude Code's live status-line payload carries `prompt_cache`. The HUD's source says it does and the renders with sample data are correct, but it was not observed from inside the session. *(Answered 2026-10-17: yes. The v2 status line drew `cache 82% ◕ 12:32` from the live payload during the real turns photographed for v4 and v6.)*
 - How the `⎇` glyph looks in the tab bar.
 - Everything above was checked headlessly (the real launcher with synthetic input, and the hook as a subprocess), not by looking at the screen.
 

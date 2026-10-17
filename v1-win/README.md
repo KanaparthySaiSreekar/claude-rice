@@ -39,8 +39,8 @@ All six were source-reviewed, then copied at the commit below. Full provenance, 
 
 - **skins patch:** the daily update check and the star-request toast now return immediately, so the mod makes no network call.
 - **token-weather patch:** the upstream handler never called `next(e)`, which replaces whatever else draws in the band above the prompt. The patched version stacks its line above the rest.
-- Apply a patch from the plugin's root folder with `git apply -p1 <patch>`. The patches use LF line endings, like upstream's git blobs, and a `.gitattributes` rule stops git rewriting them. If your copy of the plugin has CRLF endings (a Windows checkout with `core.autocrlf=true`), add `--ignore-whitespace`.
-- Both patches were regenerated and tested on 2026-10-16: pinned upstream file + patch gives your patched file, with LF endings (strict apply) and with CRLF endings (`--ignore-whitespace`).
+- Apply a patch **from the marketplace repo's root** with `git apply --directory=plugins/<name> -p1 <patch>`. Do not run `git apply` from inside `plugins/<name>`: in a subfolder of a git repo it skips every path outside that subfolder and still exits 0, so nothing is patched and nothing says so (this README said to do exactly that until the 2026-10-17 review; measured: exit 0, no file changed). Outside any git repo, `git apply -p1 <patch>` from the plugin's folder works. The patches use LF line endings, like upstream's git blobs, and a `.gitattributes` rule stops git rewriting them. If your copy of the plugin has CRLF endings (a Windows checkout with `core.autocrlf=true`), add `--ignore-whitespace`.
+- Both patches were regenerated and tested on 2026-10-16: pinned upstream file + patch gives your patched file, with LF endings (strict apply) and with CRLF endings (`--ignore-whitespace`). Re-checked on 2026-10-17 against fresh clones at the pinned commits: both reproduce the files the marketplace ran at the checkpoint (commit `8d35cbe`), byte for byte.
 - Compared with the upstream clones at those commits, these two files were the **only** differences in the copied plugin folders.
 
 ## Where this deviates from the research reports, and why
@@ -62,11 +62,11 @@ These are the decisions to keep if you rebuild or extend it.
 
 1. **Claude Code.** Install the native build and put `%USERPROFILE%\.local\bin` first in the User PATH. Then **close every Windows Terminal window and reopen it**: new tabs in a running Windows Terminal inherit its old environment, so the old `claude` keeps launching.
 2. **Terminal.** Merge `config/windows-terminal/claude-scheme-and-defaults.json` into Windows Terminal's `settings.json`.
-3. **Marketplace.** Create an empty git repo, clone each upstream at the pinned commit into `plugins/<name>`, drop the `.git` folders, apply the two patches, add `marketplace/marketplace.json` as `.claude-plugin/marketplace.json`, and commit. Register it with `claude plugin marketplace add <path> --scope user`, then install the six plugins.
+3. **Marketplace.** Create an empty git repo, clone each upstream at the pinned commit into `plugins/<name>`, drop the `.git` folders, apply the two patches from the repo root (`git apply --directory=plugins/skins -p1 ../path/to/patches/skins-e6ca8ea-no-network.patch`, and the same for `token-weather`; check with `git status` that each one changed a file), add `marketplace/marketplace.json` as `.claude-plugin/marketplace.json`, and commit. Register it with `claude plugin marketplace add <path> --scope user`, then install the six plugins.
 4. **Files.** Copy the theme to `~/.claude/themes/claude.json`, the hook to `~/.claude/hooks/tab-title.mjs`, and the HUD config and `.cmd` shim to `~/.claude/plugins/claude-hud/`. Run `/claude-hud:setup` so it places `statusline.mjs` next to them.
-5. **Settings.** Merge `config/claude/settings.rice-excerpt.json` into `~/.claude/settings.json`, changing the marketplace path and your username to match. The plugin options in `pluginConfigs` must be set as strings (`claude plugin configure --values-stdin` rejects booleans).
+5. **Settings.** Merge `config/claude/settings.rice-excerpt.json` into `~/.claude/settings.json`, changing the marketplace path and your username to match. In `settings.json` the plugin options in `pluginConfigs` are plain JSON values, booleans included (as in the excerpt); only `claude plugin configure --values-stdin` insists on strings (`"false"`, not `false`).
 6. **Skin.** Replay `config/skins/claude-warm.json` through the skins `design` tool (`save`, then `settings`). Skin settings live in the mod's own store, not in `settings.json`.
-7. **Optional.** Rio: `winget install raphamorim.rio`, copy `config/rio/config.toml` to `%LOCALAPPDATA%\rio\`, and run `scripts/setup-rio.ps1` from an elevated PowerShell. It checks the SHA-256 and the Microsoft signature of the ConPTY files before copying them.
+7. **Optional.** Rio: `winget install raphamorim.rio`, copy `config/rio/config.toml` to `%LOCALAPPDATA%\rio\`, and run `scripts/setup-rio.ps1` from an elevated PowerShell. If the ConPTY files are not in the staging folder (`-Source` to point elsewhere), it downloads the pinned NuGet package from nuget.org; either way both files must match their SHA-256 pins and carry a valid Microsoft signature, or nothing is copied. Verification runs un-elevated, so you can try it first; only the copy needs administrator rights.
 8. **Check.** `git -C <marketplace> status --short` must print nothing (plugins are read live, so this is the tamper check), and `claude --version` should report the native build.
 
 ## Gotchas found on Windows
@@ -76,7 +76,7 @@ These are the decisions to keep if you rebuild or extend it.
 - **The claude-hud launcher imports the highest-versioned `claude-hud` in any marketplace cache**, so never add a second marketplace that ships one.
 - **filetree reopens its own pane** whenever the working directory or files change, which hid flightdeck. Its `start` option is `off`, so use `/filetree` when you want it.
 - **Pane keys:** `Ctrl+X` then `Tab` focuses a pane, `Ctrl+X` with the arrows resizes it, `Ctrl+X` then `X` closes it.
-- **Nerd Font glyphs can render blank** inside Claude Code. Stick to box-drawing and normal symbols in status lines.
+- **Nerd Font glyphs can render blank** inside Claude Code. Stick to box-drawing and normal symbols in status lines. *(Revised by v2.2: the Powerline glyphs render fine, in the status line and in mod rasters. The real problem is a glyph the font does not have at all, such as `⎇`, `✦`, `⏱`, `◿` or `↻`: Windows Terminal borrows it from another font at another width and it spills into the next cell. Check a glyph against the font's own table before using it; `v2-win/tests/statusline.test.mjs` shows how.)*
 - **Mods are unsandboxed**, so the loop is review, pin, install from your own copy. `claude --safe-mode` gives a vanilla session whenever something looks wrong.
 
 ## State at the checkpoint
@@ -84,6 +84,16 @@ These are the decisions to keep if you rebuild or extend it.
 - Headless loads, hook output and status-line text were checked from inside the session. How it looks on screen was confirmed only through screenshots pasted back by the user.
 - Rio was installed and configured, but its elevated ConPTY step was not confirmed as run.
 - The `intermission` and `show-your-work` extras are not installed.
+
+## Review, 2026-10-17
+
+Everything checkable in this folder was re-checked a day later, after v2 to v6 had been built on top of it.
+
+- **Fixed: the patch instructions did nothing.** Run as written (from inside `plugins/<name>` of the marketplace repo), `git apply` exits 0 and patches nothing. Rebuilding from this README would have produced an unpatched skins (with its daily network call) and an unpatched token-weather, silently. The instructions above now use `--directory` from the repo root, and both patches were re-verified against fresh upstream clones.
+- **Fixed: `setup-rio.ps1` could not run on a rebuild.** It read the ConPTY files from a local staging folder that the repo deliberately does not carry, so it stopped at "Missing …" (and `full/README.md` said it downloads them; it did not). It now downloads the pinned package when the files are missing, keeps the same hash and signature checks, and verifies before asking for elevation. Tested un-elevated: with the local files, with a download in PowerShell 7 and in Windows PowerShell 5.1 (all verified and stopped at the elevation gate), and with a tampered file (refused with a hash mismatch).
+- **Fixed: two statements.** `pluginConfigs` values do not have to be strings in `settings.json`, and the blank-glyph gotcha now says what v2.2 found.
+- **Checked and fine:** the theme has the 62 overrides stated; the settings excerpt is the full settings in `full/` with only the unrelated getlayers plugin left out; the pinned commits agree in this README, `marketplace/marketplace.json` and `marketplace/README.md`; the HUD shim's Node path (`C:\Program Files\nodejs\node.exe`) exists; `full/` holds no credentials or tokens (searched for Anthropic, GitHub, Slack and AWS key shapes, OAuth tokens and private keys); the repository is private, as `full/README.md` requires.
+- **Left as it was:** `full/` is a dated mirror and is not edited; this is a checkpoint, so the versions in it (Claude Code 2.1.300, claude-hud as the status line) describe 2026-10-16, not today. What runs now is v2.2 (`../v2-win/`).
 
 ## Rollback
 
