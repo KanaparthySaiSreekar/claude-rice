@@ -28,6 +28,38 @@ them on. Patches in [`patches/`](patches/), applied in the pinned marketplace af
 | The status line's two rows | a blank spacer row between them | **half a row**: no spacer row, and the gauge bars fill only the lower half of their row (`▄`, the end cell `▖`) | `AURORA_DECK_GAP=0` and `AURORA_DECK_BARS=half` (new in `v2-win/statusline/aurora-deck.mjs`; unset, nothing changes) |
 | cctop under the prompt | (no program, so no coach line) a "pane hidden behind the /diff panel" notice whenever its tab is not in front | **nothing pinned**: the coach's lights repeat the status line's context and limits ("each reading shows once"), and with panes as tabs "hidden" only means another tab is in front | cctop `statusLine: false` (new). [`cctop-status-line.patch`](patches/cctop-status-line.patch), tests for cctop's own harness in [`cctop-status-line-tests.patch`](patches/cctop-status-line-tests.patch) |
 | Trackpad scrolling | (a mouse) | **no wheel acceleration**: a swipe arrives as a fast burst of wheel events, which Claude Code otherwise speeds up into an overshoot; `/scroll-speed` fine-tunes | `wheelScrollAccelerationEnabled: false`, set by `tools/mac.mjs` |
+| Secrets | pasted into the chat, where they stay in the transcript for good | **Secret Box**: Claude asks with `request_secret`, you paste into a masked box, the key goes to `.env` and Claude only ever sees a placeholder | [ray-amjad's secret-box](https://github.com/ray-amjad/claude-code-mods/tree/main/plugins/secret-box) 0.5.3, pinned unmodified, loaded **last** (below) |
+| Risky commands | Cockpit's guard | **Cockpit's guard, kept** (Blast Radius considered and not installed) | below |
+
+## Secret Box
+
+A key that reaches the conversation stays in the transcript for good: it is sent to the model every turn after and kept in
+the session file. Secret Box keeps keys out:
+
+- **Asking:** Claude calls `request_secret` (name and reason); a masked box opens beside the chat (above the prompt when
+  the window is under 144 columns: Ctrl+X then Tab to type). You paste, Enter saves to `.env` (and adds it to `.gitignore`
+  first), Esc cancels. You can also say "use the secret box to ask me for STRIPE_SECRET_KEY".
+- **Using:** Claude writes the placeholder (`[REDACTED-SECRET-1a2b3c4d]`) into a command or a file, and the real value goes in
+  only as a local tool runs (Bash, Write, Edit, MultiEdit, NotebookEdit; never a tool that sends data off the machine).
+- **Hiding:** every tool result, prompt, `@` file and CLAUDE.md is scanned: about 70 vendor key shapes, high-entropy tokens,
+  passwords in flags and connection strings, and every secret-named `.env` value come back as placeholders. `cat .env`
+  still shows `PORT=3000`. A tool row says `secret-box: hid N value(s)`.
+- **Never committed:** `git add .env` and a commit that would carry a `.env` are refused.
+- **Options** (`/plugin configure secret-box@kasasree-mods`): `pii` hides emails and IPs too; the `allow*` lists keep ids it
+  hides by mistake; `restoreTools` sets which tools may receive real values.
+
+**It loads last.** On a tool call it hands the real value to the mods beneath it and hides it again on the way back up.
+Claude Code chains user mods in `enabledPlugins` order, the first outermost, so `version.json` lists it in `last` (a new
+kit field) and every other mod (the panes, prismantis, the guard) sees only placeholders and hidden output.
+
+## Risky commands: Cockpit's guard, not Blast Radius
+
+Cockpit's guard (on by default; `/cockpit-guard off|on`) asks **Run it / Block it** before `rm -rf`, force pushes,
+`reset --hard`, `sudo`, and `.env` and key files, and counts the blocks in its panel. Blast Radius, Anthropic's sample,
+would show more (the files and commits at stake), but it is unsupported, a script that runs `rm` itself gets past it, and
+two guards would ask twice. With `skipDangerousModePermissionPrompt` on, this guard is the one question before a
+destructive command. The evaluation of all seventeen candidates is in
+[`research_notes/.../mod_shortlist_2026-10-20.md`](../research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/mod_shortlist_2026-10-20.md).
 
 ## Set up a Mac from scratch
 
@@ -37,7 +69,7 @@ brew install fish eza node gh rust          # rust only to build cctop; `brew un
 gh auth login && gh repo clone KanaparthySaiSreekar/claude-code-mods-research ~/Projects/claude-code-mods-research
 cd ~/Projects/claude-code-mods-research
 
-sh v7-mac/tools/rebuild-marketplace.sh      # ~/Projects/claude-mods-local: the seven mods at their pins, then every patch
+sh v7-mac/tools/rebuild-marketplace.sh      # ~/Projects/claude-mods-local: the eight mods at their pins, then every patch
 
 git clone https://github.com/tomstagl/cctop /tmp/cctop && git -C /tmp/cctop checkout 6ceafc3 \
   && (cd /tmp/cctop && cargo build --release --locked) && install -m 755 /tmp/cctop/target/release/cctop ~/.local/bin/
@@ -52,7 +84,7 @@ from 144); Ghostty at 13 pt fills a 13" screen with about 167.
 
 ```
 cd v7-mac
-npm test               # 9 tests (below)
+npm test               # 10 tests (below)
 npm run status
 npm run revert         # the v7 switch, then the macOS base, each back to its backup
 ```
@@ -64,7 +96,7 @@ npm run revert         # the v7 switch, then the macOS base, each back to its ba
   never overwritten. Every file is backed up to `~/.rice/backups/<time>-mac/` first; `revert` puts each back byte for byte
   and removes the ones it created.
 - `tools/mods.mjs install`: registers `~/Projects/claude-mods-local` as `kasasree-mods` (refusing if its tamper check is not
-  clean) and installs, or updates, the seven mods.
+  clean) and installs, or updates, the eight mods.
 - `tools/rice.mjs apply|revert|status`: the v7 switch through the shared kit (`v3-win/tools/kit.mjs`), from `version.json`.
 - `tools/rebuild-marketplace.sh [target]`: the marketplace from scratch, checked against every patch's post-image.
 
@@ -86,14 +118,20 @@ These are fixes for both platforms, not forks; Windows behaves as before.
 
 2026-10-20, Claude Code 2.1.304, an M1 MacBook Pro:
 
-- `npm test` here 9/9: Ghostty and fish from the palette, the fish prompt in a real fish (branch from `.git/HEAD` and a
+- `npm test` here 10/10: Ghostty and fish from the palette, the fish prompt in a real fish (branch from `.git/HEAD` and a
   worktree's `.git` file, red arrow after a failure), settings merge and fish's PATH from zsh, apply/revert byte for byte in a
   sandbox with the status line run the way Claude Code runs it, every option `version.json` sets declared in its mod's
-  manifest, and the status line command drawing half-height bars with no spacer row. v7-win 8/8, v2 52/52 (with `▄ ▖` in the
+  manifest, the status line command drawing half-height bars with no spacer row, and secret-box kept last in the load order
+  (also after a later install). v7-win 8/8, v2 52/52 (with `▄ ▖` in the
   font-safe list). v3 6/7: its marketplace test wants `skins`, which v7 switches off and the macOS marketplace leaves out.
 - `rebuild-marketplace.sh` into an empty folder gives a tree identical to the live marketplace; every patched file's git blob
-  equals its patch's post-image; every cached mod copy equals the marketplace; `claude plugin validate`: all seven pass, none
+  equals its patch's post-image; every cached mod copy equals the marketplace; `claude plugin validate`: all eight pass, none
   with `$.http`.
+- Secret Box: `claude plugin test` 46/46; its detector contract hides and keeps every listed string, and three 8 MB
+  adversarial inputs miss its 5 s budget on the M1 (7.9 to 10.4 s; real tool output is truncated far below that, and an
+  overrun withholds the result). Live: loaded 8th of 8 user mods and admitted, `request_secret` registered; one Haiku turn
+  (`claude -p`, about $0.003) ran `cat config.json` on a fake `sk_live_` key and answered `[REDACTED-SECRET-…]`, and the
+  saved transcript held the key zero times.
 - `claude plugin test`: prismantis 567/567 (5 new), flightdeck 28/28, filetree 64/64, cockpit 15/15, aurora-bridge 8/8,
   paneline 875/876 (one 5 s timeout under load, A19, which passes on its own); cctop's own harness 132/132 (two new; the two
   CRLF failures v7 had on Windows are gone).
@@ -108,10 +146,10 @@ These are fixes for both platforms, not forks; Windows behaves as before.
 ## Layout
 
 ```
-version.json            what v7-mac switches (v7-win's, plus promptStyle bubble, promptColor, declined, cctop statusLine)
+version.json            what v7-mac switches (v7-win's, plus promptStyle bubble, promptColor, declined, cctop statusLine, secret-box last)
 tools/mac.mjs           the macOS base: theme, status line, Ghostty, fish, settings; apply / revert / status
 tools/build.mjs         palette -> Ghostty config, fish config, eza colours, the status line command
-tools/mods.mjs          register the marketplace, install or update the seven mods
+tools/mods.mjs          register the marketplace, install or update the eight mods
 tools/rice.mjs          the v7 switch (the shared kit)
 tools/rebuild-marketplace.sh
 hooks/tab-title.mjs     v1.1's tab-title hook (folder ⎇ branch, ◐ working, ▲ needs you, ✓ done)

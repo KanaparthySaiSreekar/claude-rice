@@ -1,5 +1,5 @@
 #!/bin/sh
-# rebuild-marketplace.sh: rebuild the pinned marketplace (kasasree-mods) that v7-mac installs from: the seven mods copied
+# rebuild-marketplace.sh: rebuild the pinned marketplace (kasasree-mods) that v7-mac installs from: the eight mods copied
 # unmodified at their reviewed upstream commits, then this repo's patches in order, one git commit per step so
 # `git status` is the tamper check. Every patched file is then checked against the post-image its patch records.
 #
@@ -33,10 +33,11 @@ pin prismantis NahumLitvin/prismantis 0d93494caff9c2e31fc9b69261d3e9d329803dab
 pin paneline markneonin/paneline fd20c8cb91f18d2c3cc7c8876232084969ead951
 pin cockpit drkokorev/cockpit-for-claude 8960ed87ed3b39d7236aaa17a1e1d26c7d154461 plugins/cockpit
 pin cctop tomstagl/cctop 6ceafc34a972f4e58d5e53b1c69f80e2a9759d41 plugin
+pin secret-box ray-amjad/claude-code-mods 6db48a3af54f1b681e4d21e6d4f54ff497389fad plugins/secret-box
 mkdir -p plugins/aurora-bridge && cp -R "$REPO/v2-win/mods/aurora-bridge/." plugins/aurora-bridge/
 cp "$REPO/v7-mac/marketplace/marketplace.json" .claude-plugin/marketplace.json
 cp "$REPO/v7-mac/marketplace/README.md" README.md
-commit "Pin seven mods unmodified at their reviewed commits"
+commit "Pin eight mods unmodified at their reviewed commits"
 
 P3=$REPO/v3-win/patches; P7=$REPO/v7-win/patches; PM=$REPO/v7-mac/patches
 git apply "$P3/prismantis-rice.patch"

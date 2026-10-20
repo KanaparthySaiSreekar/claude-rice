@@ -153,3 +153,19 @@ test("the status line command Claude Code runs draws the two rows with half a ro
   const v2 = execFileSync(process.execPath, [deck], { input, encoding: "utf8", env }).replace(/\n$/, "").split("\n")
   assert.deepEqual(v2.map((r) => r === "​"), [false, true, false])
 })
+
+test("secret-box loads last, so every other mod sees only placeholders: kept at the end even after a later install, values untouched", async () => {
+  const { loadSpec, resolve, merged } = await import("../../v3-win/tools/kit.mjs")
+  const v = resolve(loadSpec(path.resolve(import.meta.dirname, "..")), "ember")
+  assert.equal(v.plugins["secret-box@kasasree-mods"], true)
+  assert.deepEqual(v.last, ["secret-box@kasasree-mods"])
+  // installed in the middle, with a mod installed after it and one switched off
+  const before = JSON.stringify({ enabledPlugins: { "prismantis@kasasree-mods": true, "secret-box@kasasree-mods": true, "later@other": true, "off@other": false } })
+  const order = Object.entries(JSON.parse(merged(before, v)).enabledPlugins)
+  assert.deepEqual(order.at(-1), ["secret-box@kasasree-mods", true])
+  assert.deepEqual(Object.fromEntries(order)["later@other"], true)
+  assert.deepEqual(Object.fromEntries(order)["off@other"], false)
+  // merging twice changes nothing
+  const once = merged(before, v)
+  assert.equal(merged(once, v), once)
+})

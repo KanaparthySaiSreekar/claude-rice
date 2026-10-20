@@ -14,7 +14,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
   - [`v5-win/`](v5-win/) **Ember meters:** [context-bar and usage-meter](https://github.com/hamzafer/claude-code-mods) share one row above the prompt, in warm palette colours (the meter's bars along the palette ramp), and the status line drops to its identity row so each number shows once. Tagged `v5-win`.
   - [`v6-win/`](v6-win/) **Breathing ember:** [Mindful-Claude](https://github.com/halluton/Mindful-Claude) guided breathing above the prompt while Claude works; the picture glows along the palette with the breath, in a 5-row band, with font-safe glyphs and an upstream test suite that now actually runs. Tagged `v6-win`.
 - **The master build:** [`v7-win/`](v7-win/) **Six tabs** carries every preference in [`preferences.md`](preferences.md). Six right-hand panes as tabs of one sidebar on the v2 Ember rice: flightdeck, [paneline](https://github.com/markneonin/paneline), filetree, the Bridge, [cockpit](https://github.com/drkokorev/cockpit-for-claude) and [cctop](https://github.com/tomstagl/cctop), the three new ones pinned and patched (paneline's chat restyle made optional, cctop opens on start and finds home on Windows, cockpit draws only its panel). prismantis draws the chat: orange `▍` headings, every tool call one dim row on the right with nothing under it, `✓ copied` on the copy button instead of a toast that names the mod, diffs tinted with retro green and orange-red. Plain spinner words, and one near-black (`#121110`) behind the chat and the panel. Tagged `v7-win` (six tabs), `v7.1-win` (round 2) and `v7.2-win` (the finalised master).
-- **On macOS:** [`v7-mac/`](v7-mac/) is the master build on a Mac (Apple Silicon): Ghostty and fish (with eza) in place of Windows Terminal and PowerShell, all generated from the one palette; the cctop program built from its pinned commit so every cctop view works; and the tweaks asked for once it ran there: your messages in a white bubble, a declined call or **Chat about this** said calmly instead of as a failure, half a row between the status line's two rows, nothing of cctop's under the prompt, and no wheel acceleration for trackpad scrolling. `v7-mac/tools/rebuild-marketplace.sh` rebuilds the pinned marketplace from the upstream commits and every patch. The shared tools now run on both platforms. Tagged `v7-mac`.
+- **On macOS:** [`v7-mac/`](v7-mac/) is the master build on a Mac (Apple Silicon): Ghostty and fish (with eza) in place of Windows Terminal and PowerShell, all generated from the one palette; the cctop program built from its pinned commit so every cctop view works; and the tweaks asked for once it ran there: your messages in a white bubble, a declined call or **Chat about this** said calmly instead of as a failure, half a row between the status line's two rows, nothing of cctop's under the prompt, no wheel acceleration for trackpad scrolling, and **Secret Box** (Claude uses API keys without seeing them, loaded last so no other mod sees them either; Cockpit's guard kept for risky commands). `v7-mac/tools/rebuild-marketplace.sh` rebuilds the pinned marketplace from the upstream commits and every patch. The shared tools now run on both platforms. Tagged `v7-mac`.
 
 ## TL;DR
 
@@ -70,6 +70,7 @@ The report is synthesized from eight source-cited notes in [`research_notes/Clau
 | [insight_and_companion_tools.md](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/insight_and_companion_tools.md) | Built-in insight commands, usage and cost trackers, OpenTelemetry dashboards, session viewers, multi-session managers, pixel-office visualizers |
 | [community_reddit_hn_github.md](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/community_reddit_hn_github.md) | Reddit, Hacker News and GitHub issue discussion: notable threads, pain points, most-wanted information, an idea bank, flex posts |
 | [community_youtube_x_blogs.md](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/community_youtube_x_blogs.md) | YouTube, X and blog coverage: launch posts, tutorials, "my setup" write-ups, a 72-idea bank, viral demos |
+| [mod_shortlist_2026-10-20.md](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/mod_shortlist_2026-10-20.md) | Seventeen candidates judged for v7-mac (Ray Amjad's mods, Terminal Browser, Cache Tax, Reflect, You Should Know, mattpocock/skills and more): reach, cost, verdict; Secret Box installed, Cockpit's guard kept |
 
 ## How this was researched, and its limits
 
@@ -130,5 +131,6 @@ research_notes/Claude Code mods and terminal ricing/
   ├── terminal_ricing_stack.md
   ├── insight_and_companion_tools.md
   ├── community_reddit_hn_github.md
-  └── community_youtube_x_blogs.md
+  ├── community_youtube_x_blogs.md
+  └── mod_shortlist_2026-10-20.md
 ```

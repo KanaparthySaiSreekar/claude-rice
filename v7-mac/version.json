@@ -1,6 +1,6 @@
 {
   "tag": "v7",
-  "label": "v7 on macOS: Six-tab right panel on the v2 Ember rice: Bridge, flightdeck, filetree, cockpit, paneline and cctop each open their pane, and Claude Code shows them as tabs; prismantis draws the chat with tool calls as collapsed rows on the right; the cctop program is installed here, so its pane has every view, and cctop pins nothing under the prompt (statusLine off: the rice status line shows each reading once)",
+  "label": "v7 on macOS: Six-tab right panel on the v2 Ember rice: Bridge, flightdeck, filetree, cockpit, paneline and cctop each open their pane, and Claude Code shows them as tabs; prismantis draws the chat with tool calls as collapsed rows on the right; the cctop program is installed here, so its pane has every view, and cctop pins nothing under the prompt (statusLine off: the rice status line shows each reading once); secret-box lets Claude use secrets without seeing them, loaded last so every other mod sees only placeholders",
   "plugins": {
     "aurora-bridge@kasasree-mods": true,
     "flightdeck@kasasree-mods": true,
@@ -9,8 +9,10 @@
     "paneline@kasasree-mods": true,
     "cctop@kasasree-mods": true,
     "prismantis@kasasree-mods": true,
-    "skins@kasasree-mods": false
+    "skins@kasasree-mods": false,
+    "secret-box@kasasree-mods": true
   },
+  "last": ["secret-box@kasasree-mods"],
   "options": {
     "aurora-bridge@kasasree-mods": { "openOnStart": true, "palette": "{palette:bridge}" },
     "flightdeck@kasasree-mods": { "openOnStart": true, "statusLine": false, "panels": "main,architect,gate,agents,loops,receipt,log" },

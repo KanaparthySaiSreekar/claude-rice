@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// mods.mjs: register the pinned marketplace (claude-mods-local, next to this repo) as kasasree-mods and install the seven
+// mods.mjs: register the pinned marketplace (claude-mods-local, next to this repo) as kasasree-mods and install the eight
 // mods v7 switches on. Idempotent: a mod already installed is updated from the marketplace instead (Claude Code copies a
 // mod into its cache again only when its version changed).
 //

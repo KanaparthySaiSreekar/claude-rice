@@ -85,12 +85,15 @@ Windows behaves as before. The "am I the script being run" checks use `pathToFil
 The tweaks are options, off by default. These steps bring them here; they have not been run on Windows yet:
 
 1. In `C:\Users\Kasasree\Projects\claude-mods-local`, `git apply` the two patches in `v7-mac\patches\`
-   (`cctop-status-line.patch`, `prismantis-prompt-color-declined.patch`; they bump the versions) and commit. Then run
-   `claude plugin marketplace update kasasree-mods` and `claude plugin update` for `cctop@kasasree-mods` and
-   `prismantis@kasasree-mods`.
+   (`cctop-status-line.patch`, `prismantis-prompt-color-declined.patch`; they bump the versions). Copy `plugins/secret-box`
+   from [ray-amjad/claude-code-mods](https://github.com/ray-amjad/claude-code-mods) at `6db48a3` into `plugins\secret-box`
+   and add its entry from `v7-mac\marketplace\marketplace.json`; its mods run on native Windows (they wait with `node` or
+   `ping`). Commit. Then `claude plugin marketplace update kasasree-mods`, `claude plugin update` for `cctop@kasasree-mods`
+   and `prismantis@kasasree-mods`, and `claude plugin install secret-box@kasasree-mods`.
 2. `node v7-win/tools/rice.mjs revert`, then `node v7-mac/tools/rice.mjs apply ember`. v7-mac's `version.json` is this
    one plus your messages in a white bubble (`promptStyle: bubble`, `promptColor` = the palette's text colour), calm
-   declines (`declined: quiet`) and nothing of cctop's under the prompt (`statusLine: false`).
+   declines (`declined: quiet`), nothing of cctop's under the prompt (`statusLine: false`), and Secret Box on and loaded
+   last (`last`), so no other mod sees a real key.
 3. For the half-row status line gap, add `set "AURORA_DECK_GAP=0"` and `set "AURORA_DECK_BARS=half"` above the `node` line in
    `~\.rice\current\statusline\aurora-deck.cmd`. v2's `apply` rewrites that shim, so add them again after one.
 

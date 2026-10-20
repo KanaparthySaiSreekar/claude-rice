@@ -40,6 +40,7 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - **Your messages**: a **white bubble with white text**, not the orange bar.
 - **"Chat about this"** on a question must not look like a failure (it showed "failed" in red with Claude Code's whole message).
 - **Status line gap**: a full blank row between the two rows was too much, none was too little; **half a row** is right ("I like it now").
+- **Mods added after a review of seventeen** ([shortlist](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/mod_shortlist_2026-10-20.md)): **Secret Box** (Claude uses keys without seeing them). For risky commands, **Cockpit's guard stays**; Blast Radius is not installed. Still to decide: mattpocock/skills (a few skills), You Should Know, Terminal Browser.
 
 ## Across versions
 - **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.

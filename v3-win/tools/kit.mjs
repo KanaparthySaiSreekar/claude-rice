@@ -4,6 +4,7 @@
 //
 //   { "tag": "v3", "label": "...", "plugins": { "<name>@kasasree-mods": true | false },
 //     "first": ["<name>@kasasree-mods"],                  (optional) plugins moved to the front of enabledPlugins
+//     "last": ["<name>@kasasree-mods"],                   (optional, v7-mac) plugins moved to the end: the innermost mods
 //     "options": { "<name>@kasasree-mods": { "<option>": <value> } },
 //     "settings": { "<top-level settings.json key>": <value> } }  (optional, v7) each key replaced whole, put back on revert
 //
@@ -75,7 +76,7 @@ export function resolve(spec, paletteName) {
   const env = Object.fromEntries(Object.entries(spec.env ?? {}).map(([k, v]) => [k, String(fill(v))]))
   // "files": [{ "from": <path relative to the version folder>, "to": "~/<path under the home folder>" }]
   const files = (spec.files ?? []).map((f) => ({ from: path.resolve(spec.dir ?? ".", f.from), to: path.join(home(), String(f.to).replace(/^~[\\/]/, "")) }))
-  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], options, env, files, settings: { ...(spec.settings ?? {}) } }
+  return { tag: spec.tag, label: spec.label, palette: p, plugins: { ...(spec.plugins ?? {}) }, first: [...(spec.first ?? [])], last: [...(spec.last ?? [])], options, env, files, settings: { ...(spec.settings ?? {}) } }
 }
 
 /** settings.json text with the version merged in. Pure, so it can be tested on any input. */
@@ -87,6 +88,10 @@ export function merged(text, version) {
   // the plugins that must sit in front, e.g. Calm, which has to hide a tool row before skins draws it.
   const first = (version.first ?? []).filter((k) => k in s.enabledPlugins)
   if (first.length) s.enabledPlugins = Object.fromEntries([...first.map((k) => [k, s.enabledPlugins[k]]), ...Object.entries(s.enabledPlugins).filter(([k]) => !first.includes(k))])
+  // "last" is the other end: the innermost mods, which see each event after every other mod has. secret-box must be one,
+  // because it hands the real value behind a placeholder to the mods beneath it.
+  const last = (version.last ?? []).filter((k) => k in s.enabledPlugins)
+  if (last.length) s.enabledPlugins = Object.fromEntries([...Object.entries(s.enabledPlugins).filter(([k]) => !last.includes(k)), ...last.map((k) => [k, s.enabledPlugins[k]])])
   s.pluginConfigs ??= {}
   for (const [plugin, o] of Object.entries(version.options)) {
     s.pluginConfigs[plugin] = { ...(s.pluginConfigs[plugin] ?? {}), options: { ...(s.pluginConfigs[plugin]?.options ?? {}), ...o } }
@@ -126,6 +131,7 @@ export function apply(spec, paletteName, { dryRun = false, log = console.log } =
   for (const [k, v] of Object.entries(version.plugins)) if (was.enabledPlugins?.[k] !== v) changes.push(`${k}: ${v ? "on" : "off"}`)
   const order = (t) => Object.keys(JSON.parse(t).enabledPlugins ?? {}).join(",")
   if (version.first.length && order(before) !== order(after)) changes.push(`load first: ${version.first.join(", ")}`)
+  if (version.last.length && order(before) !== order(after)) changes.push(`load last: ${version.last.join(", ")}`)
   for (const [plugin, o] of Object.entries(version.options))
     for (const [k, v] of Object.entries(o)) if (JSON.stringify(was.pluginConfigs?.[plugin]?.options?.[k]) !== JSON.stringify(v)) changes.push(`${plugin} ${k} = ${typeof v === "string" && v.length > 40 ? v.slice(0, 37) + "..." : JSON.stringify(v)}`)
   for (const [k, v] of Object.entries(version.env)) if (was.env?.[k] !== v) changes.push(`env ${k} = ${v}`)
