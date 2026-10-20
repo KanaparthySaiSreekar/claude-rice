@@ -1,0 +1,78 @@
+diff --git a/a/tests/pane/status-line-option.test.ts b/b/tests/pane/status-line-option.test.ts
+new file mode 100644
+index 0000000..d1c44f8
+--- /dev/null
++++ b/b/tests/pane/status-line-option.test.ts
+@@ -0,0 +1,72 @@
++// LOCAL PATCH (kasasree-mods, v7-mac): the `statusLine` option. Off, cctop pins nothing under the prompt: not the
++// hidden notice when its open pane goes undrawn (another tab in front), and not the coach's lights. The pane, the
++// marker and the coach in its own tab are unchanged; with the option unset, visibility.test.ts and coach.test.ts hold.
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { join } from 'node:path';
++import type { CommandRunResult, ProcessRunResult } from 'claude-code';
++import { fakeEngine, fakeOn, paneRender, type FakeSurface } from './harness';
++import { fixture } from './fixture';
++import { HIDDEN_AFTER_MS, register } from '../../plugin/hooks/pane';
++
++const T0 = Date.UTC(2026, 8, 14, 12, 0, 0);
++const MARKER = '/home/user/.cctop/pane/fake-session.json';
++const SESSION = 'fake-session';
++const repo = join(__dirname, '..', '..', '..');
++const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
++const ok = (stdout: string): ProcessRunResult => ({ exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false });
++const HELP = `Commands:\n${['summary', 'dashboard', 'coach', 'tools', 'files', 'agents', 'advice', 'events'].map((v) => `  ${v}  x`).join('\n')}\n\nOptions:\n`;
++
++async function boot(surface: FakeSurface, options: Record<string, boolean>, process?: Record<string, ProcessRunResult>) {
++  const $ = fakeEngine({ now: T0, env: { HOME: '/home/user' }, ...(process ? { process } : {}) });
++  const { on, dispatch } = fakeOn($, { surface });
++  register(on, options);
++  await dispatch('session.start', { cwd: '/home/user/project', surface: 'terminal', isInteractive: true }, () => ({
++    cwd: '/home/user/project',
++  }));
++  await settle();
++  const run = (args = '') =>
++    dispatch<CommandRunResult>('command.run', { command: 'cctop-pane', args, origin: { kind: 'composer' } });
++  const marker = () => JSON.parse($.fs.files.get(MARKER) ?? 'null') as Record<string, unknown> | null;
++  return { $, dispatch, run, marker, surface };
++}
++
++test('statusLine off: a pane behind another tab is marked hidden, but nothing is pinned under the prompt', async () => {
++  const { $, dispatch, run, marker, surface } = await boot({ columns: 162, bodyColumns: 72 }, { statusLine: false });
++  await run('');
++  surface.hidden = true;
++  $.clock.tick(1000);
++  await dispatch('session.compact', { trigger: 'auto', messages: [] }, () => ({}));
++  $.clock.tick(HIDDEN_AFTER_MS);
++  await settle();
++  assert.equal(marker()?.visibility, 'hidden', 'the marker still says where the pane is');
++  assert.deepEqual($.ui.statuses, [], 'no hidden notice');
++  surface.hidden = false;
++  await dispatch('ui.render', paneRender('cctop', 162, { bodyColumns: 72 }));
++  await settle();
++  assert.equal(marker()?.visibility, 'visible');
++  assert.deepEqual($.ui.statuses, [], 'nothing to clear either');
++});
++
++test('statusLine off: the coach draws in its tab and sets no status line', async () => {
++  const coach = JSON.parse(readFileSync(join(repo, 'tests', 'pane', 'fixtures', 'coach-idle.json'), 'utf8')) as unknown;
++  const script: Record<string, ProcessRunResult> = {
++    'cctop --version': ok('cctop 0.2.0\n'),
++    'cctop query --help': ok(HELP),
++    [`cctop query coach --session ${SESSION} --surface pane`]: ok(JSON.stringify(coach)),
++  };
++  for (const verb of ['summary', 'dashboard', 'tools', 'files', 'agents', 'advice', 'events'] as const) {
++    script[`cctop query ${verb} --session ${SESSION} --surface pane`] = ok(JSON.stringify(fixture(verb)));
++  }
++  for (const statusLine of [true, false]) {
++    const { $, dispatch, run } = await boot({ columns: 160, bodyColumns: 72 }, { statusLine }, script);
++    await run('coach');
++    await settle();
++    await settle();
++    await dispatch('ui.render', paneRender('cctop', 72, { placement: 'dock' }));
++    await settle();
++    const pinned = $.ui.statuses.filter((s) => typeof s === 'string');
++    assert.equal(pinned.length > 0, statusLine, `statusLine ${statusLine}: ${JSON.stringify($.ui.statuses)}`);
++  }
++});

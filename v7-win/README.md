@@ -75,6 +75,27 @@ it, put back `"bg": "#0A0908"` in `v2-win/palette/palettes.json` and run `backgr
   (`-rice.N`). After a patch: bump the version, `claude plugin marketplace update kasasree-mods`, then
   `claude plugin update <mod>@kasasree-mods`, and restart.
 
+## On macOS, and bringing v7-mac's tweaks back here
+
+v7 runs on a Mac as [`v7-mac/`](../v7-mac/): Ghostty and fish in place of Windows Terminal and PowerShell, the cctop program
+installed, and the tweaks asked for once it ran there. The fixes it made to the shared tools work on both platforms, so
+Windows behaves as before. The "am I the script being run" checks use `pathToFileURL`, `rice.mjs preview` still writes a
+`.cmd` shim here, and the new status line variables do nothing unless set.
+
+The tweaks are options, off by default. These steps bring them here; they have not been run on Windows yet:
+
+1. In `C:\Users\Kasasree\Projects\claude-mods-local`, `git apply` the two patches in `v7-mac\patches\`
+   (`cctop-status-line.patch`, `prismantis-prompt-color-declined.patch`; they bump the versions) and commit. Then run
+   `claude plugin marketplace update kasasree-mods` and `claude plugin update` for `cctop@kasasree-mods` and
+   `prismantis@kasasree-mods`.
+2. `node v7-win/tools/rice.mjs revert`, then `node v7-mac/tools/rice.mjs apply ember`. v7-mac's `version.json` is this
+   one plus your messages in a white bubble (`promptStyle: bubble`, `promptColor` = the palette's text colour), calm
+   declines (`declined: quiet`) and nothing of cctop's under the prompt (`statusLine: false`).
+3. For the half-row status line gap, add `set "AURORA_DECK_GAP=0"` and `set "AURORA_DECK_BARS=half"` above the `node` line in
+   `~\.rice\current\statusline\aurora-deck.cmd`. v2's `apply` rewrites that shim, so add them again after one.
+
+Trackpad scrolling (`wheelScrollAccelerationEnabled: false`) is macOS-only and not needed with a mouse.
+
 ## Is it safe
 
 None of the mods makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's

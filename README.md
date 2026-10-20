@@ -14,6 +14,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
   - [`v5-win/`](v5-win/) **Ember meters:** [context-bar and usage-meter](https://github.com/hamzafer/claude-code-mods) share one row above the prompt, in warm palette colours (the meter's bars along the palette ramp), and the status line drops to its identity row so each number shows once. Tagged `v5-win`.
   - [`v6-win/`](v6-win/) **Breathing ember:** [Mindful-Claude](https://github.com/halluton/Mindful-Claude) guided breathing above the prompt while Claude works; the picture glows along the palette with the breath, in a 5-row band, with font-safe glyphs and an upstream test suite that now actually runs. Tagged `v6-win`.
 - **The master build:** [`v7-win/`](v7-win/) **Six tabs** carries every preference in [`preferences.md`](preferences.md). Six right-hand panes as tabs of one sidebar on the v2 Ember rice: flightdeck, [paneline](https://github.com/markneonin/paneline), filetree, the Bridge, [cockpit](https://github.com/drkokorev/cockpit-for-claude) and [cctop](https://github.com/tomstagl/cctop), the three new ones pinned and patched (paneline's chat restyle made optional, cctop opens on start and finds home on Windows, cockpit draws only its panel). prismantis draws the chat: orange `▍` headings, every tool call one dim row on the right with nothing under it, `✓ copied` on the copy button instead of a toast that names the mod, diffs tinted with retro green and orange-red. Plain spinner words, and one near-black (`#121110`) behind the chat and the panel. Tagged `v7-win` (six tabs), `v7.1-win` (round 2) and `v7.2-win` (the finalised master).
+- **On macOS:** [`v7-mac/`](v7-mac/) is the master build on a Mac (Apple Silicon): Ghostty and fish (with eza) in place of Windows Terminal and PowerShell, all generated from the one palette; the cctop program built from its pinned commit so every cctop view works; and the tweaks asked for once it ran there: your messages in a white bubble, a declined call or **Chat about this** said calmly instead of as a failure, half a row between the status line's two rows, nothing of cctop's under the prompt, and no wheel acceleration for trackpad scrolling. `v7-mac/tools/rebuild-marketplace.sh` rebuilds the pinned marketplace from the upstream commits and every patch. The shared tools now run on both platforms. Tagged `v7-mac`.
 
 ## TL;DR
 
@@ -120,6 +121,7 @@ v4-win/                                           ← Firstmate Calm, forked: sa
 v5-win/                                           ← context-bar + usage-meter on one row, status line on one row
 v6-win/                                           ← Mindful-Claude breathing band, glowing with the breath
 v7-win/                                           ← six right-hand panes as tabs: flightdeck, paneline, filetree, Bridge, cockpit, cctop
+v7-mac/                                           ← v7 on macOS: Ghostty, fish, eza, the cctop program; the macOS base, mod installer and tests
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md

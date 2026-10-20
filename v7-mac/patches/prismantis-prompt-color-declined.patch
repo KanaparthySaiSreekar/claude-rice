@@ -1,0 +1,271 @@
+diff --git a/plugins/prismantis/.claude-plugin/plugin.json b/plugins/prismantis/.claude-plugin/plugin.json
+index 1938a84..277eed9 100644
+--- a/plugins/prismantis/.claude-plugin/plugin.json
++++ b/plugins/prismantis/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "prismantis",
+-  "version": "0.25.1-rice.2",
++  "version": "0.25.1-rice.3",
+   "description": "Colorful, themeable rendering for Claude Code replies: tables, headings, code, numbers, paths and links.",
+   "author": {
+     "name": "Nahum Litvin",
+@@ -85,6 +85,19 @@
+       "default": "bubble",
+       "options": ["bubble", "bar", "chevron", "off"]
+     },
++    "promptColor": {
++      "type": "string",
++      "title": "Your prompt color",
++      "description": "(local addition) One color for your prompts' text and their bubble, bar or chevron, as #rrggbb. Empty: the theme's accent and heading colors.",
++      "default": ""
++    },
++    "declined": {
++      "type": "string",
++      "title": "Calls you decline",
++      "description": "failed: a call you turned down (a permission answered No, or Chat about this on a question) shows as failed with Claude Code's whole message. quiet (local addition): it shows as declined or chose to chat, dim, with only the words you typed.",
++      "default": "failed",
++      "options": ["failed", "quiet"]
++    },
+     "clock": {
+       "type": "string",
+       "title": "Clock times",
+diff --git a/plugins/prismantis/hooks/render.tsx b/plugins/prismantis/hooks/render.tsx
+index 78fb342..d1585ac 100644
+--- a/plugins/prismantis/hooks/render.tsx
++++ b/plugins/prismantis/hooks/render.tsx
+@@ -1201,7 +1201,34 @@ export const errorReason = (output: unknown): string | undefined => {
+   return text.split('\n').map(l => l.trim()).filter(l => l !== '' && !NOISE_LINES.test(l)).at(-1)
+ }
+ 
++// LOCAL PATCH (kasasree-mods): declined 'quiet'. A call you turned down (a permission prompt answered No, or AskUserQuestion's
++// Chat about this) reaches the transcript as an errored result carrying Claude Code's message to the model. Quiet labels it
++// as your choice, dim, and keeps only the words you typed; Chat about this keeps none.
++const DECLINED = /^(Error:\s*)?The user doesn't want to proceed with this tool use/i
++const CLARIFY = /^The user wants to clarify these questions/i
++
++export type Declined = { chat: boolean; words?: string }
++
++export const declinedOf = (style: Style, call: { isErrored: boolean; output?: unknown }): Declined | undefined => {
++  if (style.declined !== 'quiet' || !call.isErrored || typeof call.output !== 'string' || !DECLINED.test(call.output)) return undefined
++  const said = /the user said:\s*([\s\S]*)$/i.exec(call.output)?.[1]?.trim()
++  if (said !== undefined && CLARIFY.test(said)) return { chat: true }
++  return said ? { chat: false, words: said.replace(/\s+/g, ' ') } : { chat: false }
++}
++
++const declinedLabel = (declined: Declined): string => (declined.chat ? ' · chose to chat' : ' declined')
++
+ export const renderFailure = (el: ElementTable, style: Style, output: unknown, key?: string): RenderElement | undefined => {
++  const declined = declinedOf(style, { isErrored: true, output })
++  if (declined) {
++    if (declined.words === undefined) return <el.Box key={key} />
++    const chat = style.toolStyle === 'chat'
++    return (
++      <el.Box key={key} flexDirection="row" width="100%" justifyContent={chat ? 'flex-end' : 'flex-start'}>
++        <el.Text dimColor wrap="wrap">{`${chat ? '' : '  ⎿ '}${declined.words}`}</el.Text>
++      </el.Box>
++    )
++  }
+   const refusal = refusalReason(output)
+   const reason = refusal ?? errorReason(output)
+   if (reason === undefined) return undefined
+@@ -1235,20 +1262,21 @@ const callLabel = (call: ToolRow, style: Style): string => {
+   return target === undefined ? verb : `${verb} ${shortTarget(style, target)}${args ? ` ${args}` : ''}`
+ }
+ 
+-const quietToolRow = (el: ElementTable, style: Style, row: ToolRow, columns: number): RenderElement => {
++const quietToolRow = (el: ElementTable, style: Style, row: ToolRow & { output?: unknown }, columns: number): RenderElement => {
+   const t = style.theme
+-  const dot = statusColor(t, row)
++  const declined = declinedOf(style, row)
++  const dot = declined ? t.codeComment : statusColor(t, row)
+   const what = callLabel(row, style)
+-  const label = `${what}${row.isInterrupted ? ' interrupted' : row.isErrored ? ' failed' : ''}`
++  const label = `${what}${declined ? declinedLabel(declined) : row.isInterrupted ? ' interrupted' : row.isErrored ? ' failed' : ''}`
+   return toolLayout(el, style, columns, label, dot, row.isRunning, (
+     <el.Text wrap="truncate-end" dimColor={toolDim(style)}>
+       {what}
+-      {row.isInterrupted ? <el.Text dimColor> interrupted</el.Text> : row.isErrored ? <el.Text color={t.codeFlag}> failed</el.Text> : null}
++      {declined ? <el.Text dimColor>{declinedLabel(declined)}</el.Text> : row.isInterrupted ? <el.Text dimColor> interrupted</el.Text> : row.isErrored ? <el.Text color={t.codeFlag}> failed</el.Text> : null}
+     </el.Text>
+   ))
+ }
+ 
+-export const renderToolRow = (el: ElementTable, style: Style, row: ToolRow, columns = 100): RenderElement => {
++export const renderToolRow = (el: ElementTable, style: Style, row: ToolRow & { output?: unknown }, columns = 100): RenderElement => {
+   if (style.toolOutput !== 'full') return quietToolRow(el, style, row, columns)
+   const { Box, Text } = el
+   const t = style.theme
+@@ -1256,16 +1284,17 @@ export const renderToolRow = (el: ElementTable, style: Style, row: ToolRow, colu
+   const verb = VERBS[row.tool] ?? row.tool.replace(/^mcp__([^_]+)__/, '$1 ')
+   const found = isShell ? { target: field(row.input, 'command')?.split('\n')[0], isPathField: false } : targetOf(style, row.input, TARGET_FIELDS)
+   const target = found.target
+-  const dot = statusColor(t, row)
++  const declined = declinedOf(style, row)
++  const dot = declined ? t.codeComment : statusColor(t, row)
+   const isPath = target !== undefined && (found.isPathField || /^(~|\.{0,2}\/|[A-Za-z]:\\)/.test(target))
+ 
+-  const label = `${verb}${target === undefined ? "" : ` ${target}`}${row.isInterrupted ? " interrupted" : row.isErrored ? " failed" : ""}`
++  const label = `${verb}${target === undefined ? "" : ` ${target}`}${declined ? declinedLabel(declined) : row.isInterrupted ? " interrupted" : row.isErrored ? " failed" : ""}`
+   return toolLayout(el, style, columns, label, dot, row.isRunning, (
+       <Text wrap="truncate-end" dimColor={toolDim(style)}>
+         <Text bold={!toolDim(style)} dimColor={toolDim(style)}>{verb}</Text>
+         {target === undefined ? null : <Text> </Text>}
+         {target === undefined ? null : isShell ? codeLine(el, style, target, 'bash', 'cmd') : <Text color={isPath ? t.path : t.inlineCode} dimColor={toolDim(style)}>{target}</Text>}
+-        {row.isInterrupted ? <Text dimColor> interrupted</Text> : row.isErrored ? <Text color={t.codeFlag}> failed</Text> : null}
++        {declined ? <Text dimColor>{declinedLabel(declined)}</Text> : row.isInterrupted ? <Text dimColor> interrupted</Text> : row.isErrored ? <Text color={t.codeFlag}> failed</Text> : null}
+       </Text>
+   ))
+ }
+@@ -1574,12 +1603,12 @@ export const groupSummary = (calls: readonly { tool: string }[]): string => {
+ 
+ const quietToolGroup = (el: ElementTable, style: Style, calls: readonly (ToolRow & { output?: unknown })[], isActive: boolean, columns: number): RenderElement => {
+   const t = style.theme
+-  const failed = calls.filter(c => c.isErrored)
++  const failed = calls.filter(c => c.isErrored && !declinedOf(style, c))
+   const running = isActive && calls.some(c => c.isRunning)
+   const dot = failed.length ? t.codeFlag : running ? t.accent : t.number
+   const labels = calls.map(c => callLabel(c, style)).filter((l, i, all) => l !== all[i - 1])
+   const label = labels.join(' · ')
+-  const reasons = failed.map((c, i) => renderFailure(el, style, c.output, `r${i}`)).filter((r): r is RenderElement => r !== undefined)
++  const reasons = calls.filter(c => c.isErrored).map((c, i) => renderFailure(el, style, c.output, `r${i}`)).filter((r): r is RenderElement => r !== undefined)
+   const isShell = (c: ToolRow) => c.tool === 'Bash' || c.tool === 'PowerShell'
+   // LOCAL PATCH (kasasree-mods): toolOutput 'rows' draws no output under a group's calls that worked.
+   const results = style.toolOutput === 'rows' ? [] : calls.flatMap((c, i) => (c.isErrored || c.output === undefined || !isShell(c) || isReadOnlyCall(c.tool, c.input) ? [] : [<el.Box key={`o${i}`}>{renderShellResult(el, style, c.output)}</el.Box>]))
+@@ -1600,7 +1629,7 @@ export const renderToolGroup = (el: ElementTable, style: Style, calls: readonly
+   if (style.toolOutput !== 'full') return quietToolGroup(el, style, calls, isActive, columns)
+   const { Box, Text } = el
+   const t = style.theme
+-  const failed = calls.filter(c => c.isErrored).length
++  const failed = calls.filter(c => c.isErrored && !declinedOf(style, c)).length
+   const running = isActive && calls.some(c => c.isRunning)
+   const dot = failed ? t.codeFlag : running ? t.accent : t.number
+   const last = calls[calls.length - 1]
+@@ -1635,7 +1664,8 @@ export const renderTurnDuration = ({ Text }: ElementTable, style: Style, word: s
+ export const renderUserPrompt = (el: ElementTable, style: Style, text: string, columns: number, time?: string): RenderElement => {
+   const { Box, Text } = el
+   const t = style.theme
+-  const color = style.promptStyle === 'chevron' ? t.accent : t.heading
++  const color = style.promptColor ?? (style.promptStyle === 'chevron' ? t.accent : t.heading)
++  const markColor = style.promptColor ?? t.accent
+   const lines = text.split('\n').map(line => flowOf(style, [{ kind: 'text', text: line }], columns - 4 - (time === undefined ? 0 : time.length + 1)))
+   const rtl = lines.some(l => l?.base === 'R')
+   const body = (
+@@ -1649,8 +1679,8 @@ export const renderUserPrompt = (el: ElementTable, style: Style, text: string, c
+   const stamp = time === undefined ? null : <Text color={t.codeComment}>{rtl ? ` ${time}` : `${time} `}</Text>
+   const content = stamp === null ? body : <Box flexDirection="row">{rtl ? body : stamp}{rtl ? stamp : body}</Box>
+   if (style.promptStyle === 'bubble') {
+-    return <Box borderStyle="round" borderColor={t.accent} paddingX={1} alignSelf={rtl ? 'flex-end' : 'flex-start'}>{content}</Box>
++    return <Box borderStyle="round" borderColor={markColor} paddingX={1} alignSelf={rtl ? 'flex-end' : 'flex-start'}>{content}</Box>
+   }
+-  const mark = <Text color={t.accent} bold>{style.promptStyle === 'bar' ? (rtl ? ' ▐' : '▌ ') : rtl ? ' ‹' : '› '}</Text>
++  const mark = <Text color={markColor} bold>{style.promptStyle === 'bar' ? (rtl ? ' ▐' : '▌ ') : rtl ? ' ‹' : '› '}</Text>
+   return <Box flexDirection="row" {...(rtl ? { justifyContent: 'flex-end' as const } : {})}>{rtl ? content : mark}{rtl ? mark : content}</Box>
+ }
+diff --git a/plugins/prismantis/hooks/theme.ts b/plugins/prismantis/hooks/theme.ts
+index 34f09dd..b50fda1 100644
+--- a/plugins/prismantis/hooks/theme.ts
++++ b/plugins/prismantis/hooks/theme.ts
+@@ -22,6 +22,8 @@ export type Style = {
+   tableStyle: 'box' | 'rules' | 'grid' | 'minimal'
+   taskStyle: 'checks' | 'ticks' | 'box' | 'progress'
+   promptStyle: 'bubble' | 'bar' | 'chevron' | 'off'
++  promptColor?: string
++  declined: 'failed' | 'quiet'
+   clock: Clock
+   toolStyle: 'chat' | 'tree-dim' | 'tree-bold' | 'classic'
+   toolOutput: 'full' | 'quiet' | 'rows'
+@@ -78,6 +80,10 @@ export const resolveStyle = (options: PluginOptions): Style => {
+     tableStyle: pick(options.tableStyle, ['box', 'rules', 'grid', 'minimal'] as const, 'box'),
+     taskStyle: pick(options.taskStyle, ['checks', 'ticks', 'box', 'progress'] as const, 'checks'),
+     promptStyle: pick(options.promptStyle, ['bubble', 'bar', 'chevron', 'off'] as const, 'bubble'),
++    // LOCAL PATCH (kasasree-mods): promptColor draws your prompts' text and their bubble, bar or chevron in one color.
++    ...(isColor(options.promptColor) ? { promptColor: String(options.promptColor).trim() } : {}),
++    // LOCAL PATCH (kasasree-mods): declined 'quiet' shows a call you turned down as your choice, not as a failure.
++    declined: pick(options.declined, ['failed', 'quiet'] as const, 'failed'),
+     clock: pick(options.clock, ['off', '24h', '12h'] as const, 'off'),
+     toolStyle: pick(options.toolStyle, ['chat', 'tree-dim', 'tree-bold', 'classic'] as const, 'chat'),
+     toolOutput: pick(options.toolOutput, ['full', 'quiet', 'rows'] as const, 'full'),
+diff --git a/plugins/prismantis/tests/kasasree.test.tsx b/plugins/prismantis/tests/kasasree.test.tsx
+index eaf2566..345c411 100644
+--- a/plugins/prismantis/tests/kasasree.test.tsx
++++ b/plugins/prismantis/tests/kasasree.test.tsx
+@@ -161,3 +161,78 @@ for (const diffTintOption of [undefined, 'color'] as const) {
+     await ui.unmount()
+   })
+ }
++
++// LOCAL PATCH (kasasree-mods) tests: promptColor and declined 'quiet'.
++const prompt = (text: string, surface: 'terminal' | 'desktop' = 'terminal') =>
++  ({ plugin: 'prismantis', component: 'UserMessage' as const, props: { text, origin: { kind: 'composer' } as never, isExpanded: true }, viewport: { columns: 80, rows: 10 }, surface })
++
++const WHITE = '#F8F4EE'
++
++test('promptColor: the bubble and the text you typed both take the one color, on both surfaces', { options: { theme: 'ember', promptStyle: 'bubble', promptColor: WHITE } }, async $ => {
++  for (const surface of ['terminal', 'desktop'] as const) {
++    const ui = await $.ui.mount(prompt('fix the failing test', surface))
++    const bubble = (await ui.findAll({ type: 'Box' })).find(b => b.props.borderStyle === 'round')
++    expect(bubble?.props.borderColor).toBe(WHITE)
++    expect((await ui.find({ type: 'Text', text: /^fix the failing test$/ }))?.props.color).toBe(WHITE)
++    await ui.unmount()
++  }
++})
++
++test('promptColor: the bar takes it too, and left empty the theme colors stay', { options: { theme: 'ember', promptStyle: 'bar', promptColor: WHITE } }, async $ => {
++  const ui = await $.ui.mount(prompt('hi'))
++  expect((await ui.find({ type: 'Text', text: /^▌ $/ }))?.props.color).toBe(WHITE)
++  await ui.unmount()
++  for (const promptColor of ['', 'not a color']) {
++    const s = resolveStyle({ theme: 'ember', promptColor })
++    expect(s.promptColor).toBeUndefined()
++  }
++})
++
++const CLARIFY = `Error: The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said:
++The user wants to clarify these questions.
++    This means they may have additional information, context or questions for you.
++    Questions asked:
++- "How should your own messages look in the chat?"
++  (No answer provided)`
++const NO_WITH_WORDS = `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said:
++use tabs, not spaces`
++const NO = `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.`
++const erroredUse = (tool: string, input: unknown, id: string, output: unknown) => ({ ...use(tool, input, id), props: { ...call(tool, input, id), isErrored: true, output } })
++
++test('declined quiet: Chat about this is "chose to chat", dim, with nothing under it', { options: { toolOutput: 'rows', declined: 'quiet' } }, async ($, on) => {
++  engine(on)
++  const row = await $.ui.mount(erroredUse('AskUserQuestion', { questions: [] }, 'd-1', CLARIFY))
++  expect(await row.find({ type: 'Text', text: /chose to chat/ })).toBeDefined()
++  expect(await row.find({ type: 'Text', text: /failed/ })).toBeUndefined()
++  await row.unmount()
++  const out = await $.ui.mount(result('AskUserQuestion', 'd-1', CLARIFY, true))
++  expect(await out.find({ type: 'Text', text: /doesn't want|clarify|engine/ })).toBeUndefined()
++  await out.unmount()
++})
++
++test('declined quiet: a No keeps only the words you typed; a No without words shows none; a real failure still fails', { options: { toolOutput: 'rows', declined: 'quiet' } }, async ($, on) => {
++  engine(on)
++  const row = await $.ui.mount(erroredUse('Edit', { file_path: 'src/a.ts' }, 'd-2', NO_WITH_WORDS))
++  expect(await row.find({ type: 'Text', text: /declined/ })).toBeDefined()
++  await row.unmount()
++  const words = await $.ui.mount(result('Edit', 'd-2', NO_WITH_WORDS, true))
++  expect(await words.find({ type: 'Text', text: /^use tabs, not spaces$/ })).toBeDefined()
++  expect(await words.find({ type: 'Text', text: /doesn't want/ })).toBeUndefined()
++  await words.unmount()
++  const silent = await $.ui.mount(result('Bash', 'd-3', NO, true))
++  expect(await silent.find({ type: 'Text', text: /doesn't want|STOP|engine/ })).toBeUndefined()
++  await silent.unmount()
++  const failed = await $.ui.mount(erroredUse('Bash', { command: 'make test' }, 'd-4', 'Error: Exit code 1\nboom'))
++  expect(await failed.find({ type: 'Text', text: /failed/ })).toBeDefined()
++  await failed.unmount()
++})
++
++test('declined left at failed keeps upstream: Chat about this is a failed row with the message under it', { options: { toolOutput: 'rows' } }, async ($, on) => {
++  engine(on)
++  const row = await $.ui.mount(erroredUse('AskUserQuestion', { questions: [] }, 'd-5', CLARIFY))
++  expect(await row.find({ type: 'Text', text: /failed/ })).toBeDefined()
++  await row.unmount()
++  const out = await $.ui.mount(result('AskUserQuestion', 'd-5', CLARIFY, true))
++  expect(await out.find({ type: 'Text', text: /doesn't want to proceed/ })).toBeDefined()
++  await out.unmount()
++})

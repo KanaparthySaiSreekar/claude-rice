@@ -1,0 +1,51 @@
+{
+  "name": "kasasree-mods",
+  "owner": { "name": "Kasasree" },
+  "metadata": {
+    "description": "Personal pinned marketplace: every plugin here was source-reviewed and copied at a recorded commit (see README.md)."
+  },
+  "plugins": [
+    {
+      "name": "aurora-bridge",
+      "source": "./plugins/aurora-bridge",
+      "description": "Bridge: heartbeat, per-call timeline, gate, agents, hot files, last turn, in the rice palette (first-party, v2)",
+      "category": "monitoring"
+    },
+    {
+      "name": "flightdeck",
+      "source": "./plugins/flightdeck",
+      "description": "Read-only live dashboard pane (scasella/claude-flightdeck) pinned at 6150b9f",
+      "category": "monitoring"
+    },
+    {
+      "name": "filetree",
+      "source": "./plugins/filetree",
+      "description": "File tree pane with git status (data-goblin/claude-code-filetree) pinned at 44d4a62",
+      "category": "interface"
+    },
+    {
+      "name": "cockpit",
+      "source": "./plugins/cockpit",
+      "description": "Agent cockpit pane (drkokorev/cockpit-for-claude) pinned at 8960ed8, band and status line made optional",
+      "category": "monitoring"
+    },
+    {
+      "name": "paneline",
+      "source": "./plugins/paneline",
+      "description": "Session pane with its own tabs (markneonin/paneline) pinned at fd20c8c, chat restyling made optional",
+      "category": "monitoring"
+    },
+    {
+      "name": "cctop",
+      "source": "./plugins/cctop",
+      "description": "btop-style dashboard pane (tomstagl/cctop, plugin/) pinned at 6ceafc3, open on start and quiet start options",
+      "category": "monitoring"
+    },
+    {
+      "name": "prismantis",
+      "source": "./plugins/prismantis",
+      "description": "Reply renderer (NahumLitvin/prismantis) pinned at 0d93494 (v0.25.1), rice presets, tool rows, button copy, retro diffs",
+      "category": "interface"
+    }
+  ]
+}

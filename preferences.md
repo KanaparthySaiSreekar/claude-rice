@@ -34,6 +34,13 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - **prismantis was good**: it draws the chat again (with the tool rows below).
 - Tab verdicts: still to come.
 
+## v7 on macOS (v7-mac, 2026-10-20: Ghostty and fish on an M1 MacBook Pro)
+- Asked for: **the fastest, most optimised** terminal and shell on Apple Silicon: Ghostty (no transparency, blur or shaders) with fish.
+- **Trackpad scrolling** overshot: Claude Code's wheel acceleration is off now.
+- **Your messages**: a **white bubble with white text**, not the orange bar.
+- **"Chat about this"** on a question must not look like a failure (it showed "failed" in red with Claude Code's whole message).
+- **Status line gap**: a full blank row between the two rows was too much, none was too little; **half a row** is right ("I like it now").
+
 ## Across versions
 - **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.
 - **Spinner words:** not silly, but not stiff and serious just for the sake of it either. Plain words for what is happening.
@@ -41,6 +48,8 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - **Headings** in the orange accent (the `▍` bar).
 - **Copying:** just a plain "copied" confirmation. Never a mod's name (prismantis, skins) in it.
 - **No repeated numbers:** each reading shows once (the v2 status line), not again in another mod's line.
+- **Your own messages:** a rounded bubble, white border and white text.
+- **Things you chose** (declining a call, Chat about this): said calmly, never as a failure.
 
 ## How versions are kept
 Before switching away from a version it is saved whole (`node v3-win/tools/snapshot.mjs save <name>`) and can be put back exactly (`restore <name>`). Saved: `v2.2-ember` (v2 as it was), `v3-gruvbox` (v3 on its own).

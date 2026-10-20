@@ -1,0 +1,70 @@
+diff --git a/plugins/cctop/.claude-plugin/plugin.json b/plugins/cctop/.claude-plugin/plugin.json
+index 1f8fb29..8dbe206 100644
+--- a/plugins/cctop/.claude-plugin/plugin.json
++++ b/plugins/cctop/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "cctop",
+-  "version": "0.10.0-rice.1",
++  "version": "0.10.0-rice.2",
+   "description": "btop-style live dashboard for Claude Code internals: /cctop opens it in a side pane, cctop-insights lets the session answer questions from its numbers",
+   "author": { "name": "Thomas Stagl" },
+   "homepage": "https://github.com/tomstagl/cctop",
+@@ -18,6 +18,12 @@
+       "title": "Say it loaded",
+       "description": "On: a line in the transcript at every start says the plugin loaded and its self-check passed. Off: that line goes to the debug log; a failed self-check still shows (local patch)",
+       "default": true
++    },
++    "statusLine": {
++      "type": "boolean",
++      "title": "Status line",
++      "description": "Pin lines under the prompt: the coach's lights, and a notice when the open pane is not drawn. Off: nothing is pinned; the coach stays in its tab (local patch)",
++      "default": true
+     }
+   }
+ }
+diff --git a/plugins/cctop/hooks/pane.tsx b/plugins/cctop/hooks/pane.tsx
+index 17389f8..5106ac7 100644
+--- a/plugins/cctop/hooks/pane.tsx
++++ b/plugins/cctop/hooks/pane.tsx
+@@ -91,6 +91,10 @@ let statusPinned = false;
+ // LOCAL PATCH (kasasree-mods): the `openOnStart` and `announce` options, read at register.
+ let openOnStart = false;
+ let announceOk = true;
++// LOCAL PATCH (kasasree-mods, v7-mac): the `statusLine` option. Off, cctop pins nothing under the prompt: not the
++// coach's lights (the rice's own status line shows context and limits once), and not the hidden notice, which with
++// several panes as tabs mostly means another tab is in front rather than the /diff panel.
++let showStatus = true;
+ 
+ // Asks for a redraw as of `now` (the clock's answer, or the trailing timer's
+ // due time) and arms the hidden watch.
+@@ -128,8 +132,10 @@ function stopHiddenTimer(): void {
+ function markHidden($: EngineInterface): void {
+   if (!model.open || model.visibility === 'hidden') return;
+   model = reduce(model, { type: 'visibility', visibility: 'hidden' });
+-  $.ui.status(HIDDEN_STATUS);
+-  statusPinned = true;
++  if (showStatus) {
++    $.ui.status(HIDDEN_STATUS);
++    statusPinned = true;
++  }
+   updateMarker($);
+ }
+ 
+@@ -231,7 +237,7 @@ function coachChanged($: EngineInterface): void {
+   const c = coachOf(model.query.coach);
+   if (c === null) return;
+   // The width decides the form, so nothing is pinned before the first render.
+-  if (model.open && !statusPinned && model.bodyColumns !== null) {
++  if (showStatus && model.open && !statusPinned && model.bodyColumns !== null) {
+     const status = statusLine(c, model.bodyColumns);
+     if (status !== model.coachStatus) {
+       $.ui.status(status);
+@@ -691,6 +697,7 @@ const BAR_LEAD = 'cctop';
+ export const register: Register = (on, options) => {
+   openOnStart = options?.openOnStart === true;
+   announceOk = options?.announce !== false;
++  showStatus = options?.statusLine !== false;
+   model = initialModel();
+   stopUsageTimer();
+   stopRenderTimer();
