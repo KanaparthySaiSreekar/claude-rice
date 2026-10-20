@@ -5,6 +5,7 @@
 //
 //   node art/aurora-art.mjs <palettes.json> <palette-name> <out.png> [width height]
 import fs from "node:fs"
+import { pathToFileURL } from "node:url"
 import zlib from "node:zlib"
 import { parseHex, ramp } from "../tools/lib/color.mjs"
 
@@ -112,7 +113,7 @@ export function renderAurora({ width = 2560, height = 1440, base, rampStops, see
 }
 
 // CLI
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const [, , palFile, name, outFile, w, h] = process.argv
   const pal = JSON.parse(fs.readFileSync(palFile, "utf8")).palettes[name]
   if (!pal) throw new Error(`no palette "${name}"`)

@@ -15,6 +15,7 @@
 // needs no restart. NO_COLOR is deliberately ignored: this output is only ever drawn by
 // Claude Code, and its tool shells set NO_COLOR for their own sake.
 import fs from "node:fs"
+import { pathToFileURL } from "node:url"
 import os from "node:os"
 import path from "node:path"
 import { execFileSync } from "node:child_process"
@@ -101,10 +102,20 @@ const clock = (epochSec) => new Date(epochSec * 1000).toLocaleTimeString("en-GB"
 // position on the ramp, so a nearly empty bar is cool and a nearly full one is warm.
 // ---------------------------------------------------------------------------------------------
 const EIGHTHS = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
-export function gradientBar(pct, cells, P, { glow = false } = {}) {
+export function gradientBar(pct, cells, P, { glow = false, half = false } = {}) {
   const track = Bg(P.base.raised)
   const filled = pct === null ? 0 : (pct / 100) * cells
   let out = ""
+  // half (AURORA_DECK_BARS=half, v7-mac): the bar fills only the lower half of its row, so with no spacer row above it there is
+  // still half a row between the identity pills and the gauges. Half-cell precision: the cell where the bar ends is a quadrant.
+  if (half) {
+    for (let i = 0; i < cells; i++) {
+      const frac = Math.max(0, Math.min(1, filled - i))
+      const color = fgc(rampAt(P.ramp, cells === 1 ? 0 : (i + 0.5) / cells))
+      out += frac >= 0.75 ? `${color}▄${RESET}` : frac >= 0.25 ? `${color}▖${RESET}` : `${F(P.base.raised)}▄${RESET}`
+    }
+    return out
+  }
   for (let i = 0; i < cells; i++) {
     const frac = Math.max(0, Math.min(1, filled - i))
     const eighths = Math.round(frac * 8)
@@ -208,11 +219,11 @@ function pctColor(pct, P, warn, crit) {
   return F(P.base.fg)
 }
 
-function gauge({ label, pct, cells, P, warn, crit, extra = "", showBar = true, labelWidth = 3 }) {
+function gauge({ label, pct, cells, P, warn, crit, extra = "", showBar = true, labelWidth = 3, half = false }) {
   const col = pctColor(pct, P, warn, crit)
   const txt = pct === null ? "  –" : `${String(Math.round(pct)).padStart(3)}%`.slice(-4)
   const bold = pct !== null && pct >= crit ? BOLD : ""
-  const bar = showBar ? ` ${gradientBar(pct, cells, P)}` : ""
+  const bar = showBar ? ` ${gradientBar(pct, cells, P, { half })}` : ""
   const bang = pct !== null && pct >= crit ? ` ${F(P.semantic.err)}${BOLD}!${RESET}` : ""
   return `${F(P.base.muted)}${label.padEnd(labelWidth)}${RESET}${bar} ${bold}${col}${txt.trim()}${RESET}${extra}${bang}`
 }
@@ -307,17 +318,20 @@ export function renderDeck(input, ctx = {}) {
   const barCtx = wide ? 14 : mid ? 12 : 8     // 14, not 16: the spaces after the reset glyphs cost two cells and the whole row must still fit at 124 columns
   const barQ = wide ? 9 : mid ? 7 : 5
   const parts = []
-  parts.push(gauge({ label: "ctx", pct: ctxPct, cells: barCtx, P, warn: 70, crit: 88,
+  const half = String(ctx.bars ?? process.env.AURORA_DECK_BARS ?? "") === "half"
+  parts.push(gauge({ label: "ctx", pct: ctxPct, cells: barCtx, P, warn: 70, crit: 88, half,
     extra: wide && Number.isFinite(ctxUsed) ? ` ${F(P.base.faint)}${fmtTokens(ctxUsed)}/${fmtTokens(ctxSize)}${RESET}` : "" }))
   if (five && clampPct(five.used_percentage) !== null)
-    parts.push(gauge({ label: "5h", pct: clampPct(five.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(five.resets_at, nowMs)}${RESET}` : "" }))
+    parts.push(gauge({ label: "5h", pct: clampPct(five.used_percentage), cells: barQ, P, warn: 75, crit: 90, half, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(five.resets_at, nowMs)}${RESET}` : "" }))
   if (seven && clampPct(seven.used_percentage) !== null)
-    parts.push(gauge({ label: "7d", pct: clampPct(seven.used_percentage), cells: barQ, P, warn: 75, crit: 90, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(seven.resets_at, nowMs)}${RESET}` : "" }))
+    parts.push(gauge({ label: "7d", pct: clampPct(seven.used_percentage), cells: barQ, P, warn: 75, crit: 90, half, extra: mid ? ` ${F(P.base.faint)}◔ ${fmtReset(seven.resets_at, nowMs)}${RESET}` : "" }))
   if (Number.isFinite(cost.total_cost_usd) && mid) parts.push(`${F(P.accent.amber)}$${cost.total_cost_usd.toFixed(2)}${RESET}`)
   if (cacheText()) parts.push(cacheText())
   let row2 = parts.join(SEP(P))
   while (visibleWidth(row2) > cols && parts.length > 1) { parts.pop(); row2 = parts.join(SEP(P)) }
 
+  // AURORA_DECK_GAP=0 (set by v7-mac): no spacer, the gauges sit right under the identity row.
+  if (String(ctx.gap ?? process.env.AURORA_DECK_GAP ?? "") === "0") return [row1, row2]
   // Claude Code drops a line that is empty (or only an escape code), so the spacer carries a zero-width space (U+200B, which the
   // font has and JS does not trim). Measured in the real UI 2026-10-17: "" and ESC[0m gave no gap, U+200B gave one clear row.
   return [row1, "\u200b", row2]
@@ -344,7 +358,7 @@ async function main() {
   process.stdout.write(rows.join("\n") + "\n")
 }
 
-if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   await main()
   process.exitCode = 0
 }

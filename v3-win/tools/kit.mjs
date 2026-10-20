@@ -24,7 +24,7 @@ import fs from "node:fs"
 import crypto from "node:crypto"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const V2 = path.resolve(here, "..", "..", "v2-win")
@@ -32,7 +32,7 @@ const { getPalette } = await import(pathUrl(path.join(V2, "tools", "lib", "palet
 const { claudeTheme, bridgePalette, statusPalette } = await import(pathUrl(path.join(V2, "tools", "build.mjs")))
 export const PALETTES = path.join(V2, "palette", "palettes.json")
 
-function pathUrl(p) { return "file:///" + p.replace(/\\/g, "/") }
+function pathUrl(p) { return pathToFileURL(p).href }
 
 export const home = () => process.env.RICE_HOME ?? os.homedir()                // tests point this at a sandbox
 export const settingsFile = () => path.join(home(), ".claude", "settings.json")
@@ -47,6 +47,8 @@ export function loadSpec(dir) {
 
 const BUILDERS = {
   bridge: (p) => JSON.stringify(bridgePalette(p)),
+  // v7-mac, prismantis promptColor: the palette's text colour (Ember's warm white)
+  fg: (p) => p.base.fg,
   // v4, firstmate-calm: orange hull, cream sails, the dim accent (the prompt frame's colour) for the sea, muted word
   ship: (p) => JSON.stringify({ boat: p.accent.coral, sail: p.base.fg, water: p.theme?.promptBorder ?? p.darker(p.accent.coral, 0.45), label: p.base.muted }),
   // v5, context-bar: one warm shade per context category (the tool slots), messages in the accent, free and buffer dim
@@ -197,8 +199,11 @@ export function preview(spec, paletteName, { log = console.log } = {}) {
   fs.writeFileSync(themeFile, JSON.stringify(claudeTheme(p), null, 2) + "\n")
   const palFile = path.join(dir, `statusline-${p.key}.json`)
   fs.writeFileSync(palFile, JSON.stringify(statusPalette(p), null, 2))
-  const shim = path.join(dir, `deck-${p.key}.cmd`)
-  fs.writeFileSync(shim, `@echo off\r\nset "AURORA_DECK_PALETTE=${palFile}"\r\n"${process.execPath}" "${path.join(V2, "statusline", "aurora-deck.mjs")}"\r\n`)
+  const deck = path.join(V2, "statusline", "aurora-deck.mjs")
+  const win = process.platform === "win32"
+  const shim = path.join(dir, `deck-${p.key}.${win ? "cmd" : "sh"}`)
+  if (win) fs.writeFileSync(shim, `@echo off\r\nset "AURORA_DECK_PALETTE=${palFile}"\r\n"${process.execPath}" "${deck}"\r\n`)
+  else fs.writeFileSync(shim, `#!/bin/sh\nAURORA_DECK_PALETTE='${palFile}' exec '${process.execPath}' '${deck}'\n`, { mode: 0o755 })
   const bridge = "aurora-bridge@kasasree-mods"
   const settings = {
     theme: `custom:${p.key}`,

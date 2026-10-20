@@ -13,13 +13,13 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { save, restore } from "./snapshot.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, "..", "..")
 const V2 = path.join(repo, "v2-win")
-const url = (p) => "file:///" + p.replace(/\\/g, "/")
+const url = (p) => pathToFileURL(p).href
 const { derive } = await import(url(path.join(V2, "tools", "lib", "palette.mjs")))
 const { claudeTheme, wtScheme, wtTheme, powershellProfile, rioConfig } = await import(url(path.join(V2, "tools", "build.mjs")))
 const { stripJsonc } = await import(url(path.join(V2, "tools", "lib", "wt.mjs")))

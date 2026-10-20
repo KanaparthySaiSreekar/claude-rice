@@ -6,6 +6,7 @@
 // `--settings` overrides theme, status line and the Bridge pane (with demo data) for that process only. The skins mod keeps its
 // state in a JSON file, so `seed` edits it (with a backup) and `restore` undoes that.
 import fs from "node:fs"
+import { pathToFileURL } from "node:url"
 import os from "node:os"
 import path from "node:path"
 import { getPalette } from "./lib/palette.mjs"
@@ -60,7 +61,7 @@ function restore() {
   }
 }
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   if (cmd === "seed") seed(name)
   else if (cmd === "restore") restore()
   else { console.log("usage: node tools/preview-claude.mjs <seed|restore> [palette]"); process.exit(cmd ? 1 : 0) }

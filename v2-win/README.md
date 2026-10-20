@@ -105,7 +105,7 @@ claude plugin validate .
 - **Fast:** about 40 ms of Node, about 170 ms end to end through Git Bash (`exec` of a `.cmd` shim, which also avoids stranded `node.exe` processes). `git status` is cached for 3 seconds with a 1.5 s timeout, falling back to reading `.git/HEAD`.
 - **Safe:** user-controlled text (folder, branch, model, agent) has control characters stripped, so a hostile name cannot inject escape sequences. It imports only Node built-ins (a test enforces that). `NO_COLOR` is deliberately ignored: Claude Code's own tool shells set it, and this output is only ever drawn by Claude Code.
 
-`AURORA_DECK_ROWS=1` (added for v5, whose bands above the prompt show context, 5h, 7d and cost) draws only the identity row and moves the prompt-cache clock onto it. `RICE_CAPS=block` swaps the rounded pill caps for block characters if a font ever renders the powerline glyphs as boxes. `RICE_DEMO_GIT` forces the git pill for screenshots of a folder that is not a repository.
+`AURORA_DECK_ROWS=1` (added for v5, whose bands above the prompt show context, 5h, 7d and cost) draws only the identity row and moves the prompt-cache clock onto it. `RICE_CAPS=block` swaps the rounded pill caps for block characters if a font ever renders the powerline glyphs as boxes. `RICE_DEMO_GIT` forces the git pill for screenshots of a folder that is not a repository. `AURORA_DECK_GAP=0` (added for v7-mac) drops the spacer row, and `AURORA_DECK_BARS=half` draws the gauges in the lower half of their row (`▄`, with `▖` where a bar ends), which together leave half a row between the two rows; unset, nothing changes.
 
 ## The terminal
 

@@ -169,7 +169,7 @@ test("the status line's embedded default palette matches palettes.json (no silen
 
 // Glyphs that exist in JetBrainsMono NFM (read from the font's cmap with WPF's GlyphTypeface, 2026-10-17). A glyph the font lacks
 // is drawn from a fallback font at another width and spills into the next cell: the old reset arrow touched its time that way.
-const FONT_SAFE = new Set([..."–−…│▏▎▍▌▋▊▉█▐▕▇◆◇◌◔◕◈●○✓✕⚡⌂⌥↑↓·•→" + "\ue0b6\ue0b4"])   // the last two are the Powerline pill caps
+const FONT_SAFE = new Set([..."–−…│▏▎▍▌▋▊▉█▐▕▇▄▖◆◇◌◔◕◈●○✓✕⚡⌂⌥↑↓·•→" + "\ue0b6\ue0b4"])   // the last two are the Powerline pill caps; ▄ ▖ read from the macOS font file's cmap, 2026-10-20
 test("the status line draws only glyphs the terminal font really has", () => {
   const src = fs.readFileSync(DECK, "utf8").split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n")
   const bad = [...new Set([...src].filter((c) => c.codePointAt(0) > 127 && !FONT_SAFE.has(c)))]

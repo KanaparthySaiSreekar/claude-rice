@@ -8,6 +8,7 @@
 // --settings-from takes Claude Code's settings.json from another file (a backup taken just before a later apply), so a
 // version can be saved after the next one has already touched settings.json.
 import fs from "node:fs"
+import { pathToFileURL } from "node:url"
 import os from "node:os"
 import path from "node:path"
 import crypto from "node:crypto"
@@ -71,7 +72,7 @@ export function restore(name) {
   return manifest
 }
 
-if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const [cmd, name, ...rest] = process.argv.slice(2)
   const i = rest.indexOf("--settings-from")
   if (cmd === "save" && name) { const m = save(name, { settingsFrom: i >= 0 ? rest[i + 1] : undefined }); console.log(`saved "${name}": ${m.files.length} files in ${path.join(savedRoot, name)}`) }

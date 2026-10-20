@@ -12,7 +12,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { getPalette, audit } from "./lib/palette.mjs"
 import { writeBuild, wtScheme, wtProfileDefaults } from "./build.mjs"
 import { readWt, writeWt, addPreviewProfile, removePreviewProfile, WT_SETTINGS } from "./lib/wt.mjs"
@@ -98,7 +98,7 @@ function cmdPreviewRemove() {
   console.log('removed profile "rice-preview"')
 }
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const table = { audit: cmdAudit, build: cmdBuild, apply: cmdApply, revert: cmdRevert, status: cmdStatus, "preview-install": cmdPreviewInstall, "preview-remove": cmdPreviewRemove }
   if (!table[cmd]) { console.log("usage: node tools/rice.mjs <audit|build|apply|revert|status|preview-install|preview-remove> [palette] [flags]"); process.exit(cmd ? 1 : 0) }
   table[cmd](positional[0])

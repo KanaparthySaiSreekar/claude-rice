@@ -10,7 +10,7 @@
 // would draw ok in orange (its own test, "warn leans red and ok leans green", catches that).
 import fs from "node:fs"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 export const PALETTES = path.resolve(repoRoot, "..", "v2-win", "palette", "palettes.json")
@@ -65,7 +65,7 @@ export function withBlock(source, block = tsBlock()) {
   return crlf ? s.split("\n").join("\r\n") : s
 }
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {
   const i = process.argv.indexOf("--write")
   if (i < 0) process.stdout.write(tsBlock())
   else {

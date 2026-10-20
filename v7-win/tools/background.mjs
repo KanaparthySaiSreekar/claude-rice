@@ -9,10 +9,10 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const V2 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "v2-win")
-const url = (p) => "file:///" + p.replace(/\\/g, "/")
+const url = (p) => pathToFileURL(p).href
 const { getPalette } = await import(url(path.join(V2, "tools", "lib", "palette.mjs")))
 const { claudeTheme, wtScheme, statusPalette } = await import(url(path.join(V2, "tools", "build.mjs")))
 const { readWt, writeWt, upsert, WT_SETTINGS } = await import(url(path.join(V2, "tools", "lib", "wt.mjs")))
