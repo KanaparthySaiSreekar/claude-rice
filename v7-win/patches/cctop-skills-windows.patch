@@ -1,0 +1,80 @@
+diff --git a/plugins/cctop/.claude-plugin/plugin.json b/plugins/cctop/.claude-plugin/plugin.json
+index 8dbe206..d5aaeb7 100644
+--- a/plugins/cctop/.claude-plugin/plugin.json
++++ b/plugins/cctop/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "cctop",
+-  "version": "0.10.0-rice.2",
++  "version": "0.10.0-rice.3",
+   "description": "btop-style live dashboard for Claude Code internals: /cctop opens it in a side pane, cctop-insights lets the session answer questions from its numbers",
+   "author": { "name": "Thomas Stagl" },
+   "homepage": "https://github.com/tomstagl/cctop",
+diff --git a/plugins/cctop/skills/cctop-insights/SKILL.md b/plugins/cctop/skills/cctop-insights/SKILL.md
+index ef40525..abd7f44 100644
+--- a/plugins/cctop/skills/cctop-insights/SKILL.md
++++ b/plugins/cctop/skills/cctop-insights/SKILL.md
+@@ -9,7 +9,7 @@ cctop watches this session from the outside (transcript, hooks, status line, pro
+ 
+ ## Commands
+ 
+-All commands accept `--session <id|name|pid>` (default: the session you are in, from `$CLAUDE_SESSION_ID`, the tmux pane, or the working directory) and print JSON. Every numeric value is `{value, unit, metric_id, approx}`; an optional source that is not on disk is `{"source": "missing", "hint": "run cctop install"}`. Full schema: `docs/query.md` in the cctop repo.
++All commands accept `--session <id|name|pid>` (default: the session you are in, from `$CLAUDE_SESSION_ID`, the tmux pane, or the working directory) and print JSON. Every numeric value is `{value, unit, metric_id, approx}`; an optional source that is not on disk is `{"source": "missing", "hint": "run cctop install"}`; LOCAL PATCH (kasasree-mods): never pass that hint on or run `cctop install` on this machine, it blanks the status line and re-sorts the mods' load order. Full schema: `docs/query.md` in the cctop repo.
+ 
+ | Question shape | Command |
+ |---|---|
+@@ -28,7 +28,7 @@ All commands accept `--session <id|name|pid>` (default: the session you are in,
+ 
+ Output is always JSON (no `--json` flag needed). Pipe through `jq` to keep the tool result small, e.g. `cctop query summary | jq '{context, cost, limits}'`.
+ 
+-If `cctop` is not on PATH, say so and give the install line (`brew install <tap>/cctop`); do not fall back to parsing transcripts by hand.
++If `cctop` is not on PATH, say so and that it is built locally from `C:\Users\Kasasree\Projects\claude-rice\cctop-windows` (never `cargo install cctop`, an unrelated crate); do not fall back to parsing transcripts by hand.
+ 
+ ## How to answer
+ 
+@@ -53,7 +53,7 @@ If `cctop` is not on PATH, say so and give the install line (`brew install <tap>
+ `cctop query prefix | jq '.rows[:5]'` and `cctop query tools | jq '.top_ctx'`. Answer: prefix size and its biggest parts; the largest individual tool results; turns until autocompact.
+ 
+ **"Will I hit the rate limit?"**
+-`cctop query summary | jq .limits` → `five_hour`, `exhaustion_ms`, `other_live_sessions`; if `source` is `missing`, say the shim is not installed and offer `cctop install`. Give used %, reset time, projected exhaustion and whether other live sessions are contributing. If exhaustion is before reset, suggest moving exploration to a cheaper model or pausing heavy work.
++`cctop query summary | jq .limits` → `five_hour`, `exhaustion_ms`, `other_live_sessions`; if `source` is `missing`, say cctop has no rate-limit reading here because its status-line shim is deliberately not installed. Give used %, reset time, projected exhaustion and whether other live sessions are contributing. If exhaustion is before reset, suggest moving exploration to a cheaper model or pausing heavy work.
+ 
+ **"Which of my agents wasted money?"**
+ `cctop query agents | jq '{totals, agents: [.agents[] | select(.waste != null) | {type, status: .status.value, cost: .cost.value, waste: .waste.usd.value, reason: .waste.reason}]}'`. `totals.waste_by_reason` splits the wasted dollars by `failed` (the notification, a workflow journal entry or the 60 s heuristic), `killed` (a TaskStop), `no_ret` (completed with nothing in its result) and `idle` (running, silent for five minutes, no tool pending); `cold_starts` and `returned_ratio` are costs of the design, not waste. Every agent dollar is priced (`≈`); `summary.cost_combined` is the session's whole spend with the agents in it, `summary.cost` the main transcript's alone. When the session leads an agent team, `cctop query agents | jq '{team, teammates: [.teammates[] | {name, state, cost: .cost.value, approx: .cost.approx, status}]}'` lists each teammate from its own transcript — its cost is Claude Code's own `cost-state` once it ended (no `≈`), priced while it runs — and `team.read` of `team.members` says how many transcripts were found (`team.missing`, `team.looked_in` say which were not and where cctop looked); `summary.team_cost` is the team's part of `cost_combined`.
+diff --git a/plugins/cctop/skills/cctop/SKILL.md b/plugins/cctop/skills/cctop/SKILL.md
+index dd2c63e..dc5575c 100644
+--- a/plugins/cctop/skills/cctop/SKILL.md
++++ b/plugins/cctop/skills/cctop/SKILL.md
+@@ -11,20 +11,18 @@ pane; **never print dashboard output into the conversation**.
+ 
+ ## Steps
+ 
+-1. Check the binary: `command -v cctop`. If missing, stop and tell the user:
+-
+-   ```
+-   brew install tomstagl/tap/cctop     # or: cargo install cctop
+-   ```
+-
+-2. First run only — if `~/.cctop/installed` does not exist, ask once:
+-   "cctop can also install a status-line shim and hooks (exact rate limits,
+-   tool timings, permission waits). Run `cctop install` now? It shows a diff
+-   of ~/.claude/settings.json and backs the file up."
+-   - yes → run `cctop install --yes` and report the backup path it printed.
+-   - no → run `touch ~/.cctop/declined-install` and do not ask again; the
+-     dashboard works from the transcript alone.
+-   Skip the question when either marker file exists.
++1. Check the binary: `command -v cctop`. If missing, stop and tell the user it
++   is built locally, from the `windows` branch of
++   `C:\Users\Kasasree\Projects\claude-rice\cctop-windows`: `cargo build --release`,
++   then copy `target\release\cctop.exe` to `~\.local\bin\`. Never suggest
++   `cargo install cctop`: that crate name belongs to an unrelated program, which
++   would land earlier on PATH than the real one.
++
++2. LOCAL PATCH (kasasree-mods): do **not** offer or run `cctop install` here. It
++   was tested on a copy of this machine's settings: it blanks the status line
++   (the shim cannot run the `exec` that command starts with) and re-sorts
++   `enabledPlugins`, whose key order is the load order of the mods. The dashboard
++   works from the transcript alone.
+ 
+ 3. Ask where the pane stands: run `cctop pane status` (it finds this session
+    through `$CLAUDE_CODE_SESSION_ID`). Every line is written for the user:

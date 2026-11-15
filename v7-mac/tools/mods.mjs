@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// mods.mjs: register the pinned marketplace (claude-mods-local, next to this repo) as kasasree-mods and install the eight
+// mods.mjs: register the pinned marketplace (claude-mods-local, next to this repo or in it) as kasasree-mods and install the eight
 // mods v7 switches on. Idempotent: a mod already installed is updated from the marketplace instead (Claude Code copies a
 // mod into its cache again only when its version changed).
 //
@@ -11,7 +11,8 @@ import { execFileSync } from "node:child_process"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-export const MARKET = path.resolve(HERE, "..", "..", "..", "claude-mods-local")
+// next to this repo (~/Projects/claude-mods-local, where rebuild-marketplace.sh puts it), or inside it as on Windows
+export const MARKET = [path.resolve(HERE, "..", "..", "..", "claude-mods-local"), path.resolve(HERE, "..", "..", "claude-mods-local")].find((d) => fs.existsSync(d)) ?? path.resolve(HERE, "..", "..", "..", "claude-mods-local")
 export const NAME = "kasasree-mods"
 const spec = JSON.parse(fs.readFileSync(path.resolve(HERE, "..", "version.json"), "utf8"))
 // every mod v7 turns on (skins, which it turns off, is not in the macOS marketplace)

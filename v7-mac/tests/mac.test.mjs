@@ -126,7 +126,7 @@ test("v7-mac's switch: every option it sets is declared in that mod's manifest; 
   const p7 = v.options["prismantis@kasasree-mods"]
   assert.deepEqual([p7.promptStyle, p7.promptColor, p7.declined], ["bubble", p.base.fg, "quiet"])
   assert.equal(v.options["cctop@kasasree-mods"].statusLine, false)
-  const market = path.resolve(import.meta.dirname, "..", "..", "..", "claude-mods-local")
+  const market = (await import("../tools/mods.mjs")).MARKET
   if (!fs.existsSync(market)) return
   const entries = JSON.parse(fs.readFileSync(path.join(market, ".claude-plugin", "marketplace.json"), "utf8")).plugins
   for (const [id, opts] of Object.entries(v.options)) {
@@ -168,4 +168,32 @@ test("secret-box loads last, so every other mod sees only placeholders: kept at 
   // merging twice changes nothing
   const once = merged(before, v)
   assert.equal(merged(once, v), once)
+})
+
+test("every patch the rebuild checks exists, and the marketplace README gives each patched mod the version its last patch sets (v7.3: cockpit, cctop, secret-box)", () => {
+  const repo = path.resolve(import.meta.dirname, "..", "..")
+  const sh = fs.readFileSync(path.join(repo, "v7-mac", "tools", "rebuild-marketplace.sh"), "utf8")
+  const dirs = { P3: "v3-win/patches", P7: "v7-win/patches", PM: "v7-mac/patches" }
+  // the post-image check names every patch, in the order they are applied
+  const patches = [...sh.slice(sh.indexOf("bad=0")).matchAll(/"\$(P3|P7|PM)"?\/([\w-]+\.patch)/g)].map(([, d, f]) => path.join(repo, dirs[d], f))
+  assert.equal(patches.length, 12)
+  for (const name of ["cockpit-guard-off", "secret-box-guard-switch", "cctop-skills"])
+    assert.ok([`git apply "$P7/${name}.patch"`, `git apply "$PM/${name}.patch"`].some((line) => sh.includes(line)), `${name} is checked but never applied`)
+  const version = {}
+  for (const p of patches) {
+    assert.ok(fs.existsSync(p), `${p} is missing`)
+    let mod = null
+    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+      if (line.startsWith("diff --git ")) mod = line.match(/^diff --git a\/plugins\/([\w-]+)\/\.claude-plugin\/plugin\.json /)?.[1] ?? null
+      const v = mod && line.match(/^\+\s*"version": "([^"]+)"/)
+      if (v) version[mod] = v[1]
+    }
+  }
+  const readme = fs.readFileSync(path.join(repo, "v7-mac", "marketplace", "README.md"), "utf8").split(/\r?\n/)
+  for (const [mod, v] of Object.entries(version)) {
+    const row = readme.find((r) => r.startsWith(`| ${mod} |`))
+    assert.ok(row, `${mod} has no provenance row`)
+    assert.equal(row.split("|")[4].trim(), v, `${mod}: the README says ${row.split("|")[4].trim()}, its patches set ${v}`)
+  }
+  assert.deepEqual([version.cockpit, version.cctop, version["secret-box"]], ["1.0.2-rice.2", "0.10.0-rice.3", "0.5.3-rice.2"])
 })

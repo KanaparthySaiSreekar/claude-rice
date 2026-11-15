@@ -1,0 +1,128 @@
+diff --git a/plugins/cockpit/.claude-plugin/plugin.json b/plugins/cockpit/.claude-plugin/plugin.json
+index 439155b..9fdc242 100644
+--- a/plugins/cockpit/.claude-plugin/plugin.json
++++ b/plugins/cockpit/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "cockpit",
+-  "version": "1.0.2-rice.1",
++  "version": "1.0.2-rice.2",
+   "description": "Agent cockpit for Claude Code: live context, limits, cost, tools, files, tests and a guard for risky commands",
+   "author": {
+     "name": "drkokorev"
+diff --git a/plugins/cockpit/README.md b/plugins/cockpit/README.md
+index 64af493..4771cad 100644
+--- a/plugins/cockpit/README.md
++++ b/plugins/cockpit/README.md
+@@ -2,6 +2,8 @@
+ 
+ A live instrument panel for Claude Code, built as a mod: context fill, rate limits, cost, subagents, tool calls, changed files and test runs, each section opening to its details, plus a guard that asks before risky commands and edits to secrets files.
+ 
++**Local patch:** the guard starts off here, for both risky commands and secrets files. `/cockpit-guard on` or the panel's Guard button turns it on until the session ends.
++
+ Works in the Claude Code terminal and the Claude desktop app (Code tab). Requires Claude Code v2.1.287 or later.
+ 
+ - `/cockpit` opens the panel
+diff --git a/plugins/cockpit/hooks/register.tsx b/plugins/cockpit/hooks/register.tsx
+index 1fe1bb3..f903957 100644
+--- a/plugins/cockpit/hooks/register.tsx
++++ b/plugins/cockpit/hooks/register.tsx
+@@ -75,7 +75,8 @@ const EMPTY_STATS: CockpitStats = {
+ const stats = atom({ plugin: 'cockpit', key: 'stats' } as const, EMPTY_STATS)
+ const DEFAULT_PREFS: CockpitPrefs = {
+   isCompact: false,
+-  isGuardOn: true,
++  // LOCAL PATCH (1.0.2-rice.2): upstream starts on. /cockpit-guard or the panel's button turns it on for the session.
++  isGuardOn: false,
+   isStatusOn: true,
+   isBandOn: false,
+   budgetUsd: 0,
+diff --git a/plugins/cockpit/tests/kasasree.test.tsx b/plugins/cockpit/tests/kasasree.test.tsx
+index 9027dbd..c2230e7 100644
+--- a/plugins/cockpit/tests/kasasree.test.tsx
++++ b/plugins/cockpit/tests/kasasree.test.tsx
+@@ -1,6 +1,48 @@
+-// LOCAL PATCH (kasasree-mods) tests: the `band` and `statusLine` options.
++// LOCAL PATCH (kasasree-mods) tests: the `band` and `statusLine` options, and the guard starting off.
+ import { expect, mock, test } from 'claude-code/testing'
+ 
++const CALLS = [
++  ['a risky command', { tool: 'Bash', command: 'rm -rf build' }],
++  ['an edit to a secrets file', { tool: 'Write', file_path: '/repo/.env.local', content: 'KEY=1' }],
++] as const
++
++for (const [name, call] of CALLS) {
++  test(`the guard starts off: ${name} runs and nothing is asked`, async ($, on) => {
++    mock.clock(on, { now: 1_800_000_000_000 })
++    mock.store(on)
++    let asked = 0
++    let ran = 0
++    on('tool.call', { tool: 'AskUserQuestion' }, () => {
++      asked += 1
++      return { result: { answers: { q: 'Block it' } } }
++    })
++    on('tool.call', { tool: call.tool }, () => {
++      ran += 1
++      return { result: { stdout: '', stderr: '' } }
++    })
++    await $.tool.call(call as never)
++    expect(ran).toBe(1)
++    expect(asked).toBe(0)
++  })
++
++  test(`/cockpit-guard on and off: ${name} is asked about only while it is on`, async ($, on) => {
++    mock.clock(on, { now: 1_800_000_000_000 })
++    mock.store(on)
++    let asked = 0
++    on('tool.call', { tool: 'AskUserQuestion' }, () => {
++      asked += 1
++      return { result: { answers: { q: 'Block it' } } }
++    })
++    on('tool.call', { tool: call.tool }, () => ({ result: { stdout: '', stderr: '' } }))
++    expect((await $.command.run({ command: 'cockpit-guard', args: 'on' })).text).toContain('is on')
++    await $.tool.call(call as never)
++    expect(asked).toBe(1)
++    expect((await $.command.run({ command: 'cockpit-guard', args: 'off' })).text).toContain('is off')
++    await $.tool.call(call as never)
++    expect(asked).toBe(1)
++  })
++}
++
+ const BAND = {
+   plugin: 'cockpit',
+   surface: 'terminal',
+diff --git a/plugins/cockpit/tests/logic.test.ts b/plugins/cockpit/tests/logic.test.ts
+index 0b303e6..873232a 100644
+--- a/plugins/cockpit/tests/logic.test.ts
++++ b/plugins/cockpit/tests/logic.test.ts
+@@ -44,6 +44,7 @@ test('a risky command is denied when the user blocks it', async ($, on) => {
+     didRun = true
+     return { result: { stdout: '', stderr: '' } }
+   })
++  await $.command.run({ command: 'cockpit-guard', args: 'on' }) // LOCAL PATCH (kasasree-mods): the guard starts off here
+   const ran = await $.tool.call({ tool: 'Bash', command: 'rm -rf build' })
+   expect(ran.isError === true || ran.deny !== undefined).toBe(true)
+   expect(didRun).toBe(false)
+@@ -58,6 +59,7 @@ test('an edit to a secrets file is stopped when the user blocks it', async ($, o
+     didRun = true
+     return { result: {} }
+   })
++  await $.command.run({ command: 'cockpit-guard', args: 'on' }) // LOCAL PATCH (kasasree-mods): the guard starts off here
+   await $.tool.call({ tool: 'Write', file_path: '/repo/.env.local', content: 'KEY=1' })
+   expect(didRun).toBe(false)
+ })
+diff --git a/plugins/cockpit/tests/pane.test.tsx b/plugins/cockpit/tests/pane.test.tsx
+index 42ab449..44a0058 100644
+--- a/plugins/cockpit/tests/pane.test.tsx
++++ b/plugins/cockpit/tests/pane.test.tsx
+@@ -36,8 +36,9 @@ test('the cockpit pane draws and toggles on every surface', async ($, on) => {
+     expect(await ui.find({ type: 'Button', text: /GUARD/ })).toBeUndefined()
+     await ui.press({ key: 'compact' })
+     expect(await ui.find({ type: 'Button', text: /GUARD/ })).toBeDefined()
++    // LOCAL PATCH (kasasree-mods): the guard starts off here, so the first press turns it on
+     await ui.press({ key: 'guard' })
+-    expect(await ui.find({ type: 'Button', text: /Guard: off/ })).toBeDefined()
++    expect(await ui.find({ type: 'Button', text: /Guard: on/ })).toBeDefined()
+     await ui.press({ key: 'guard' })
+     expect(await ui.find({ type: 'Button', text: /AGENTS/ })).toBeDefined()
+     expect(await ui.find({ type: 'Button', text: /COST/ })).toBeDefined()

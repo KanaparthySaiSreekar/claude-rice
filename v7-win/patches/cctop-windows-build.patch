@@ -1,0 +1,925 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index ebdda26..2b83ff9 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -118,6 +118,7 @@ dependencies = [
+  "thiserror",
+  "tokio",
+  "toml",
++ "windows-sys 0.52.0",
+ ]
+ 
+ [[package]]
+diff --git a/Cargo.toml b/Cargo.toml
+index 2f9aa78..d675138 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -26,6 +26,18 @@ thiserror = "2"
+ tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "time", "sync"] }
+ toml = "0.8"
+ 
++[target.'cfg(windows)'.dependencies]
++windows-sys = { version = "0.52", features = [
++  "Wdk_System_Threading",
++  "Win32_Foundation",
++  "Win32_System_Console",
++  "Win32_System_Diagnostics_ToolHelp",
++  "Win32_System_ProcessStatus",
++  "Win32_System_SystemInformation",
++  "Win32_System_Threading",
++  "Win32_System_Time",
++] }
++
+ [dev-dependencies]
+ insta = "1"
+ 
+diff --git a/src/ask.rs b/src/ask.rs
+index 2a7c0ac..5d3d64e 100644
+--- a/src/ask.rs
++++ b/src/ask.rs
+@@ -6,9 +6,13 @@
+ //! channel, so this arrives as an inbound message the session handles
+ //! according to its own peer-approval settings. See `docs/socket.md`.
+ 
+-use std::io::{BufRead, BufReader, Write};
++use std::io::Write;
++#[cfg(unix)]
++use std::io::{BufRead, BufReader};
++#[cfg(unix)]
+ use std::os::unix::net::UnixStream;
+ use std::path::Path;
++#[cfg(unix)]
+ use std::time::Duration;
+ 
+ use crate::ui::fmt;
+@@ -114,7 +118,35 @@ pub fn compose(state: &State, panel: u8) -> Option<String> {
+     Some(fmt::clip(&text, MAX_CHARS))
+ }
+ 
++/// Copy to the system clipboard with `clip`. It reads UTF-16 when the text
++/// starts with a BOM, and the console's code page otherwise.
++#[cfg(windows)]
++pub fn copy_to_clipboard(text: &str) -> Result<&'static str, String> {
++    let mut child = std::process::Command::new("clip")
++        .stdin(std::process::Stdio::piped())
++        .stdout(std::process::Stdio::null())
++        .stderr(std::process::Stdio::null())
++        .spawn()
++        .map_err(|e| format!("cannot start clip: {e}"))?;
++    if let Some(mut stdin) = child.stdin.take() {
++        let bytes: Vec<u8> = std::iter::once('\u{feff}')
++            .chain(text.chars())
++            .collect::<String>()
++            .encode_utf16()
++            .flat_map(u16::to_le_bytes)
++            .collect();
++        stdin
++            .write_all(&bytes)
++            .map_err(|e| format!("write failed: {e}"))?;
++    }
++    match child.wait() {
++        Ok(status) if status.success() => Ok("clip"),
++        _ => Err("clip failed".into()),
++    }
++}
++
+ /// Copy to the system clipboard (pbcopy / wl-copy / xclip). Ok(tool name).
++#[cfg(unix)]
+ pub fn copy_to_clipboard(text: &str) -> Result<&'static str, String> {
+     let candidates: [(&str, &[&str]); 3] = [
+         ("pbcopy", &[]),
+@@ -161,6 +193,21 @@ pub fn peer_token(sessions_dir: &Path, pid: u32) -> Option<String> {
+ /// Send `text` as a user message over the session's messaging socket, using
+ /// the newline-delimited JSON framing Claude Code documents for injection:
+ /// an `auth` line, then a `user` line. Returns the first reply line, if any.
++#[cfg(windows)]
++pub fn send_over_socket(
++    _socket: &Path,
++    _token: Option<&str>,
++    _text: &str,
++) -> Result<Option<String>, String> {
++    // The registry names a `\\.\pipe\...` here, not a Unix socket. Sending
++    // injects a message into a live session, so it stays off until tested.
++    Err("sending to the session is not supported on Windows; Enter copies the prompt instead".into())
++}
++
++/// Send `text` as a user message over the session's messaging socket, using
++/// the newline-delimited JSON framing Claude Code documents for injection:
++/// an `auth` line, then a `user` line. Returns the first reply line, if any.
++#[cfg(unix)]
+ pub fn send_over_socket(
+     socket: &Path,
+     token: Option<&str>,
+@@ -193,6 +240,7 @@ pub fn send_over_socket(
+ mod tests {
+     use super::*;
+     use crate::ui::state::tests_support::fixture_state;
++    #[cfg(unix)]
+     use std::os::unix::net::UnixListener;
+ 
+     #[test]
+@@ -212,6 +260,7 @@ mod tests {
+         assert!(tools.contains("Largest results in context"), "{tools}");
+     }
+ 
++    #[cfg(unix)]
+     #[test]
+     fn socket_framing_is_auth_then_user_line() {
+         let dir = std::env::temp_dir().join(format!("cctop-ask-{}", std::process::id()));
+diff --git a/src/coach_stats.rs b/src/coach_stats.rs
+index df598d4..beeae71 100644
+--- a/src/coach_stats.rs
++++ b/src/coach_stats.rs
+@@ -395,6 +395,13 @@ pub fn assign(home: &Path, mode: &str, project: &str, model: &str, version: &str
+ }
+ 
+ /// This process's CPU time so far (user + system), seconds.
++#[cfg(windows)]
++pub fn process_cpu_s() -> f64 {
++    crate::win::process_cpu_s()
++}
++
++/// This process's CPU time so far (user + system), seconds.
++#[cfg(unix)]
+ pub fn process_cpu_s() -> f64 {
+     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+     // SAFETY: `getrusage` fills the struct we own for this process.
+diff --git a/src/files.rs b/src/files.rs
+index 52b712b..c52e4c8 100644
+--- a/src/files.rs
++++ b/src/files.rs
+@@ -129,10 +129,11 @@ impl Files {
+     }
+ 
+     fn entry(&mut self, path: &str) -> &mut FileStats {
++        let path = crate::canonical_path(path);
+         self.files
+-            .entry(path.to_string())
++            .entry(path.clone())
+             .or_insert_with(|| FileStats {
+-                path: path.to_string(),
++                path,
+                 ..Default::default()
+             })
+     }
+@@ -140,20 +141,20 @@ impl Files {
+     /// The key a Bash path maps to: an existing entry it ends with, else the
+     /// path resolved against the working directory.
+     fn resolve(&self, raw: &str) -> String {
++        let raw = crate::canonical_path(raw);
+         if let Some(k) = self.files.keys().find(|k| {
+             k.as_str() == raw || k.ends_with(&format!("/{}", raw.trim_start_matches("./")))
+         }) {
+             return k.clone();
+         }
+-        if raw.starts_with('/') {
+-            return raw.to_string();
++        if raw.starts_with('/') || Path::new(&raw).is_absolute() {
++            return raw;
+         }
+         match &self.cwd {
+-            Some(c) => c
+-                .join(raw.trim_start_matches("./"))
+-                .to_string_lossy()
+-                .into_owned(),
+-            None => raw.to_string(),
++            Some(c) => crate::canonical_path(
++                &c.join(raw.trim_start_matches("./")).to_string_lossy(),
++            ),
++            None => raw,
+         }
+     }
+ 
+@@ -300,9 +301,10 @@ impl Files {
+ 
+     /// Apply `git diff --numstat` figures (paths relative to `cwd`).
+     pub fn apply_numstat(&mut self, cwd: &Path, numstat: &[(String, u64, u64)]) {
++        let cwd = crate::canonical_path(&cwd.to_string_lossy());
+         for f in self.files.values_mut() {
+             let rel = Path::new(&f.path)
+-                .strip_prefix(cwd)
++                .strip_prefix(&cwd)
+                 .map(|p| p.to_string_lossy().into_owned())
+                 .unwrap_or_else(|_| f.path.clone());
+             match numstat.iter().find(|(p, _, _)| *p == rel) {
+@@ -451,6 +453,37 @@ mod tests {
+         .unwrap()
+     }
+ 
++    #[cfg(windows)]
++    #[test]
++    fn every_windows_spelling_of_a_path_is_one_file() {
++        let mut f = Files::default();
++        f.set_cwd(Path::new(r"C:\repo"));
++        f.push(&call("r1", "Read", r#"{"file_path":"C:\\repo\\src\\a.rs"}"#, 1));
++        f.push(&result("r1", r#"{"type":"text","file":{"filePath":"C:\\repo\\src\\a.rs","content":"…","numLines":5,"startLine":1,"totalLines":5}}"#, 1));
++        for (id, command) in [
++            ("b1", "cat src/a.rs"),
++            ("b2", "cat C:/repo/src/a.rs"),
++            ("b3", "cat /c/repo/src/a.rs"),
++        ] {
++            f.push(&call(id, "Bash", &format!(r#"{{"command":"{command}"}}"#), 2));
++            f.push(&result(id, r#"{"stdout":"…","stderr":"","interrupted":false}"#, 2));
++        }
++        // A file first seen through Bash is the same one Read then names.
++        f.push(&call("b4", "Bash", r#"{"command":"cat src/b.rs"}"#, 3));
++        f.push(&result("b4", r#"{"stdout":"…","stderr":"","interrupted":false}"#, 3));
++        f.push(&call("r2", "Read", r#"{"file_path":"C:\\repo\\src\\b.rs"}"#, 4));
++        assert_eq!(f.files.len(), 2, "{:?}", f.files.keys());
++        assert_eq!(f.files["C:/repo/src/a.rs"].bash_reads, 3);
++        assert_eq!(f.files["C:/repo/src/b.rs"].bash_reads, 1);
++        // git prints forward slashes, relative to a cwd spelled with backslashes.
++        f.apply_numstat(Path::new(r"C:\repo"), &[("src/a.rs".into(), 7, 2)]);
++        assert_eq!(f.files["C:/repo/src/a.rs"].lines_added, Some(7));
++        assert_eq!(f.files["C:/repo/src/a.rs"].lines_removed, Some(2));
++        // The transcript's cwd can be in Git Bash's spelling, too.
++        f.apply_numstat(Path::new("/c/repo"), &[("src/a.rs".into(), 9, 1)]);
++        assert_eq!(f.files["C:/repo/src/a.rs"].lines_added, Some(9));
++    }
++
+     #[test]
+     fn reread_rules() {
+         let mut f = Files::default();
+diff --git a/src/hooks.rs b/src/hooks.rs
+index 9eaf3f7..8a27ef9 100644
+--- a/src/hooks.rs
++++ b/src/hooks.rs
+@@ -187,6 +187,8 @@ pub fn run_hook() -> i32 {
+         if v.get("hook_event_name").and_then(Value::as_str) == Some("SessionEnd") {
+             if let Some(id) = v.get("session_id").and_then(Value::as_str) {
+                 if let Ok(exe) = std::env::current_exe() {
++                    #[cfg(windows)]
++                    crate::win::keep_std_handles_from_children();
+                     let _ = std::process::Command::new(exe)
+                         .args(["report", "--session", id])
+                         .stdin(std::process::Stdio::null())
+diff --git a/src/lib.rs b/src/lib.rs
+index 9308f87..b35557d 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -48,6 +48,8 @@ pub mod theme;
+ pub mod tools;
+ pub mod transcript;
+ pub mod ui;
++#[cfg(windows)]
++pub mod win;
+ pub mod workflow_runs;
+ pub mod workflow_script;
+ 
+@@ -65,6 +67,29 @@ pub fn transcript_path(s: &registry::Session) -> std::path::PathBuf {
+         .join(format!("{}.jsonl", s.session_id))
+ }
+ 
++/// One spelling per file. On Windows, Claude Code reports `C:\x\y`, a Bash
++/// command says `x/y`, `C:/x/y` or Git Bash's `/c/x/y`, and git prints `x/y`;
++/// all become `C:/x/y`, the form git's relative paths can be compared with.
++#[cfg(windows)]
++pub fn canonical_path(path: &str) -> String {
++    let p = path.replace('\\', "/");
++    let b = p.as_bytes();
++    if b.len() >= 2 && b[0] == b'/' && b[1].is_ascii_alphabetic() && b.get(2).is_none_or(|c| *c == b'/') {
++        let rest = if b.len() == 2 { "/" } else { &p[2..] };
++        return format!("{}:{}", (b[1] as char).to_ascii_uppercase(), rest);
++    }
++    if b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':' {
++        return format!("{}{}", (b[0] as char).to_ascii_uppercase(), &p[1..]);
++    }
++    p
++}
++
++/// One spelling per file: elsewhere a path already has just the one.
++#[cfg(unix)]
++pub fn canonical_path(path: &str) -> String {
++    path.to_string()
++}
++
+ /// Claude Code's project slug for a working directory: every non-alphanumeric
+ /// character of the absolute path becomes `-`.
+ pub fn slug(cwd: &std::path::Path) -> String {
+diff --git a/src/load.rs b/src/load.rs
+index 3c75811..81d0f35 100644
+--- a/src/load.rs
++++ b/src/load.rs
+@@ -188,20 +188,32 @@ pub fn state_from_prefix(transcript: &Path, info: SessionInfo, n: usize) -> Stat
+ /// killed at its timeout does not take the refresh with it. Only from the
+ /// `cctop` binary itself: a test binary is no `cctop`.
+ fn spawn_baseline_refresh() -> Option<u32> {
+-    use std::os::unix::process::CommandExt;
+     let exe = std::env::current_exe().ok()?;
+     if exe.file_stem().is_none_or(|s| s != "cctop") {
+         return None;
+     }
+-    std::process::Command::new(exe)
++    let mut command = std::process::Command::new(exe);
++    command
+         .arg("baseline-refresh")
+         .stdin(std::process::Stdio::null())
+         .stdout(std::process::Stdio::null())
+-        .stderr(std::process::Stdio::null())
+-        .process_group(0)
+-        .spawn()
+-        .ok()
+-        .map(|child| child.id())
++        .stderr(std::process::Stdio::null());
++    #[cfg(unix)]
++    {
++        use std::os::unix::process::CommandExt;
++        command.process_group(0);
++    }
++    #[cfg(windows)]
++    {
++        use std::os::windows::process::CommandExt;
++        // Its own process group, and a hidden console rather than none: with
++        // none, the git it starts would each open a window of their own.
++        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
++        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
++        command.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
++        crate::win::keep_std_handles_from_children();
++    }
++    command.spawn().ok().map(|child| child.id())
+ }
+ 
+ /// The lead as the team collector sees it: its id from the registry, or
+@@ -271,7 +283,10 @@ mod tests {
+         // A stray file at the top level is not a project.
+         fs::write(root.join(format!("{A}.jsonl")), "{}\n").unwrap();
+         let old = SystemTime::now() - Duration::from_secs(3600);
+-        fs::File::open(two.join(format!("{B}.jsonl")))
++        // Windows sets a file's times only through a writable handle.
++        fs::File::options()
++            .write(true)
++            .open(two.join(format!("{B}.jsonl")))
+             .unwrap()
+             .set_modified(old)
+             .unwrap();
+diff --git a/src/main.rs b/src/main.rs
+index 78bbfbd..369cb22 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -304,6 +304,14 @@ fn main() {
+     unsafe {
+         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+     }
++    // Native Windows has no HOME, and every path under `~/.claude` and
++    // `~/.cctop` starts from it. Set here, before any thread exists.
++    #[cfg(windows)]
++    if std::env::var_os("HOME").is_none() {
++        if let Some(profile) = std::env::var_os("USERPROFILE") {
++            std::env::set_var("HOME", profile);
++        }
++    }
+     let cli = Cli::parse();
+     match cli.command.unwrap_or(Command::Run(RunArgs::default())) {
+         Command::Run(args) => run(args),
+diff --git a/src/mcp.rs b/src/mcp.rs
+index b561df6..22535ca 100644
+--- a/src/mcp.rs
++++ b/src/mcp.rs
+@@ -32,12 +32,18 @@ pub fn tools() -> Vec<Value> {
+ /// session. Pins discovery to the caller instead of "newest busy in $PWD",
+ /// which picks the wrong session when two run in the same project.
+ fn parent_session() -> Option<String> {
+-    let ppid = std::os::unix::process::parent_id();
++    #[cfg(unix)]
++    let parents = vec![std::os::unix::process::parent_id()];
++    #[cfg(windows)]
++    let parents = crate::win::ancestors();
+     let dir = crate::registry::default_dir()?;
+-    crate::registry::list(&dir)
+-        .iter()
+-        .find(|s| s.pid == ppid && s.is_alive())
+-        .map(|s| s.session_id.clone())
++    let sessions = crate::registry::list(&dir);
++    parents.iter().find_map(|pid| {
++        sessions
++            .iter()
++            .find(|s| s.pid == *pid && s.is_alive())
++            .map(|s| s.session_id.clone())
++    })
+ }
+ 
+ fn state_for(args: &Value) -> Result<crate::ui::State, String> {
+diff --git a/src/pane.rs b/src/pane.rs
+index c939a15..6a9c651 100644
+--- a/src/pane.rs
++++ b/src/pane.rs
+@@ -1433,7 +1433,8 @@ mod tests {
+             home.join(".claude/plugins/installed_plugins.json"),
+             format!(
+                 r#"{{"version":2,"plugins":{{"cctop@cctop":[{{"scope":"project","installPath":"/elsewhere","version":"0.1.0"}},{{"scope":"user","installPath":"{}","version":"0.2.0"}}]}}}}"#,
+-                plugin.display()
++                // Escaped: a Windows path is full of backslashes.
++                plugin.display().to_string().replace('\\', "\\\\")
+             ),
+         )
+         .unwrap();
+diff --git a/src/procenv.rs b/src/procenv.rs
+index d10aa63..aba1df9 100644
+--- a/src/procenv.rs
++++ b/src/procenv.rs
+@@ -1,9 +1,12 @@
+ //! The `claude` process's environment, for the handful of variables that
+ //! change how Claude Code behaves (autocompact overrides, the cache TTL
+ //! source, reminders). Read from `ps eww` on macOS and `/proc/<pid>/environ`
+-//! on Linux; only allowlisted keys are kept, and secrets are never read.
++//! on Linux; only allowlisted keys are kept, and secrets are never read. On
++//! Windows, cctop started by that `claude` (the pane, an MCP server) has
++//! inherited the same variables; started from elsewhere it has no reading.
+ 
+ use std::collections::BTreeMap;
++#[cfg(unix)]
+ use std::process::Command;
+ 
+ /// Variables cctop reads. Values are kept for these; presence only for
+@@ -31,6 +34,17 @@ pub const PRESENCE_ONLY: &[&str] = &[
+ 
+ /// The allowlisted variables of a process: value, or `"<set>"` for the
+ /// presence-only ones.
++#[cfg(windows)]
++pub fn env_of(pid: u32) -> BTreeMap<String, String> {
++    if !crate::win::ancestors().contains(&pid) {
++        return BTreeMap::new();
++    }
++    filter(std::env::vars().map(|(k, v)| format!("{k}={v}")))
++}
++
++/// The allowlisted variables of a process: value, or `"<set>"` for the
++/// presence-only ones.
++#[cfg(unix)]
+ pub fn env_of(pid: u32) -> BTreeMap<String, String> {
+     #[cfg(target_os = "linux")]
+     {
+diff --git a/src/procs.rs b/src/procs.rs
+index a824c80..12d9292 100644
+--- a/src/procs.rs
++++ b/src/procs.rs
+@@ -4,7 +4,6 @@
+ 
+ use std::collections::{BTreeMap, HashMap};
+ use std::path::Path;
+-use std::process::Command;
+ 
+ use serde::Deserialize;
+ 
+@@ -27,9 +26,17 @@ pub trait ProcessTable {
+ /// `ps -axo pid,ppid,pcpu,rss,etime,command`.
+ pub struct Ps;
+ 
++#[cfg(windows)]
+ impl ProcessTable for Ps {
+     fn all(&self) -> Vec<Proc> {
+-        let Ok(out) = Command::new("ps")
++        crate::win::process_table()
++    }
++}
++
++#[cfg(unix)]
++impl ProcessTable for Ps {
++    fn all(&self) -> Vec<Proc> {
++        let Ok(out) = std::process::Command::new("ps")
+             .args(["-axo", "pid=,ppid=,pcpu=,rss=,etime=,command="])
+             .output()
+         else {
+@@ -42,6 +49,7 @@ impl ProcessTable for Ps {
+     }
+ }
+ 
++#[cfg_attr(windows, allow(dead_code))]
+ fn parse_ps_line(line: &str) -> Option<Proc> {
+     let mut it = line.split_whitespace();
+     let pid = it.next()?.parse().ok()?;
+@@ -61,6 +69,7 @@ fn parse_ps_line(line: &str) -> Option<Proc> {
+ }
+ 
+ /// `[[dd-]hh:]mm:ss` → seconds.
++#[cfg_attr(windows, allow(dead_code))]
+ fn parse_etime(s: &str) -> Option<u64> {
+     let (days, rest) = match s.split_once('-') {
+         Some((d, r)) => (d.parse::<u64>().ok()?, r),
+@@ -272,7 +281,10 @@ fn is_shell(cmdline: &str) -> bool {
+         .file_name()
+         .map(|s| s.to_string_lossy().into_owned())
+         .unwrap_or_default();
+-    matches!(base.as_str(), "zsh" | "bash" | "sh" | "fish" | "dash")
++    matches!(
++        base.as_str(),
++        "zsh" | "bash" | "sh" | "fish" | "dash" | "pwsh" | "powershell" | "cmd"
++    )
+ }
+ 
+ /// `/bin/zsh -c 'cargo test'` → `cargo test`.
+@@ -280,9 +292,14 @@ fn strip_shell(cmdline: &str) -> String {
+     let mut it = cmdline.split_whitespace();
+     it.next();
+     let rest: Vec<&str> = it.collect();
+-    let rest = match rest.as_slice() {
+-        ["-c", cmd @ ..] | ["-lc", cmd @ ..] | ["-ic", cmd @ ..] => cmd.join(" "),
+-        other => other.join(" "),
++    // pwsh puts flags before its command, and cmd spells the flag `/c`.
++    let command_flag = rest.iter().position(|a| {
++        a.eq_ignore_ascii_case("-command") || a.eq_ignore_ascii_case("/c")
++    });
++    let rest = match (command_flag, rest.as_slice()) {
++        (Some(at), _) => rest[at + 1..].join(" "),
++        (None, ["-c", cmd @ ..] | ["-lc", cmd @ ..] | ["-ic", cmd @ ..]) => cmd.join(" "),
++        (None, other) => other.join(" "),
+     };
+     rest.trim_matches(|c| c == '\'' || c == '"').to_string()
+ }
+diff --git a/src/registry.rs b/src/registry.rs
+index a0686ad..b9eabbf 100644
+--- a/src/registry.rs
++++ b/src/registry.rs
+@@ -64,6 +64,13 @@ impl Session {
+ }
+ 
+ /// True when a process with `pid` exists (see [`Session::is_alive`]).
++#[cfg(windows)]
++pub fn pid_alive(pid: u32) -> bool {
++    crate::win::pid_alive(pid)
++}
++
++/// True when a process with `pid` exists (see [`Session::is_alive`]).
++#[cfg(unix)]
+ pub fn pid_alive(pid: u32) -> bool {
+     let Ok(pid) = i32::try_from(pid) else {
+         return false;
+diff --git a/src/tail.rs b/src/tail.rs
+index 389e268..8068932 100644
+--- a/src/tail.rs
++++ b/src/tail.rs
+@@ -276,7 +276,10 @@ mod tests {
+             "must wait for newline"
+         );
+         writeln!(f, "{b}").unwrap();
+-        assert!(matches!(next(&mut t).await, Line::QueueOperation(_)));
++        // Up to the poll interval: Windows holds back the change event while
++        // the writer keeps the file open.
++        let line = timeout(Duration::from_millis(1500), t.recv()).await;
++        assert!(matches!(line, Ok(Some(Line::QueueOperation(_)))));
+     }
+ 
+     #[tokio::test]
+diff --git a/src/ui/fmt.rs b/src/ui/fmt.rs
+index bbebcb0..bd55a92 100644
+--- a/src/ui/fmt.rs
++++ b/src/ui/fmt.rs
+@@ -83,14 +83,14 @@ pub fn bytes(b: u64) -> String {
+ 
+ /// `/Users/tom/code/cctop` → `~/code/cctop`.
+ pub fn shorten_home(path: &std::path::Path) -> String {
+-    let p = path.to_string_lossy();
++    let p = crate::canonical_path(&path.to_string_lossy());
+     if let Some(home) = std::env::var_os("HOME") {
+-        let h = home.to_string_lossy();
+-        if let Some(rest) = p.strip_prefix(h.as_ref()) {
++        let h = crate::canonical_path(&home.to_string_lossy());
++        if let Some(rest) = p.strip_prefix(h.as_str()) {
+             return format!("~{rest}");
+         }
+     }
+-    p.into_owned()
++    p
+ }
+ 
+ /// Epoch ms → `hh:mm` local-agnostic (UTC) clock.
+@@ -103,6 +103,15 @@ pub fn clock_hhmm(ms: i64) -> String {
+ /// This machine's UTC offset in seconds (`tm_gmtoff`), for the hour-of-day
+ /// comparisons against `/insights` figures, which Claude Code keeps in
+ /// local time.
++#[cfg(windows)]
++pub fn local_offset_secs() -> i64 {
++    crate::win::local_offset_secs()
++}
++
++/// This machine's UTC offset in seconds (`tm_gmtoff`), for the hour-of-day
++/// comparisons against `/insights` figures, which Claude Code keeps in
++/// local time.
++#[cfg(unix)]
+ pub fn local_offset_secs() -> i64 {
+     let now = std::time::SystemTime::now()
+         .duration_since(std::time::UNIX_EPOCH)
+diff --git a/src/win.rs b/src/win.rs
+new file mode 100644
+index 0000000..8593244
+--- /dev/null
++++ b/src/win.rs
+@@ -0,0 +1,318 @@
++//! Windows stand-ins for what the Unix build gets from libc and `ps`: process
++//! liveness, this process's CPU time, the UTC offset and the process table.
++
++use std::collections::HashMap;
++use std::mem::{size_of, zeroed};
++
++use windows_sys::Wdk::System::Threading::NtQueryInformationProcess;
++use windows_sys::Win32::Foundation::{
++    CloseHandle, GetLastError, SetHandleInformation, ERROR_ACCESS_DENIED, FILETIME, HANDLE,
++    HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE, STILL_ACTIVE, UNICODE_STRING,
++};
++use windows_sys::Win32::System::Console::{
++    GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
++};
++use windows_sys::Win32::System::Diagnostics::ToolHelp::{
++    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
++};
++use windows_sys::Win32::System::ProcessStatus::{
++    K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
++};
++use windows_sys::Win32::System::SystemInformation::GetSystemTimeAsFileTime;
++use windows_sys::Win32::System::Threading::{
++    GetCurrentProcess, GetExitCodeProcess, GetProcessTimes, OpenProcess,
++    PROCESS_QUERY_LIMITED_INFORMATION,
++};
++use windows_sys::Win32::System::Time::{GetTimeZoneInformation, TIME_ZONE_INFORMATION};
++
++use crate::procs::Proc;
++
++/// `ProcessCommandLineInformation`: readable with limited query rights, so no
++/// reading of another process's memory is needed.
++const PROCESS_COMMAND_LINE_INFORMATION: i32 = 60;
++const TIME_ZONE_ID_STANDARD: u32 = 1;
++const TIME_ZONE_ID_DAYLIGHT: u32 = 2;
++/// FILETIME ticks (100 ns) per second.
++const TICKS: f64 = 10_000_000.0;
++
++/// An open process handle, closed on drop.
++struct Process(HANDLE);
++
++impl Process {
++    fn open(pid: u32) -> Option<Self> {
++        // SAFETY: no memory-safety preconditions; a null result is checked.
++        let h = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
++        (h != 0).then_some(Self(h))
++    }
++}
++
++impl Drop for Process {
++    fn drop(&mut self) {
++        // SAFETY: the handle came from OpenProcess and is closed only here.
++        unsafe { CloseHandle(self.0) };
++    }
++}
++
++fn ticks(t: &FILETIME) -> u64 {
++    (u64::from(t.dwHighDateTime) << 32) | u64::from(t.dwLowDateTime)
++}
++
++/// Call before spawning a detached child. A Windows child inherits every
++/// inheritable handle, not only its own stdio, so it would keep this process's
++/// stdout pipe open after this process exits, and a caller reading that pipe
++/// (the pane's `cctop query`) would wait for the child too: issue #15 again.
++/// A later child that asks to inherit stdio still gets it, through a duplicate.
++pub fn keep_std_handles_from_children() {
++    for id in [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
++        // SAFETY: only changes a flag on a handle this process owns; both
++        // "no handle" answers are checked.
++        unsafe {
++            let h = GetStdHandle(id);
++            if h != 0 && h != INVALID_HANDLE_VALUE {
++                SetHandleInformation(h, HANDLE_FLAG_INHERIT, 0);
++            }
++        }
++    }
++}
++
++/// True when a process with `pid` exists. Access denied counts as alive, as
++/// `EPERM` does on Unix: the process is there, we just may not query it.
++pub fn pid_alive(pid: u32) -> bool {
++    match Process::open(pid) {
++        Some(p) => {
++            let mut code = 0u32;
++            // SAFETY: `code` is ours and the handle is open.
++            let ok = unsafe { GetExitCodeProcess(p.0, &mut code) };
++            ok != 0 && code == STILL_ACTIVE as u32
++        }
++        // SAFETY: reads this thread's last error, set by OpenProcess above.
++        None => unsafe { GetLastError() == ERROR_ACCESS_DENIED },
++    }
++}
++
++/// `(created, kernel + user)` of a process, in FILETIME ticks.
++fn times(h: HANDLE) -> Option<(u64, u64)> {
++    // SAFETY: an all-zero FILETIME is valid; the call fills the four we own.
++    unsafe {
++        let (mut created, mut exited): (FILETIME, FILETIME) = (zeroed(), zeroed());
++        let (mut kernel, mut user): (FILETIME, FILETIME) = (zeroed(), zeroed());
++        let ok = GetProcessTimes(h, &mut created, &mut exited, &mut kernel, &mut user);
++        (ok != 0).then(|| (ticks(&created), ticks(&kernel) + ticks(&user)))
++    }
++}
++
++/// This process's CPU time so far (user + system), seconds.
++pub fn process_cpu_s() -> f64 {
++    // SAFETY: the pseudo-handle of the current process needs no closing.
++    let me = unsafe { GetCurrentProcess() };
++    times(me).map_or(0.0, |(_, cpu)| cpu as f64 / TICKS)
++}
++
++/// This machine's UTC offset in seconds, east positive.
++pub fn local_offset_secs() -> i64 {
++    // SAFETY: an all-zero struct is valid, and the call fills it.
++    let (zone, tz) = unsafe {
++        let mut tz: TIME_ZONE_INFORMATION = zeroed();
++        (GetTimeZoneInformation(&mut tz), tz)
++    };
++    let bias = i64::from(tz.Bias)
++        + match zone {
++            TIME_ZONE_ID_DAYLIGHT => i64::from(tz.DaylightBias),
++            TIME_ZONE_ID_STANDARD => i64::from(tz.StandardBias),
++            _ => 0,
++        };
++    -bias * 60
++}
++
++/// Every process as `(pid, parent pid, exe name)`, from one snapshot.
++fn snapshot() -> Vec<(u32, u32, String)> {
++    let mut out = Vec::new();
++    // SAFETY: the handle is checked before use and closed below; the entry is
++    // ours, with dwSize set as the API requires.
++    unsafe {
++        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
++        if snap == INVALID_HANDLE_VALUE {
++            return out;
++        }
++        let mut e: PROCESSENTRY32W = zeroed();
++        e.dwSize = size_of::<PROCESSENTRY32W>() as u32;
++        let mut more = Process32FirstW(snap, &mut e) != 0;
++        while more {
++            let len = e.szExeFile.iter().position(|c| *c == 0).unwrap_or(e.szExeFile.len());
++            out.push((
++                e.th32ProcessID,
++                e.th32ParentProcessID,
++                String::from_utf16_lossy(&e.szExeFile[..len]),
++            ));
++            more = Process32NextW(snap, &mut e) != 0;
++        }
++        CloseHandle(snap);
++    }
++    out
++}
++
++/// `pid`'s chain of parents, nearest first. A dead parent's id can be reused,
++/// so the walk is capped rather than trusted to end.
++fn parents_of(all: &[(u32, u32, String)], pid: u32) -> Vec<u32> {
++    let parent: HashMap<u32, u32> = all.iter().map(|(p, pp, _)| (*p, *pp)).collect();
++    let mut out = Vec::new();
++    let mut at = pid;
++    while let Some(&next) = parent.get(&at) {
++        if next == 0 || out.len() >= 32 || out.contains(&next) {
++            break;
++        }
++        out.push(next);
++        at = next;
++    }
++    out
++}
++
++/// This process's chain of parents, nearest first. A server spawned through
++/// a `.cmd` shim has the shim between it and `claude`, so not only the parent.
++pub fn ancestors() -> Vec<u32> {
++    parents_of(&snapshot(), std::process::id())
++}
++
++/// The command line of a process. The buffer starts with a UNICODE_STRING
++/// pointing further into itself.
++fn command_line(h: HANDLE) -> Option<String> {
++    let mut size = 4096u32;
++    for _ in 0..2 {
++        // u64 elements: the UNICODE_STRING at the start needs pointer alignment.
++        let mut buf = vec![0u64; (size as usize).div_ceil(8)];
++        let mut needed = 0u32;
++        // SAFETY: the buffer is ours and `size` bytes long.
++        let status = unsafe {
++            NtQueryInformationProcess(
++                h,
++                PROCESS_COMMAND_LINE_INFORMATION,
++                buf.as_mut_ptr().cast(),
++                size,
++                &mut needed,
++            )
++        };
++        if status >= 0 {
++            // SAFETY: on success the buffer starts with a UNICODE_STRING whose
++            // Buffer holds Length bytes, inside the allocation we still hold.
++            let text = unsafe {
++                let s = &*buf.as_ptr().cast::<UNICODE_STRING>();
++                if s.Buffer.is_null() {
++                    return None;
++                }
++                std::slice::from_raw_parts(s.Buffer, usize::from(s.Length) / 2)
++            };
++            return Some(String::from_utf16_lossy(text));
++        }
++        if needed <= size {
++            return None;
++        }
++        size = needed;
++    }
++    None
++}
++
++/// `"C:\Program Files\Git\bin\bash.exe" -c x` → `bash -c x`: the shape the
++/// rest of `procs` reads, which splits on spaces and looks at the first word.
++pub fn normalize_cmdline(raw: &str) -> String {
++    let raw = raw.trim();
++    let (exe, rest) = match raw.strip_prefix('"') {
++        Some(after) => after.split_once('"').unwrap_or((after, "")),
++        None => raw.split_once(char::is_whitespace).unwrap_or((raw, "")),
++    };
++    let base = exe.rsplit(['\\', '/']).next().unwrap_or(exe);
++    let stem = match base.len().checked_sub(4) {
++        Some(n) if base.is_char_boundary(n) && base[n..].eq_ignore_ascii_case(".exe") => &base[..n],
++        _ => base,
++    };
++    let rest = rest.trim();
++    if rest.is_empty() {
++        stem.to_string()
++    } else {
++        format!("{stem} {rest}")
++    }
++}
++
++/// Every process, the columns `ps -axo pid,ppid,pcpu,rss,etime,command` gives
++/// on Unix. A process this user may not query keeps its exe name and zeros;
++/// the CPU figure is the lifetime average, as Linux's `pcpu` is.
++pub fn process_table() -> Vec<Proc> {
++    let mut now: FILETIME = unsafe { zeroed() };
++    // SAFETY: the call fills the struct we own.
++    unsafe { GetSystemTimeAsFileTime(&mut now) };
++    let now = ticks(&now);
++    snapshot()
++        .into_iter()
++        .filter(|(pid, _, _)| *pid != 0)
++        .map(|(pid, ppid, exe)| {
++            let mut row = Proc {
++                pid,
++                ppid,
++                cpu_pct: 0.0,
++                rss_bytes: 0,
++                elapsed_s: 0,
++                cmdline: normalize_cmdline(&exe),
++            };
++            let Some(p) = Process::open(pid) else {
++                return row;
++            };
++            if let Some((created, cpu)) = times(p.0) {
++                let elapsed = now.saturating_sub(created);
++                row.elapsed_s = (elapsed as f64 / TICKS) as u64;
++                if elapsed > 0 {
++                    row.cpu_pct = (cpu as f64 / elapsed as f64 * 100.0) as f32;
++                }
++            }
++            // SAFETY: an all-zero counters struct is valid, and `cb` is its size.
++            unsafe {
++                let mut mem: PROCESS_MEMORY_COUNTERS = zeroed();
++                mem.cb = size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
++                if K32GetProcessMemoryInfo(p.0, &mut mem, mem.cb) != 0 {
++                    row.rss_bytes = mem.WorkingSetSize as u64;
++                }
++            }
++            if let Some(line) = command_line(p.0).filter(|l| !l.trim().is_empty()) {
++                row.cmdline = normalize_cmdline(&line);
++            }
++            row
++        })
++        .collect()
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn normalize_takes_the_exe_down_to_its_stem() {
++        let n = normalize_cmdline;
++        assert_eq!(n(r#""C:\Program Files\Git\bin\bash.exe" -c "cargo test""#), r#"bash -c "cargo test""#);
++        assert_eq!(n(r"C:\Windows\System32\cmd.exe /c dir"), "cmd /c dir");
++        assert_eq!(n("node.EXE server.js"), "node server.js");
++        assert_eq!(n("bash"), "bash");
++        assert_eq!(n("/usr/bin/git status"), "git status");
++        assert_eq!(n(""), "");
++    }
++
++    #[test]
++    fn this_process_is_alive_and_a_bogus_pid_is_not() {
++        assert!(pid_alive(std::process::id()));
++        assert!(!pid_alive(0xFFFF_FFF0));
++    }
++
++    #[test]
++    fn the_table_finds_this_process_with_real_numbers() {
++        let all = process_table();
++        let me = all.iter().find(|p| p.pid == std::process::id()).expect("own row");
++        assert!(me.rss_bytes > 0, "{me:?}");
++        assert!(me.cmdline.contains("cctop"), "{me:?}");
++        assert!(!me.cmdline.contains(".exe "), "{me:?}");
++    }
++
++    #[test]
++    fn the_parent_walk_stops_at_a_cycle() {
++        let all = vec![(1, 2, String::new()), (2, 1, String::new())];
++        assert_eq!(parents_of(&all, 1), vec![2, 1]);
++        let chain = vec![(5, 4, String::new()), (4, 0, String::new())];
++        assert_eq!(parents_of(&chain, 5), vec![4]);
++    }
++}

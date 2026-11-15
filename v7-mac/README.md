@@ -5,6 +5,10 @@ it ran there (2026-10-20). Claude Code's side is the same build: the six right-h
 cctop, Files, Cockpit), prismantis drawing the chat with tool calls as dim rows on the right, retro diff tints, the plain
 spinner words, and the v2 Ember theme and status line on `#121110`.
 
+**v7.3 (2026-11-15)** brings the changes made on Windows since (2026-11-02 and 03): Cockpit's guard starts off, Secret Box's
+commit guard reads a command as the shell would and gains an on/off switch, and cctop's skills never offer `cctop install`.
+[Updating a Mac that already runs v7-mac](#updating-a-mac-that-already-runs-v7-mac) says how to bring them over.
+
 ## What is different on a Mac
 
 | Windows (v7-win) | macOS (v7-mac) | Why |
@@ -28,8 +32,9 @@ them on. Patches in [`patches/`](patches/), applied in the pinned marketplace af
 | The status line's two rows | a blank spacer row between them | **half a row**: no spacer row, and the gauge bars fill only the lower half of their row (`▄`, the end cell `▖`) | `AURORA_DECK_GAP=0` and `AURORA_DECK_BARS=half` (new in `v2-win/statusline/aurora-deck.mjs`; unset, nothing changes) |
 | cctop under the prompt | (no program, so no coach line) a "pane hidden behind the /diff panel" notice whenever its tab is not in front | **nothing pinned**: the coach's lights repeat the status line's context and limits ("each reading shows once"), and with panes as tabs "hidden" only means another tab is in front | cctop `statusLine: false` (new). [`cctop-status-line.patch`](patches/cctop-status-line.patch), tests for cctop's own harness in [`cctop-status-line-tests.patch`](patches/cctop-status-line-tests.patch) |
 | Trackpad scrolling | (a mouse) | **no wheel acceleration**: a swipe arrives as a fast burst of wheel events, which Claude Code otherwise speeds up into an overshoot; `/scroll-speed` fine-tunes | `wheelScrollAccelerationEnabled: false`, set by `tools/mac.mjs` |
-| Secrets | pasted into the chat, where they stay in the transcript for good | **Secret Box**: Claude asks with `request_secret`, you paste into a masked box, the key goes to `.env` and Claude only ever sees a placeholder | [ray-amjad's secret-box](https://github.com/ray-amjad/claude-code-mods/tree/main/plugins/secret-box) 0.5.3, pinned unmodified, loaded **last** (below) |
-| Risky commands | Cockpit's guard | **Cockpit's guard, kept** (Blast Radius considered and not installed) | below |
+| Secrets | pasted into the chat, where they stay in the transcript for good | **Secret Box**: Claude asks with `request_secret`, you paste into a masked box, the key goes to `.env` and Claude only ever sees a placeholder; `/secret-box off` for a session (v7.3) | [ray-amjad's secret-box](https://github.com/ray-amjad/claude-code-mods/tree/main/plugins/secret-box) 0.5.3, loaded **last** (below); patched in v7.3: [`secret-box-guard-switch.patch`](../v7-win/patches/secret-box-guard-switch.patch) |
+| Risky commands | Cockpit's guard, on | **Cockpit's guard, kept, but off at start** since v7.3: `/cockpit-guard on` when you want it (Blast Radius considered and not installed) | [`cockpit-guard-off.patch`](../v7-win/patches/cockpit-guard-off.patch), below |
+| cctop's `/cctop` | offers `cctop install` once, and suggests `cargo install cctop` | **never offers either** (v7.3): `cctop install` rewrites `settings.json` with sorted keys, and the order of `enabledPlugins` is what keeps Secret Box last; the `cctop` crate on crates.io is an unrelated program | [`cctop-skills.patch`](patches/cctop-skills.patch) |
 
 ## Secret Box
 
@@ -44,9 +49,19 @@ the session file. Secret Box keeps keys out:
 - **Hiding:** every tool result, prompt, `@` file and CLAUDE.md is scanned: about 70 vendor key shapes, high-entropy tokens,
   passwords in flags and connection strings, and every secret-named `.env` value come back as placeholders. `cat .env`
   still shows `PORT=3000`. A tool row says `secret-box: hid N value(s)`.
-- **Never committed:** `git add .env` and a commit that would carry a `.env` are refused.
-- **Options** (`/plugin configure secret-box@kasasree-mods`): `pii` hides emails and IPs too; the `allow*` lists keep ids it
-  hides by mistake; `restoreTools` sets which tools may receive real values.
+- **Never committed:** `git add .env` and a commit that would carry a `.env` are refused. Since v7.3 the commit guard reads
+  the command as the shell would (quotes, heredocs, subshells, `cd`, `-C`, `NAME=value`, `~`): `cd other-repo && git commit`
+  is checked in `other-repo` (upstream checked the session's folder, so a `.env` staged there got through), and
+  `R=/x; git -C $R commit` is no longer refused. A folder only the running command knows (`git -C "$(pick-repo)"`) is still
+  refused, saying how to retry.
+- **Off for a while** (v7.3): `/secret-box off` stops hiding and the `.env` guards together, `/secret-box on` brings both
+  back, `/secret-box` alone flips it, `/secret-box status` says which. Only you, at the prompt, can turn it off: a scheduled
+  prompt, another session or another mod can't, since a key in the transcript is there for good. A restart goes back to
+  the `enabled` option (default on). While off, placeholders already in the chat still become real values.
+- **Options** (`/plugin configure secret-box@kasasree-mods`): `enabled` (v7.3) sets whether it starts on; `pii` hides emails
+  and IPs too; the `allow*` lists keep ids it hides by mistake; `restoreTools` sets which tools may receive real values.
+- **Known false alarm:** upstream refuses any command that has `git add` and the text `.env` anywhere in it, so a commit
+  message that mentions `.env` in the same command as a `git add` is refused. Give the message with `git commit -F <file>`.
 
 **It loads last.** On a tool call it hands the real value to the mods beneath it and hides it again on the way back up.
 Claude Code chains user mods in `enabledPlugins` order, the first outermost, so `version.json` lists it in `last` (a new
@@ -54,11 +69,13 @@ kit field) and every other mod (the panes, prismantis, the guard) sees only plac
 
 ## Risky commands: Cockpit's guard, not Blast Radius
 
-Cockpit's guard (on by default; `/cockpit-guard off|on`) asks **Run it / Block it** before `rm -rf`, force pushes,
-`reset --hard`, `sudo`, and `.env` and key files, and counts the blocks in its panel. Blast Radius, Anthropic's sample,
-would show more (the files and commits at stake), but it is unsupported, a script that runs `rm` itself gets past it, and
-two guards would ask twice. With `skipDangerousModePermissionPrompt` on, this guard is the one question before a
-destructive command. The evaluation of all seventeen candidates is in
+Cockpit's guard asks **Run it / Block it** before `rm -rf`, force pushes, `reset --hard`, `sudo`, and `.env` and key files,
+and counts the blocks in its panel. Since v7.3 it **starts off** (a local patch, as on Windows): `/cockpit-guard on` or the
+panel's Guard button turns it on until the session ends. Blast Radius, Anthropic's sample, would show more (the files and
+commits at stake), but it is unsupported, a script that runs `rm` itself gets past it, and two guards would ask twice.
+
+With `skipDangerousModePermissionPrompt` on, this guard is the one question before a destructive command, so while it is
+off **nothing asks**: turn it on for a session that touches anything you can't get back. The evaluation of all seventeen candidates is in
 [`research_notes/.../mod_shortlist_2026-10-20.md`](../research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/mod_shortlist_2026-10-20.md).
 
 ## Set up a Mac from scratch
@@ -66,8 +83,8 @@ destructive command. The evaluation of all seventeen candidates is in
 ```sh
 brew install --cask ghostty font-jetbrains-mono-nerd-font
 brew install fish eza node gh rust          # rust only to build cctop; `brew uninstall rust && brew autoremove` after
-gh auth login && gh repo clone KanaparthySaiSreekar/claude-code-mods-research ~/Projects/claude-code-mods-research
-cd ~/Projects/claude-code-mods-research
+gh auth login && gh repo clone KanaparthySaiSreekar/claude-rice ~/Projects/claude-rice
+cd ~/Projects/claude-rice
 
 sh v7-mac/tools/rebuild-marketplace.sh      # ~/Projects/claude-mods-local: the eight mods at their pins, then every patch
 
@@ -80,11 +97,34 @@ cd v7-mac && npm run setup                  # mac.mjs apply ember, then mods.mjs
 Then open Ghostty and run `claude`. The panes dock beside the chat in the fullscreen layout from 110 columns (the Bridge
 from 144); Ghostty at 13 pt fills a 13" screen with about 167.
 
+## Updating a Mac that already runs v7-mac
+
+The repo was renamed from `claude-code-mods-research` to `claude-rice` (GitHub forwards the old name). Pull, then add the
+three v7.3 patches to the marketplace and let `mods.mjs` update the three mods whose versions changed:
+
+```sh
+cd ~/Projects/claude-code-mods-research            # your clone (the folder name does not matter, see below)
+git remote set-url origin https://github.com/KanaparthySaiSreekar/claude-rice.git && git pull
+R=$PWD
+
+cd ~/Projects/claude-mods-local
+git apply "$R/v7-win/patches/cockpit-guard-off.patch" "$R/v7-win/patches/secret-box-guard-switch.patch" "$R/v7-mac/patches/cctop-skills.patch"
+cp "$R/v7-mac/marketplace/marketplace.json" .claude-plugin/ && cp "$R/v7-mac/marketplace/README.md" .
+git add -A && git commit -m "v7.3: cockpit guard off at start; secret-box commit guard and switch; cctop skills"
+
+cd "$R/v7-mac" && node tools/mods.mjs install && npm test     # then restart Claude Code
+```
+
+Or rebuild the marketplace whole: move `~/Projects/claude-mods-local` aside, `sh v7-mac/tools/rebuild-marketplace.sh`, then
+`node v7-mac/tools/mods.mjs install`. `version.json` is unchanged, so `rice.mjs apply` has nothing new to switch. The clone
+can be renamed to `~/Projects/claude-rice`: nothing live runs from it (`mac.mjs` copies the status line into `~/.rice/current/`
+and the hook into `~/.claude/hooks/`), and the tools find the marketplace next to the clone under either name.
+
 ## Use it
 
 ```
 cd v7-mac
-npm test               # 10 tests (below)
+npm test               # 11 tests (below)
 npm run status
 npm run revert         # the v7 switch, then the macOS base, each back to its backup
 ```
@@ -115,6 +155,18 @@ These are fixes for both platforms, not forks; Windows behaves as before.
 - `v2-win/statusline/aurora-deck.mjs`: `AURORA_DECK_GAP` and `AURORA_DECK_BARS` (above).
 
 ## Verified, and not
+
+v7.3, 2026-11-15, **on the Windows machine** (no Mac in this session), Claude Code 2.1.325:
+
+- `rebuild-marketplace.sh` (run under Git Bash with `core.autocrlf=false`, as a Mac checks out) into an empty folder: 8
+  commits, every patched file equals its patch's post-image. Before the v7.3 patches its eight mods equal the Windows
+  marketplace's file for file (Windows also keeps a few files the Mac's `git archive` does not, such as `LICENSE`); after
+  them, the only difference is cctop's two skill files, the macOS wording.
+- On that rebuilt tree: `claude plugin test` cockpit 19/19 and secret-box 83/83 (including its "on Mac and Linux a real
+  `/c/` folder is used as it is" case); `claude plugin validate` passes for cctop, cockpit and secret-box.
+- `npm test` here 9/11: the new patch/README test passes; the fish prompt test skips (no fish) and the status line command
+  test needs `/bin/sh`, so both wait for a Mac. v7-win 8/8, v2 52/52, v3 7/7, v4 5/5, v5 5/5, v6 3/3.
+- **Not run on a Mac yet:** the update steps above, `mods.mjs install` picking up the three new versions, and `npm test` 11/11.
 
 2026-10-20, Claude Code 2.1.304, an M1 MacBook Pro:
 
@@ -154,6 +206,7 @@ tools/rice.mjs          the v7 switch (the shared kit)
 tools/rebuild-marketplace.sh
 hooks/tab-title.mjs     v1.1's tab-title hook (folder ⎇ branch, ◐ working, ▲ needs you, ✓ done)
 marketplace/            the marketplace's manifest and README
-patches/                cctop-status-line(-tests), prismantis-prompt-color-declined
+patches/                cctop-status-line(-tests), prismantis-prompt-color-declined, cctop-skills (v7.3; the other two
+                        v7.3 patches, cockpit-guard-off and secret-box-guard-switch, are shared and live in v7-win/patches)
 tests/mac.test.mjs
 ```

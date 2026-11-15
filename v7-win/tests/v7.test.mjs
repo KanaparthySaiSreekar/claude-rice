@@ -8,7 +8,8 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const MARKET = path.resolve(root, "..", "..", "claude-mods-local")
+// the marketplace sits inside the repo on Windows (claude-rice/claude-mods-local) and next to it on macOS
+const MARKET = [path.resolve(root, "..", "claude-mods-local"), path.resolve(root, "..", "..", "claude-mods-local")].find((d) => fs.existsSync(d)) ?? path.resolve(root, "..", "..", "claude-mods-local")
 const { loadSpec, resolve, merged, apply, revert } = await import("../../v3-win/tools/kit.mjs")
 const quiet = { log: () => {} }
 const PANES = ["aurora-bridge", "flightdeck", "filetree", "cockpit", "paneline", "cctop", "prismantis"].map((n) => `${n}@kasasree-mods`)
@@ -81,7 +82,7 @@ test("the spinner words are plain ones, and revert puts the old list back even a
   }
 })
 
-test("every mod is in the pinned marketplace and every option v7 sets is declared in that mod's manifest", { skip: !fs.existsSync(MARKET) && "claude-mods-local is not next to this repo" }, () => {
+test("every mod is in the pinned marketplace and every option v7 sets is declared in that mod's manifest", { skip: !fs.existsSync(MARKET) && "claude-mods-local is not in or next to this repo" }, () => {
   const market = JSON.parse(fs.readFileSync(path.join(MARKET, ".claude-plugin", "marketplace.json"), "utf8"))
   const v = resolve(loadSpec(root), "ember")
   for (const id of PANES) {

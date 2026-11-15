@@ -1,0 +1,168 @@
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+  },
+  "model": "opus",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/tab-title.mjs\""
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/tab-title.mjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/tab-title.mjs\""
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "exec \"C:/Users/Kasasree/.rice/current/statusline/aurora-deck.cmd\"",
+    "refreshInterval": 60
+  },
+  "enabledPlugins": {
+    "getlayers@getlayers": true,
+    "claude-hud@kasasree-mods": false,
+    "token-weather@kasasree-mods": false,
+    "flightdeck@kasasree-mods": true,
+    "skins@kasasree-mods": false,
+    "image-view@kasasree-mods": true,
+    "filetree@kasasree-mods": true,
+    "aurora-bridge@kasasree-mods": true,
+    "prismantis@kasasree-mods": true,
+    "firstmate-calm@kasasree-mods": false,
+    "context-bar@kasasree-mods": false,
+    "usage-meter@kasasree-mods": false,
+    "mindful-breath@kasasree-mods": false,
+    "cctop@kasasree-mods": true,
+    "cockpit@kasasree-mods": true,
+    "paneline@kasasree-mods": true,
+    "secret-box@kasasree-mods": true
+  },
+  "extraKnownMarketplaces": {
+    "getlayers": {
+      "source": {
+        "source": "github",
+        "repo": "textura-agency/getlayers-plugin"
+      }
+    },
+    "kasasree-mods": {
+      "source": {
+        "source": "directory",
+        "path": "C:\\Users\\Kasasree\\Projects\\claude-mods-local"
+      }
+    }
+  },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Thinking",
+      "Reading",
+      "Working on it",
+      "Checking",
+      "Looking into it",
+      "Writing",
+      "Putting it together",
+      "Testing",
+      "Tidying up"
+    ]
+  },
+  "spinnerTipsOverride": {
+    "excludeDefault": true,
+    "tips": [
+      "Ctrl+J inserts a newline without sending",
+      "Ctrl+O then [ dumps the chat into native scrollback",
+      "claude --safe-mode starts a session with every mod switched off"
+    ]
+  },
+  "maxProseWidth": 100,
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "pluginConfigs": {
+    "flightdeck@kasasree-mods": {
+      "options": {
+        "openOnStart": true,
+        "statusLine": false,
+        "panels": "main,architect,gate,agents,loops,receipt,log"
+      }
+    },
+    "filetree@kasasree-mods": {
+      "options": {
+        "start": "on"
+      }
+    },
+    "aurora-bridge@kasasree-mods": {
+      "options": {
+        "openOnStart": true,
+        "palette": "{\"bg\":\"#121110\",\"surface\":\"#121110\",\"raised\":\"#1B1917\",\"line\":\"#3B352F\",\"dim\":\"#80776D\",\"faint\":\"#9E948A\",\"muted\":\"#BFB5AA\",\"fg\":\"#F8F4EE\",\"ok\":\"#8ED69B\",\"warn\":\"#FFC53D\",\"err\":\"#FF4D4D\",\"coral\":\"#FF7A1A\",\"ramp\":[\"#FFE3A3\",\"#FFC53D\",\"#FF7A1A\",\"#F0451E\"],\"tool\":{\"read\":\"#FFCBA4\",\"write\":\"#FF7A1A\",\"run\":\"#FFC53D\",\"search\":\"#FF8F70\",\"web\":\"#FFA55C\",\"mcp\":\"#E8553C\",\"other\":\"#B3A99E\",\"agent\":\"#FFE08A\"}}"
+      }
+    },
+    "paneline@kasasree-mods": {
+      "options": {
+        "autoOpen": true,
+        "chat": false
+      }
+    },
+    "cctop@kasasree-mods": {
+      "options": {
+        "openOnStart": true,
+        "announce": false,
+        "statusLine": false
+      }
+    },
+    "cockpit@kasasree-mods": {
+      "options": {
+        "band": false,
+        "statusLine": false
+      }
+    },
+    "prismantis@kasasree-mods": {
+      "options": {
+        "theme": "ember",
+        "headingStyle": "bar",
+        "promptStyle": "bubble",
+        "promptColor": "#F8F4EE",
+        "declined": "quiet",
+        "toolStyle": "chat",
+        "toolOutput": "rows",
+        "copyButtonStyle": "hover",
+        "copyFeedback": "button",
+        "diffAddedColor": "#98C25B",
+        "diffRemovedColor": "#E8553C",
+        "diffTint": "color",
+        "diagramHints": false
+      }
+    }
+  },
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "custom:ember",
+  "agentPushNotifEnabled": true
+}

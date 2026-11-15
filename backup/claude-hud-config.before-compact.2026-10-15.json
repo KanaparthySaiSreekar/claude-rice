@@ -1,0 +1,41 @@
+{
+  "lineLayout": "expanded",
+  "pathLevels": 1,
+  "display": {
+    "showModel": true,
+    "showEffortLevel": true,
+    "effortFormat": "full",
+    "showProject": true,
+    "showContextBar": true,
+    "contextValue": "percent",
+    "showUsage": true,
+    "usageBarEnabled": true,
+    "usagePace": true,
+    "showPromptCache": true,
+    "showTools": true,
+    "showAgents": true,
+    "showTodos": true,
+    "showCost": false,
+    "showDuration": false,
+    "mergeGroups": [["context", "usage"]]
+  },
+  "gitStatus": {
+    "enabled": true,
+    "showDirty": true,
+    "showAheadBehind": true
+  },
+  "colors": {
+    "context": "#A3B18A",
+    "usage": "#8AA9C9",
+    "warning": "#FFD166",
+    "usageWarning": "#D97757",
+    "critical": "#F28482",
+    "model": "#D97757",
+    "project": "#E6D9C4",
+    "git": "#B48EAD",
+    "gitBranch": "#94C5CC",
+    "label": "#9A9183",
+    "barFilled": "█",
+    "barEmpty": "░"
+  }
+}

@@ -26,7 +26,7 @@
     {
       "name": "cockpit",
       "source": "./plugins/cockpit",
-      "description": "Agent cockpit pane (drkokorev/cockpit-for-claude) pinned at 8960ed8, band and status line made optional",
+      "description": "Agent cockpit pane (drkokorev/cockpit-for-claude) pinned at 8960ed8, band and status line made optional, the guard starts off",
       "category": "monitoring"
     },
     {
@@ -38,7 +38,7 @@
     {
       "name": "cctop",
       "source": "./plugins/cctop",
-      "description": "btop-style dashboard pane (tomstagl/cctop, plugin/) pinned at 6ceafc3, open on start and quiet start options",
+      "description": "btop-style dashboard pane (tomstagl/cctop, plugin/) pinned at 6ceafc3, open on start, quiet start and no status line options; never offers cctop install",
       "category": "monitoring"
     },
     {
@@ -50,7 +50,7 @@
     {
       "name": "secret-box",
       "source": "./plugins/secret-box",
-      "description": "Claude uses secrets without seeing them (ray-amjad/claude-code-mods, plugins/secret-box) pinned at 6db48a3: masked box to .env, placeholders in and out, .env never committed",
+      "description": "Claude uses secrets without seeing them (ray-amjad/claude-code-mods, plugins/secret-box) pinned at 6db48a3: masked box to .env, placeholders in and out, .env never committed; the commit guard reads the command as the shell would, /secret-box on|off",
       "category": "security"
     }
   ]

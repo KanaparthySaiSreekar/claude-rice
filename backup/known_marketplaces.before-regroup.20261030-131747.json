@@ -1,0 +1,26 @@
+{
+  "claude-plugins-official": {
+    "source": {
+      "source": "github",
+      "repo": "anthropics/claude-plugins-official"
+    },
+    "installLocation": "C:\\Users\\Kasasree\\.claude\\plugins\\marketplaces\\claude-plugins-official",
+    "lastUpdated": "2026-10-30T07:46:25.650Z"
+  },
+  "getlayers": {
+    "source": {
+      "source": "github",
+      "repo": "textura-agency/getlayers-plugin"
+    },
+    "installLocation": "C:\\Users\\Kasasree\\.claude\\plugins\\marketplaces\\getlayers",
+    "lastUpdated": "2026-10-02T12:17:14.278Z"
+  },
+  "kasasree-mods": {
+    "source": {
+      "source": "directory",
+      "path": "C:\\Users\\Kasasree\\Projects\\claude-mods-local"
+    },
+    "installLocation": "C:\\Users\\Kasasree\\Projects\\claude-mods-local",
+    "lastUpdated": "2026-10-21T17:22:42.734Z"
+  }
+}

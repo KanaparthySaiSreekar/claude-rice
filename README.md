@@ -1,4 +1,15 @@
-# Claude Code mods and terminal ricing
+# claude rice
+
+Everything about ricing Claude Code in one place: the research, every version of the rice that was built from it (Windows and
+macOS), the patches to every pinned mod, and the working folder they run from. Formerly `claude-code-mods-research`; renamed
+and converged on 2026-11-15 (GitHub forwards the old name).
+
+- **Running now:** v7.3, the master build ([`v7-win/`](v7-win/) on Windows, [`v7-mac/`](v7-mac/) on a Mac). What I liked and
+  didn't in every version: [`preferences.md`](preferences.md).
+- **This folder on Windows** (the marketplace Claude Code loads, the cctop build, backups, rollback):
+  [below](#this-folder-on-windows).
+
+## The research
 
 Deep-dive research into **Claude Code mods** and everything the community does to customize ("rice") the Claude Code terminal so it looks great, keeps you informed, and has some wow factor. It is compiled from the official docs, GitHub, Reddit, Hacker News, YouTube, X and blogs, and is current as of **October 14, 2026** (Claude Code v2.1.299).
 
@@ -15,6 +26,7 @@ Deep-dive research into **Claude Code mods** and everything the community does t
   - [`v6-win/`](v6-win/) **Breathing ember:** [Mindful-Claude](https://github.com/halluton/Mindful-Claude) guided breathing above the prompt while Claude works; the picture glows along the palette with the breath, in a 5-row band, with font-safe glyphs and an upstream test suite that now actually runs. Tagged `v6-win`.
 - **The master build:** [`v7-win/`](v7-win/) **Six tabs** carries every preference in [`preferences.md`](preferences.md). Six right-hand panes as tabs of one sidebar on the v2 Ember rice: flightdeck, [paneline](https://github.com/markneonin/paneline), filetree, the Bridge, [cockpit](https://github.com/drkokorev/cockpit-for-claude) and [cctop](https://github.com/tomstagl/cctop), the three new ones pinned and patched (paneline's chat restyle made optional, cctop opens on start and finds home on Windows, cockpit draws only its panel). prismantis draws the chat: orange `▍` headings, every tool call one dim row on the right with nothing under it, `✓ copied` on the copy button instead of a toast that names the mod, diffs tinted with retro green and orange-red. Plain spinner words, and one near-black (`#121110`) behind the chat and the panel. Tagged `v7-win` (six tabs), `v7.1-win` (round 2) and `v7.2-win` (the finalised master).
 - **On macOS:** [`v7-mac/`](v7-mac/) is the master build on a Mac (Apple Silicon): Ghostty and fish (with eza) in place of Windows Terminal and PowerShell, all generated from the one palette; the cctop program built from its pinned commit so every cctop view works; and the tweaks asked for once it ran there: your messages in a white bubble, a declined call or **Chat about this** said calmly instead of as a failure, half a row between the status line's two rows, nothing of cctop's under the prompt, no wheel acceleration for trackpad scrolling, and **Secret Box** (Claude uses API keys without seeing them, loaded last so no other mod sees them either; Cockpit's guard kept for risky commands). `v7-mac/tools/rebuild-marketplace.sh` rebuilds the pinned marketplace from the upstream commits and every patch. The shared tools now run on both platforms. Tagged `v7-mac`.
+- **v7.3, both platforms (2026-11-02 to 11-15):** v7-mac's tweaks brought to Windows; the **cctop program built for Windows** (upstream ships none), so every view of its pane has data; Secret Box's commit guard reads a command as the shell would (it refused `cd x && git commit` and Git Bash `/c/` paths, and checked `cd other-repo && git commit` against the wrong repository) and gains **`/secret-box on|off`**, which only you can turn off; **Cockpit's guard starts off** (`/cockpit-guard on` for a session); cctop's skills never offer `cctop install` (it re-sorts the mods' load order). All of it brought to the Mac, with the rebuild script, the marketplace docs and a test that ties them together. See [`v7-win/README.md#v73`](v7-win/README.md#v73-after-the-master-2026-10-21-to-11-03) and [`v7-mac/README.md`](v7-mac/README.md#updating-a-mac-that-already-runs-v7-mac). Tagged `v7.3-win` and `v7.3-mac`.
 
 ## TL;DR
 
@@ -105,6 +117,7 @@ Mods aren't sandboxed. They run inside Claude Code with your permissions, can se
 
 ```
 README.md                                         ← you are here
+preferences.md                                    ← what was liked in each version; the master build carries all of it
 reports/Claude Code mods and terminal ricing.md   ← the full report
 reports/Ricing Claude Code in October 2026.md     ← second, independent report (Linux-focused setup)
 v1-win/                                           ← checkpoint of the setup applied on Windows 11
@@ -122,7 +135,10 @@ v4-win/                                           ← Firstmate Calm, forked: sa
 v5-win/                                           ← context-bar + usage-meter on one row, status line on one row
 v6-win/                                           ← Mindful-Claude breathing band, glowing with the breath
 v7-win/                                           ← six right-hand panes as tabs: flightdeck, paneline, filetree, Bridge, cockpit, cctop
+  ├── patches/                                    v7's patches, v7.3's, and cctop-windows-build.patch (the cctop program on Windows)
+  └── marketplace/                                the live marketplace's README (provenance and every local patch, all 16 mods) and manifest
 v7-mac/                                           ← v7 on macOS: Ghostty, fish, eza, the cctop program; the macOS base, mod installer and tests
+  └── tools/rebuild-marketplace.sh                the macOS marketplace from the upstream pins and every patch, v7.3's included
 research_notes/Claude Code mods and terminal ricing/
   ├── official_mod_system.md
   ├── community_mods_catalog.md
@@ -133,4 +149,62 @@ research_notes/Claude Code mods and terminal ricing/
   ├── community_reddit_hn_github.md
   ├── community_youtube_x_blogs.md
   └── mod_shortlist_2026-10-20.md
+setup-rio.ps1                                     ← run once, elevated: a verified Microsoft ConPTY next to rio.exe, so Rio shows pictures
+backup/                                           ← settings, Windows Terminal, claude-hud, PATH and a task, as they were before a change
+aurora-demo/                                      ← scratch project the v2/v3 preview scripts cd into for demo screenshots
+claude-mods-local/                 (gitignored)   ← the live marketplace, its own git repo (below)
+cctop-windows/                     (gitignored)   ← tomstagl/cctop with the Windows build on its `windows` branch (below)
+staging/                           (gitignored)   ← reviewed upstream clones and the ConPTY download: read, never run
 ```
+
+## This folder on Windows
+
+The repo's working copy is `C:\Users\Kasasree\Projects\claude-rice`, and it is also the umbrella folder for everything the rice
+needs on this machine. Nothing live runs from the repo itself: the status line runs from `~\.rice\current\statusline\`, the mods
+from `~\.claude\plugins\cache\kasasree-mods\`, the tab-title hook from `~\.claude\hooks\`. A `git pull` changes nothing live until
+an `apply`.
+
+| Path | What |
+|---|---|
+| `claude-mods-local\` | **Git repo, no remote, gitignored here.** The `kasasree-mods` directory marketplace: sixteen pinned mods and their local patches. Registered in `~/.claude/settings.json` and `~/.claude/plugins/known_marketplaces.json` at this path, so it stays here. `git status --short` in it must print nothing (the tamper check). Its README is copied to [`v7-win/marketplace/`](v7-win/marketplace/README.md); every patch it holds is under `v*/patches/`. |
+| `cctop-windows\` | **Git repo, gitignored here.** A clone of [tomstagl/cctop](https://github.com/tomstagl/cctop) at `6ceafc3` (the pin the cctop mod uses) with the native Windows build on the `windows` branch; its `origin` is upstream, so it is never pushed. Installed as `~\.local\bin\cctop.exe`. The whole diff is [`v7-win/patches/cctop-windows-build.patch`](v7-win/patches/cctop-windows-build.patch). |
+| `staging\` | Fresh clones of every upstream repo that was reviewed (untrusted third-party code: read, never run from here), and the ConPTY package `setup-rio.ps1` copies from. Safe to delete once Rio is set up. |
+| `backup\` | `settings.json` (Claude Code), Windows Terminal `settings.json`, claude-hud configs, the user PATH and a scheduled task, each from just *before* a change. Restore by copying back. |
+| `aurora-demo\` | Scratch project the v2/v3 preview scripts `cd` into for demo screenshots. Disposable. |
+| `setup-rio.ps1` | **Run once, elevated.** Copies a hash- and signature-verified Microsoft ConPTY (conpty.dll + OpenConsole.exe) next to `rio.exe` so Rio can show real images. |
+
+**Still to do (needs you):** open an **elevated** PowerShell and run `& "$HOME\Projects\claude-rice\setup-rio.ps1"`, then open Rio
+and run `claude`. As of 2026-11-15 `conpty.dll` and `OpenConsole.exe` are not next to `rio.exe` yet. Only Rio needs it.
+
+**Config the rice touches:** `~/.claude/settings.json` (theme, spinner words and tips, `maxProseWidth`, `statusLine`, `enabledPlugins`
+and their options, `env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE`, the tab-title hooks); `~/.claude/themes/*.json`;
+`~/.claude/hooks/tab-title.mjs`; `~/.rice/` (what runs, backups, saved versions); Windows Terminal's `settings.json`; the PowerShell
+profile; `%LOCALAPPDATA%\rio\config.toml` (sets `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1`). Each version's README lists exactly what it
+writes, and its `revert` puts it back.
+
+**Rollback:** `claude --safe-mode` gives a vanilla session. A version: its `revert` (for v7, `node v7-mac/tools/rice.mjs revert`, the
+spec applied here since 2026-10-21). One mod: `claude plugin uninstall <name>@kasasree-mods`. Everything: copy
+`backup\claude-settings.*.json` over `~/.claude/settings.json`, delete `~/.claude/themes/`, `~/.claude/hooks/` and
+`~/.claude/plugins/claude-hud/`, and `winget uninstall raphamorim.rio`.
+
+## Log
+
+**2026-10-15, after first feedback.** token-weather disabled (stale 0%, duplicate gauge); flightdeck no longer opens on start.
+Claude Code moved to the native build (`~\.local\bin`, prepended to the user PATH; the old PATH is in `backup\`). The status line
+went from claude-powerline's bordered panel back to claude-hud in `compact` layout (backup: `backup\claude-hud-config.before-compact.*`).
+Skin `claude-warm` applied; Windows Terminal got padding, grayscale text, 95% acrylic, an orange tab.
+
+**2026-10-16, v1.1.** The status line deduplicated against flightdeck (claude-hud's `expanded` layout with only the folder, git and
+prompt-cache clock); the tab title carries the git branch, read from `.git/HEAD`. The `Update available! Run: winget upgrade`
+banner meant the session was still the winget build in a Windows Terminal older than the PATH fix: close every window, reopen,
+`claude --continue`, then `winget uninstall Anthropic.ClaudeCode`. The status line's folder is the session's working directory.
+
+**2026-10-30, regrouped.** `claude-mods-local`, `claude-code-mods-research` and `aurora-demo` moved from `Projects\` into
+`Projects\claude-rice\`, and the marketplace path was repointed in both config files (before-copies: `backup\*.before-regroup.*`).
+Installed mods run from the plugin cache, so nothing running was affected.
+
+**2026-11-15, converged.** The repo was renamed `claude-rice` and its working copy moved up from
+`claude-rice\claude-code-mods-research\` to `claude-rice\` itself, so the umbrella folder and the repo are one: the umbrella README
+merged into this one, and `backup\`, `aurora-demo\` and `setup-rio.ps1` are tracked. `claude-mods-local\` stays at its registered
+path (gitignored, its own repo); the tests and `v7-mac/tools/mods.mjs` find it inside the repo or next to it. The v1 to v7 snapshots
+still name the old paths (`Projects\claude-code-mods-research`, `Projects\claude-mods-local`) on purpose: they are frozen records.

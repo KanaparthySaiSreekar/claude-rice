@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url"
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const kit = await import("../../v3-win/tools/kit.mjs")
 const { loadSpec, resolve, merged, apply, revert, previewOrder } = kit
-const LOCAL = path.resolve(root, "..", "..", "claude-mods-local")
+// the marketplace sits inside the repo on Windows (claude-rice/claude-mods-local) and next to it on macOS
+const LOCAL = [path.resolve(root, "..", "claude-mods-local"), path.resolve(root, "..", "..", "claude-mods-local")].find((d) => fs.existsSync(d)) ?? path.resolve(root, "..", "..", "claude-mods-local")
 const CALM = "firstmate-calm@kasasree-mods"
 const quiet = { log: () => {} }
 

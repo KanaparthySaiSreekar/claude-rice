@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url"
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const { presets, tsBlock, withBlock, NAMES, TOKENS } = await import("../tools/presets.mjs")
 const { loadSpec, resolve, merged } = await import("../tools/kit.mjs")
-const LOCAL = path.resolve(root, "..", "..", "claude-mods-local")
+// the marketplace sits inside the repo on Windows (claude-rice/claude-mods-local) and next to it on macOS
+const LOCAL = [path.resolve(root, "..", "claude-mods-local"), path.resolve(root, "..", "..", "claude-mods-local")].find((d) => fs.existsSync(d)) ?? path.resolve(root, "..", "..", "claude-mods-local")
 const pinned = path.join(LOCAL, "plugins", "prismantis", "hooks", "presets.ts")
 
 test("every rice preset fills every prismantis slot (and the alert slots) with a hex colour", () => {

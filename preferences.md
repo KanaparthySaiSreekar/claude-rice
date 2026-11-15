@@ -40,7 +40,14 @@ What I liked in each version, noted as I try them. Each version is tried **on it
 - **Your messages**: a **white bubble with white text**, not the orange bar.
 - **"Chat about this"** on a question must not look like a failure (it showed "failed" in red with Claude Code's whole message).
 - **Status line gap**: a full blank row between the two rows was too much, none was too little; **half a row** is right ("I like it now").
-- **Mods added after a review of seventeen** ([shortlist](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/mod_shortlist_2026-10-20.md)): **Secret Box** (Claude uses keys without seeing them). For risky commands, **Cockpit's guard stays**; Blast Radius is not installed. Still to decide: mattpocock/skills (a few skills), You Should Know, Terminal Browser.
+- **Mods added after a review of seventeen** ([shortlist](research_notes/Claude%20Code%20mods%20and%20terminal%20ricing/mod_shortlist_2026-10-20.md)): **Secret Box** (Claude uses keys without seeing them). For risky commands, **Cockpit's guard stays** (off at start since v7.3, below); Blast Radius is not installed. Still to decide: mattpocock/skills (a few skills), You Should Know, Terminal Browser.
+
+## v7.3 (2026-11-02 and 03, on Windows; brought to the Mac on 2026-11-15)
+- v7-mac's tweaks (the white bubble, calm declines, the half-row status line gap, Secret Box last) **on Windows too** (2026-10-21).
+- **Cockpit's guard starts off**: turned on only when wanted (`/cockpit-guard on`), for that session.
+- **Secret Box can be switched off** for a while (`/secret-box off`), but only by me at the prompt, never by a schedule or another mod.
+- Secret Box's commit guard must not refuse ordinary commits (`cd other-repo && git commit`, Git Bash `/c/` paths): fixed.
+- **cctop with its program on Windows**, so every view of its pane has data; and never `cctop install`, which breaks the status line and the mods' load order.
 
 ## Across versions
 - **Code diffs:** a retro green for added lines and a retro orange-red for removed ones, not plain red and green.

@@ -49,11 +49,19 @@ git apply "$PM/cctop-status-line.patch"
 commit "cctop: statusLine option, 0.10.0-rice.2 (v7-mac patch)"
 git apply "$PM/prismantis-prompt-color-declined.patch"
 commit "prismantis: promptColor and declined options, 0.25.1-rice.3 (v7-mac patch)"
+# v7.3 (2026-11-03): made on Windows, shared with the Mac
+git apply "$P7/cockpit-guard-off.patch"
+commit "cockpit: the guard starts off, 1.0.2-rice.2 (v7.3 patch)"
+git apply "$P7/secret-box-guard-switch.patch"
+commit "secret-box: commit guard reads the command as the shell would; /secret-box on|off, 0.5.3-rice.2 (v7.3 patch)"
+git apply "$PM/cctop-skills.patch"
+commit "cctop: skills never offer cctop install, the program is built from the pin, 0.10.0-rice.3 (v7-mac patch)"
 
 # each patched file must now be exactly the post-image (the last "index a..b") its patches record
 bad=0
 for f in $(cat "$P3/prismantis-rice.patch" "$P7"/prismantis-rows-copy.patch "$P7"/prismantis-diff-tint.patch "$P7"/paneline-chat-option.patch \
-    "$P7"/cockpit-panel-only.patch "$P7"/cctop-rice.patch "$P7"/local-versions.patch "$PM"/cctop-status-line.patch "$PM"/prismantis-prompt-color-declined.patch |
+    "$P7"/cockpit-panel-only.patch "$P7"/cctop-rice.patch "$P7"/local-versions.patch "$PM"/cctop-status-line.patch "$PM"/prismantis-prompt-color-declined.patch \
+    "$P7"/cockpit-guard-off.patch "$P7"/secret-box-guard-switch.patch "$PM"/cctop-skills.patch |
   awk '/^diff --git/{f=$4; sub(/^b\//,"",f)} /^index /{split($2,a,"\\.\\."); want[f]=a[2]} END{for (f in want) print f "=" want[f]}'); do
   path=${f%=*}; want=${f#*=}
   have=$(git hash-object "$path" | cut -c1-${#want})

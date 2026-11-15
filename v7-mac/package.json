@@ -1,6 +1,6 @@
 {
   "name": "claude-rice-v7-mac",
-  "version": "7.2.0",
+  "version": "7.3.0",
   "private": true,
   "type": "module",
   "description": "v7 on macOS: six right-hand panes as tabs (Bridge, flightdeck, filetree, cockpit, paneline, cctop) and prismantis on the v2 Ember rice, with Ghostty and fish in place of Windows Terminal and PowerShell.",

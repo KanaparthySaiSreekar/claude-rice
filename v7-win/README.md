@@ -1,7 +1,9 @@
 # v7-win: Six tabs
 
 **v7 is the master build:** it carries every preference in [`preferences.md`](../preferences.md) (finalised 2026-10-17, tag
-`v7.2-win`; tweaks still to come).
+`v7.2-win`). Since then: v7-mac's tweaks brought here (2026-10-21), and **v7.3** (2026-11-02 and 03, tag `v7.3-win`): the
+cctop program built for Windows, Secret Box's commit guard fixed and given an on/off switch, Cockpit's guard off at start.
+See [v7.3](#v73-after-the-master-2026-10-21-to-11-03).
 
 v7 puts six right-hand panes side by side as tabs, on the v2 Ember rice (palette, theme, status line). Claude Code draws every
 open pane as a tab of one sidebar ("With several panes open, each gets a tab that shows its title",
@@ -61,10 +63,13 @@ it, put back `"bg": "#0A0908"` in `v2-win/palette/palettes.json` and run `backgr
 
 ## Worth knowing
 
-- **cctop without its binary.** The pane's context, cost and limits come from Claude Code itself. Tool timings, files, agents and
-  the Advisor need the `cctop` program (Homebrew or cargo only, not installed here), so those views say "needs the cctop binary".
-- **cockpit's guard is on by default.** Before a Bash command it calls risky it asks Run it / Block it. `/cockpit-guard off` turns it
-  off. Its panel shows `ctx —` until the first reply of a newly started Claude Code: Claude Code only reports context after a reply.
+- **cctop's program.** The pane's context, cost and limits come from Claude Code itself; tool timings, files, agents and the
+  Advisor need the `cctop` program. Upstream ships none for Windows, so until v7.3 those views said "needs the cctop binary".
+  Since 2026-11-02 a local Windows build is installed (see [v7.3](#v73-after-the-master-2026-10-21-to-11-03)).
+- **cockpit's guard starts off** (v7.3; upstream, and v7 until then, started it on). `/cockpit-guard on` or the panel's Guard
+  button turns it on until the session ends; then, before a Bash command it calls risky, it asks Run it / Block it. With
+  `skipDangerousModePermissionPrompt` on (it is here), nothing else asks. Its panel shows `ctx —` until the first reply of a
+  newly started Claude Code: Claude Code only reports context after a reply.
 - **Edits keep their diff card**; everything else is a single row.
 - **Tab order** follows the order the mods open their panes at start, which v7 does not control, and it changes between starts.
   The pane opened last is the one in front; cctop restores its pane last, so it is in front at start. A mod cannot open a pane
@@ -82,7 +87,8 @@ installed, and the tweaks asked for once it ran there. The fixes it made to the 
 Windows behaves as before. The "am I the script being run" checks use `pathToFileURL`, `rice.mjs preview` still writes a
 `.cmd` shim here, and the new status line variables do nothing unless set.
 
-The tweaks are options, off by default. These steps bring them here; they have not been run on Windows yet:
+The tweaks are options, off by default. These steps brought them here on **2026-10-21** (`claude-mods-local` commits `4578153`,
+`be02d20`, `a555158`; `v7-mac/tools/rice.mjs apply ember`, and the two `set` lines in the status line shim):
 
 1. In `C:\Users\Kasasree\Projects\claude-mods-local`, `git apply` the two patches in `v7-mac\patches\`
    (`cctop-status-line.patch`, `prismantis-prompt-color-declined.patch`; they bump the versions). Copy `plugins/secret-box`
@@ -99,13 +105,71 @@ The tweaks are options, off by default. These steps bring them here; they have n
 
 Trackpad scrolling (`wheelScrollAccelerationEnabled: false`) is macOS-only and not needed with a mouse.
 
+## v7.3: after the master (2026-10-21 to 11-03)
+
+What changed on this machine after v7.2, each one live (its version is in the plugin cache) and committed in
+`claude-mods-local` (now `85eab70`). Its README, the full provenance and patch record for all sixteen pinned mods, is copied
+in [`marketplace/`](marketplace/). v7-mac has all of it too (its README says how), except the Windows build of cctop.
+
+| | Before | v7.3 | Patch |
+|---|---|---|---|
+| v7-mac's tweaks (2026-10-21) | the Mac only | here too: your messages in a white bubble, calm declines, nothing of cctop's under the prompt, the half-row status line gap, Secret Box loaded last | [`v7-mac/patches/`](../v7-mac/patches/), steps above |
+| cctop's program | none for Windows (upstream: macOS and Linux) | **`~\.local\bin\cctop.exe`**, built from the same pin (`6ceafc3`); every pane view has data | [`cctop-windows-build.patch`](patches/cctop-windows-build.patch), below |
+| cctop's `/cctop` skill | offers `cctop install` once; suggests `cargo install cctop` | **never offers either**, and says how the program is built here | [`cctop-skills-windows.patch`](patches/cctop-skills-windows.patch) (`0.10.0-rice.3`) |
+| Secret Box's commit guard | read the repository off the command with one regex: `R=/x; git -C $R commit`, `git -C /c/x commit` and `cd /x && git commit` were refused (5 real refusals in the transcripts), and `cd other-repo && git commit` was checked against the session's folder, so a `.env` staged in `other-repo` got through | reads the command **as the shell would** (quotes, heredocs, subshells, `cd`, `-C`, `NAME=value`, `~`), tries the drive form of a `/c/` path, lets through a commit where there is no repository (git refuses it anyway); a folder only the running command knows is still refused, saying how to retry | [`secret-box-guard-switch.patch`](patches/secret-box-guard-switch.patch) (`0.5.3-rice.1`) |
+| Turning Secret Box off | one option at a time, through `/plugin configure` | **`/secret-box [on\|off\|status]`** turns hiding and the `.env` guards off or on together; only from the prompt (composer or bridge), never a scheduled prompt, another session or another mod; `enabled` option (default on) for how it starts | same patch (`0.5.3-rice.2`) |
+| Cockpit's guard | on at start | **off at start**; `/cockpit-guard on` or the panel's button for the session | [`cockpit-guard-off.patch`](patches/cockpit-guard-off.patch) (`1.0.2-rice.2`) |
+
+Every patch applies to the marketplace as `claude-mods-local` held it at `a555158` (2026-10-21); the cctop build patch applies
+to the cctop repository at `6ceafc3`.
+
+**The cctop program on Windows.** Built on the `windows` branch of `claude-rice\cctop-windows`, a clone of tomstagl/cctop (gitignored
+here; never pushed there). The Windows code is `src/win.rs` (process liveness, CPU time, the UTC offset and the process table
+through `windows-sys`, in place of libc and `ps`) plus `cfg` switches at each call site. To rebuild it anywhere:
+
+```
+git clone https://github.com/tomstagl/cctop cctop-windows && cd cctop-windows && git checkout -b windows 6ceafc3
+git apply ..\v7-win\patches\cctop-windows-build.patch
+cargo build --release && copy target\release\cctop.exe %USERPROFILE%\.local\bin\
+```
+
+- The toolchain is the `stable-x86_64-pc-windows-gnullvm` Rust host with `rust-lld`, so no Visual Studio or MinGW (the plain
+  `gnu` host fails: its `dlltool` wants an `as.exe` it does not ship). `~\.cargo\windows-import-libs` holds seven import
+  libraries `winapi` asks for, copied from the `winapi-x86_64-pc-windows-gnu` crate.
+- **Never `cargo install cctop`** (an unrelated crate, and `~\.cargo\bin` comes first on PATH) and **never `cctop install`**: tried
+  on a copy of `settings.json`, its shim cannot run the `exec` the status line command starts with (blank status line, exit 0),
+  serde_json re-sorts `enabledPlugins` (the mods' load order), and 22 hook events start running `cctop.exe`. Without it,
+  `cctop query` has no status-line rate limits, hook tool timings or permission waits.
+- Not working on Windows: the TUI's send-to-session key (`S`; sessions listen on a named pipe here) and `cctop split`. Not
+  tested: the interactive TUI (`cctop run`) and the docked pane at a real terminal.
+- Reviewed for reach, not line by line (54k lines of Rust; the patched parts were read): no HTTP client, the only socket code is
+  an opt-in OTLP listener that refuses non-loopback addresses. It spawns `git`, `claude --version`, `clip` and itself.
+
+**Load order.** `frontend-design@claude-plugins-official`, installed after the v7 apply, now comes after Secret Box in
+`enabledPlugins`. It is skills only (no hooks module), so it is not in the mods' chain and Secret Box is still the innermost mod.
+`v7-mac/tools/rice.mjs apply ember` would move Secret Box back to the end.
+
 ## Is it safe
 
 None of the mods makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's
-reach is in `claude-mods-local/README.md`). Processes started: read-only `git` (cockpit, paneline, filetree), `grep` (paneline; not on
-Windows PATH, so it fails quietly), `du`/`find` (filetree), and `cctop` (absent, detected as missing).
+reach is in [`marketplace/README.md`](marketplace/README.md)). Processes started: read-only `git` (cockpit, paneline, filetree,
+secret-box), `grep` (paneline; not on Windows PATH, so it fails quietly), `du`/`find` (filetree), Secret Box's wait (`node` or `ping`),
+and `cctop` (the local build since v7.3).
 
 ## Verified, and not
+
+v7.3, 2026-11-15, Claude Code 2.1.325:
+
+- `claude plugin test`: cockpit 19/19 (4 new), secret-box 83/83 (37 new: 21 for the commit guard, 16 for the switch).
+  `claude plugin validate`: cctop, cockpit and secret-box pass. The cached copies of all three are the committed versions.
+- cctop program: `cargo test --release` 447 of 449 pass (2 more ignored); the 2 failures are both in `otel`, a socket read
+  under full-suite load, and `cargo test otel` alone passes 3 runs of 3. The pane does not use that listener.
+- `cctop-windows-build.patch` applies with `git apply` to a fresh checkout of `6ceafc3`, and gives the `windows` branch's tree.
+- The rice tests from the repo's new root: v7-win 8/8, v2 52/52, v3 7/7, v4 5/5, v5 5/5, v6 3/3 (their marketplace checks
+  now find `claude-mods-local` inside the repo, as well as next to it as on the Mac).
+- Secret Box, live in this session: a `git add … && git commit -F - <<EOF` whose message mentioned `.env` was refused before it
+  ran. That is upstream's first check (any `git add` plus the text `.env` anywhere in the command), which v7.3 did not change;
+  `git commit -F <file>` gets round it.
 
 Final pass, 2026-10-17:
 
@@ -122,5 +186,6 @@ Final pass, 2026-10-17:
 
 ## Layout
 
-`version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tools/background.mjs`, `tests/`, `patches/`,
-`docs/screenshots/`.
+`version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tools/background.mjs`, `tests/`, `patches/`
+(v7's, and v7.3's `cockpit-guard-off`, `secret-box-guard-switch`, `cctop-skills-windows`, `cctop-windows-build`), `marketplace/`
+(the live marketplace's README and manifest at `claude-mods-local` `85eab70`), `docs/screenshots/`.

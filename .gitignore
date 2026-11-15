@@ -1,0 +1,12 @@
+# Folders that live here but are not part of this repo.
+
+# The live kasasree-mods marketplace (Claude Code reads it at this path). Its own git repo, so `git status` in it is the
+# tamper check; its state is the patches under v*/patches (v7-mac/tools/rebuild-marketplace.sh rebuilds the macOS one).
+/claude-mods-local/
+
+# Fork of tomstagl/cctop with the native Windows build on its `windows` branch (target/ alone is ~5 GB).
+# Its whole diff from the pin is v7-win/patches/cctop-windows-build.patch.
+/cctop-windows/
+
+# Untrusted upstream clones that were reviewed, and the ConPTY download setup-rio.ps1 verifies. Read, never run.
+/staging/
