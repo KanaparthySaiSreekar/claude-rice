@@ -14,7 +14,7 @@
     {
       "name": "flightdeck",
       "source": "./plugins/flightdeck",
-      "description": "Read-only live dashboard pane (scasella/claude-flightdeck) pinned at 6150b9f",
+      "description": "Read-only live dashboard pane (scasella/claude-flightdeck) pinned at 626cc0b (v0.6.2)",
       "category": "monitoring"
     },
     {
@@ -50,7 +50,7 @@
     {
       "name": "secret-box",
       "source": "./plugins/secret-box",
-      "description": "Claude uses secrets without seeing them (ray-amjad/claude-code-mods, plugins/secret-box) pinned at 6db48a3: masked box to .env, placeholders in and out, .env never committed; the commit guard reads the command as the shell would, /secret-box on|off",
+      "description": "Claude uses secrets without seeing them (ray-amjad/claude-code-mods, plugins/secret-box) pinned at 5d6bd15 (v0.5.14): masked box to .env, placeholders in and out, .env never committed; git messages read as text, USERPROFILE for a missing HOME, /secret-box on|off",
       "category": "security"
     }
   ]

@@ -32,7 +32,7 @@ them on. Patches in [`patches/`](patches/), applied in the pinned marketplace af
 | The status line's two rows | a blank spacer row between them | **half a row**: no spacer row, and the gauge bars fill only the lower half of their row (`▄`, the end cell `▖`) | `AURORA_DECK_GAP=0` and `AURORA_DECK_BARS=half` (new in `v2-win/statusline/aurora-deck.mjs`; unset, nothing changes) |
 | cctop under the prompt | (no program, so no coach line) a "pane hidden behind the /diff panel" notice whenever its tab is not in front | **nothing pinned**: the coach's lights repeat the status line's context and limits ("each reading shows once"), and with panes as tabs "hidden" only means another tab is in front | cctop `statusLine: false` (new). [`cctop-status-line.patch`](patches/cctop-status-line.patch), tests for cctop's own harness in [`cctop-status-line-tests.patch`](patches/cctop-status-line-tests.patch) |
 | Trackpad scrolling | (a mouse) | **no wheel acceleration**: a swipe arrives as a fast burst of wheel events, which Claude Code otherwise speeds up into an overshoot; `/scroll-speed` fine-tunes | `wheelScrollAccelerationEnabled: false`, set by `tools/mac.mjs` |
-| Secrets | pasted into the chat, where they stay in the transcript for good | **Secret Box**: Claude asks with `request_secret`, you paste into a masked box, the key goes to `.env` and Claude only ever sees a placeholder; `/secret-box off` for a session (v7.3) | [ray-amjad's secret-box](https://github.com/ray-amjad/claude-code-mods/tree/main/plugins/secret-box) 0.5.3, loaded **last** (below); patched in v7.3: [`secret-box-guard-switch.patch`](../v7-win/patches/secret-box-guard-switch.patch) |
+| Secrets | pasted into the chat, where they stay in the transcript for good | **Secret Box**: Claude asks with `request_secret`, you paste into a masked box, the key goes to `.env` and Claude only ever sees a placeholder; `/secret-box off` for a session (v7.3) | [ray-amjad's secret-box](https://github.com/ray-amjad/claude-code-mods/tree/main/plugins/secret-box) 0.5.14 since v7.4 (was 0.5.3), loaded **last** (below); patched: [`secret-box-0.5.14-rice.patch`](../v7-win/patches/secret-box-0.5.14-rice.patch) (v7.3's [`secret-box-guard-switch.patch`](../v7-win/patches/secret-box-guard-switch.patch) was on 0.5.3) |
 | Risky commands | Cockpit's guard, on | **Cockpit's guard, kept, but off at start** since v7.3: `/cockpit-guard on` when you want it (Blast Radius considered and not installed) | [`cockpit-guard-off.patch`](../v7-win/patches/cockpit-guard-off.patch), below |
 | cctop's `/cctop` | offers `cctop install` once, and suggests `cargo install cctop` | **never offers either** (v7.3): `cctop install` rewrites `settings.json` with sorted keys, and the order of `enabledPlugins` is what keeps Secret Box last; the `cctop` crate on crates.io is an unrelated program | [`cctop-skills.patch`](patches/cctop-skills.patch) |
 
@@ -112,6 +112,22 @@ git apply "$R/v7-win/patches/cockpit-guard-off.patch" "$R/v7-win/patches/secret-
 cp "$R/v7-mac/marketplace/marketplace.json" .claude-plugin/ && cp "$R/v7-mac/marketplace/README.md" .
 git add -A && git commit -m "v7.3: cockpit guard off at start; secret-box commit guard and switch; cctop skills"
 
+cd "$R/v7-mac" && node tools/mods.mjs install && npm test     # then restart Claude Code
+```
+
+**v7.4 (2026-11-23): flightdeck 0.6.2 and secret-box 0.5.14.** On a Mac at v7.3, swap the two mods for their new upstream
+commits and apply the one new patch (it replaces v7.3's secret-box patch, so secret-box is taken fresh from upstream):
+
+```sh
+R=~/Projects/claude-rice && cd ~/Projects/claude-mods-local     # R: your clone of this repo, pulled
+T=$(mktemp -d)
+git clone -q https://github.com/scasella/claude-flightdeck "$T/fd" && git clone -q https://github.com/ray-amjad/claude-code-mods "$T/ccm"
+git rm -rq plugins/flightdeck plugins/secret-box && mkdir -p plugins/flightdeck plugins/secret-box
+git -C "$T/fd" archive 626cc0b46d417f81bbff9f5ba3b49abaf8912a85 | tar -x -C plugins/flightdeck
+git -C "$T/ccm" archive 5d6bd156c7586c4b030157a1a2e8b7214b238501 plugins/secret-box | tar -x -C plugins/secret-box --strip-components=2
+git apply "$R/v7-win/patches/secret-box-0.5.14-rice.patch"
+cp "$R/v7-mac/marketplace/marketplace.json" .claude-plugin/ && cp "$R/v7-mac/marketplace/README.md" .
+git add -A && git commit -m "v7.4: flightdeck 0.6.2; secret-box 0.5.14-rice.1"
 cd "$R/v7-mac" && node tools/mods.mjs install && npm test     # then restart Claude Code
 ```
 
@@ -206,7 +222,7 @@ tools/rice.mjs          the v7 switch (the shared kit)
 tools/rebuild-marketplace.sh
 hooks/tab-title.mjs     v1.1's tab-title hook (folder ⎇ branch, ◐ working, ▲ needs you, ✓ done)
 marketplace/            the marketplace's manifest and README
-patches/                cctop-status-line(-tests), prismantis-prompt-color-declined, cctop-skills (v7.3; the other two
-                        v7.3 patches, cockpit-guard-off and secret-box-guard-switch, are shared and live in v7-win/patches)
+patches/                cctop-status-line(-tests), prismantis-prompt-color-declined, cctop-skills (v7.3; the shared ones,
+                        cockpit-guard-off (v7.3) and secret-box-0.5.14-rice (v7.4), live in v7-win/patches)
 tests/mac.test.mjs
 ```

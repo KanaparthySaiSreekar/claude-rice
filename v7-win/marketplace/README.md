@@ -11,7 +11,7 @@ Registered with: `claude plugin marketplace add C:\Users\Kasasree\Projects\claud
 |---|---|---|---|---|
 | claude-hud | jarrodwatts/claude-hud | `02d73c416b52b4e510a9be004fca469f961cd5bc` | MIT | statusline command, no network; spawns `git`, `jj`, `taskkill`; `--extra-cmd` gated off |
 | token-weather | anthropics/claude-code-playground (`claude-code/mods/token-weather`) | `569c5283d9a0a7ee7938df85bb32e4f48cbb8c86` | Apache-2.0 | `$.session.usage`, `$.ui.*` only |
-| flightdeck | scasella/claude-flightdeck | `6150b9f40b0a36e42c22d39f03ddb81aaefe1844` | MIT | `$.state`, `$.command`, `$.ui`, `$.session.usage`; no fs/process/network/env |
+| flightdeck | scasella/claude-flightdeck 0.6.2 (updated 2026-11-23, Claude Code 2.1.330; was 0.4.0 at `6150b9f`) | `626cc0b46d417f81bbff9f5ba3b49abaf8912a85` | MIT | `$.state`, `$.command`, `$.ui` (incl. `$.ui.log`, `ui.fault`), `$.session.usage`, `$.session.version`; no fs/process/network/env. Unpatched |
 | skins | hellosverre/claude-skins | `e6ca8ea0a531cdab0cfc2260d7a5e97a45f17190` | MIT | broad: `$.env.get` (terminal-capability vars only), `$.fs.read`, `$.process.run` (OS dark-mode probe), `$.http.fetch` (patched out), `$.tool.register` (schema-constrained `design` tool), `prompt.compose` (static ~130-token chart hint) |
 | image-view | jarrodwatts/claude-image-view | `370b8e7bc0708bebe9762e63534f7ca18bc3e802` | MIT | `$.fs.*`, `$.env.get` (terminal vars), `$.process.run` (`id -u`, Unix only) |
 | filetree | data-goblin/claude-code-filetree | `44d4a6293d517028abe303b21715b126bf46fbec` | MIT | `$.fs.*`, `$.process.run` (git, du, find, rm of its own marker files), `$.env.get` (HOME/EDITOR/SSH_*); no network |
@@ -22,7 +22,7 @@ Registered with: `claude plugin marketplace add C:\Users\Kasasree\Projects\claud
 | cctop | tomstagl/cctop `plugin/` 0.10.0 (reviewed 2026-10-17, Claude Code 2.1.302) | `6ceafc34a972f4e58d5e53b1c69f80e2a9759d41` | MIT | `$.session.*`, `$.store`, `$.clock`, `$.ui`, `$.prompt.fill` (a button fills the prompt, never sends); `$.process.run` only of the `cctop` companion binary (a local Windows build since 2026-11-02, see Tools below); `$.fs.write` of its marker files under `~/.cctop/pane/`; ships two skills (`cctop`, `cctop-insights`); no network or model calls |
 | cockpit | drkokorev/cockpit-for-claude `plugins/cockpit` 1.0.2 (reviewed 2026-10-17) | `8960ed87ed3b39d7236aaa17a1e1d26c7d154461` | MIT | `$.state`, `$.store`, `$.session.*`, `$.agent.list`, `$.clock`, `$.ui` (incl. `$.ui.ask`: its risky-command guard, off by default here (local patch), asks Run/Block before a matching Bash call); `$.process.run` of read-only `git` (diff, ls-files, rev-parse); `$.fs.read` for the file view, `$.fs.write` only on `/cockpit-export` (`.cockpit/`); `$.command.run` only for its Compact button; no network or model calls |
 | paneline | markneonin/paneline 0.4.1 (reviewed 2026-10-17) | `fd20c8cb91f18d2c3cc7c8876232084969ead951` | MIT | `$.state`, `$.store`, `$.session.*`, `$.agent.list`, `$.config.list`, `$.command.list`/`run` (MCP buttons, on press), `$.prompt.read`/`fill`, `$.fs.read`/`exists`, `$.env.get` HOME; `$.process.run` of read-only `git` and `grep` on the transcript (no `grep` on Windows PATH: caught, the agent colour falls back); restyles the chat unless `chat` is off (local patch); no network or model calls |
-| secret-box | ray-amjad/claude-code-mods `plugins/secret-box` 0.5.3 | `6db48a3` | MIT | `$.tool.register` (`request_secret`), `$.command` (`/secret-box`, local patch), `$.ui`, `$.session.*`, `$.fs.*` (`.env` files and their `.gitignore`), `$.env.get` (`OS`; `HOME`/`USERPROFILE` only for a commit naming `~` or `$HOME`, local patch); `$.process.run` of read-only `git` (`rev-parse`, `diff --cached`, `ls-files`) and the box's wait command |
+| secret-box | ray-amjad/claude-code-mods `plugins/secret-box` 0.5.14 (updated 2026-11-23, Claude Code 2.1.330; was 0.5.3 at `6db48a3`) | `5d6bd156c7586c4b030157a1a2e8b7214b238501` | MIT | `$.tool.register` (`request_secret`, also on `session.attach` for the desktop app), `$.command` (`/secret-box`, local patch), `$.ui`, `$.session.*` (incl. `root`: the box writes `.env` at the project root), `$.fs.*` (`.env` files and their `.gitignore`), `$.env.get` (`OS`, `CDPATH`; `HOME`, then `USERPROFILE` (local patch), only for a commit naming `~`, `$HOME` or a bare `cd`); `$.process.run` of read-only `git` (`rev-parse`, `diff --cached`, `ls-files`, `check-ignore`) and the box's wait command |
 
 ### Companion binary (not a plugin): `cctop`
 
@@ -166,6 +166,26 @@ minified bundle (so `ctx`/`5h`/`wk` labels can't be patched without a rebuild), 
   can't do it. New `tests/switch.test.ts`, 16 tests; suite 83/83.
 - **cctop** skills (`0.10.0-rice.3`, 2026-11-02): `/cctop` no longer offers `cctop install`, and neither skill suggests it or
   `cargo install cctop`; see the companion binary section above for why.
+
+### Updates, 2026-11-23 (Claude Code 2.1.330)
+
+- **flightdeck** 0.4.0 -> 0.6.2 at `626cc0b`, unpatched: more credential shapes masked (AWS key ids, Google keys, JWTs, PEM keys,
+  JSON-quoted keys) and in prompts, agent tasks and answers too; control bytes stripped from drawn text; a quadratic masking
+  pattern fixed; the context gauge measures against the compaction window. 65/65.
+- **secret-box** 0.5.3-rice.2 -> `0.5.14-rice.1` on upstream `5d6bd15`. Upstream since the pin: private-key bodies printed without
+  their BEGIN line, and UUID session cookies, are hidden (both leaked before); the memory guard covers MultiEdit and NotebookEdit;
+  the box saves `.env` at the project root (after a `cd` into a bundled source folder the key could ship inside the product) and
+  registers on the desktop app; and the commit guard moved to `hooks/commit-guard.js`, rewritten to read wrappers (`env`, `sudo`,
+  `xargs`, `time`), `if`/`while` bodies, `git.exe`, `--git-dir`, `CDPATH`, `set -P`, and Git Bash `/c/` paths on Windows. That
+  rewrite fixes the real-session refusals 0.5.3-rice.1 was made for, so rice.1's own guard is retired. Run against upstream's
+  guard as a Windows session, rice.1's cases still found: `~`/`$HOME` refused on native Windows (no `HOME`), and a commit message
+  that mentions `cd x && git commit` or `git add .env` read as commands and refused. Local patch, `hooks/commit-guard.js`: `HOME`
+  falls back to `USERPROFILE`; the text of a git message (a quoted `-m`/`--message`, what `cat`/`echo`/`printf` print inside
+  `-m "$( )"`, the heredoc of `git commit -F -`) is never read as code, while anything in it that runs still is. Upstream's
+  stricter calls are kept: a commit in a folder that is no repository yet is refused (the command may `git init` first), and so
+  is `R=$(git rev-parse --show-toplevel); git -C "$R"` (a `cd` in between would make "the same repository" the wrong one). The
+  switch (`/secret-box on|off`, `enabled`) is ported unchanged. Tests: upstream 380 + `tests/rice-guard.test.ts` 26 +
+  `tests/switch.test.ts` 16 = 422/422; against native `git.exe` and real repositories with `HOME` unset, 11/11.
 
 ### Reviewed and rejected
 

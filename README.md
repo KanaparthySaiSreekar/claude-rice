@@ -4,7 +4,7 @@ Everything about ricing Claude Code in one place: the research, every version of
 macOS), the patches to every pinned mod, and the working folder they run from. Formerly `claude-code-mods-research`; renamed
 and converged on 2026-11-15 (GitHub forwards the old name).
 
-- **Running now:** v7.3, the master build ([`v7-win/`](v7-win/) on Windows, [`v7-mac/`](v7-mac/) on a Mac). What I liked and
+- **Running now:** v7.4, the master build ([`v7-win/`](v7-win/) on Windows, [`v7-mac/`](v7-mac/) on a Mac). What I liked and
   didn't in every version: [`preferences.md`](preferences.md).
 - **This folder on Windows** (the marketplace Claude Code loads, the cctop build, backups, rollback):
   [below](#this-folder-on-windows).
@@ -27,6 +27,13 @@ Deep-dive research into **Claude Code mods** and everything the community does t
 - **The master build:** [`v7-win/`](v7-win/) **Six tabs** carries every preference in [`preferences.md`](preferences.md). Six right-hand panes as tabs of one sidebar on the v2 Ember rice: flightdeck, [paneline](https://github.com/markneonin/paneline), filetree, the Bridge, [cockpit](https://github.com/drkokorev/cockpit-for-claude) and [cctop](https://github.com/tomstagl/cctop), the three new ones pinned and patched (paneline's chat restyle made optional, cctop opens on start and finds home on Windows, cockpit draws only its panel). prismantis draws the chat: orange `▍` headings, every tool call one dim row on the right with nothing under it, `✓ copied` on the copy button instead of a toast that names the mod, diffs tinted with retro green and orange-red. Plain spinner words, and one near-black (`#121110`) behind the chat and the panel. Tagged `v7-win` (six tabs), `v7.1-win` (round 2) and `v7.2-win` (the finalised master).
 - **On macOS:** [`v7-mac/`](v7-mac/) is the master build on a Mac (Apple Silicon): Ghostty and fish (with eza) in place of Windows Terminal and PowerShell, all generated from the one palette; the cctop program built from its pinned commit so every cctop view works; and the tweaks asked for once it ran there: your messages in a white bubble, a declined call or **Chat about this** said calmly instead of as a failure, half a row between the status line's two rows, nothing of cctop's under the prompt, no wheel acceleration for trackpad scrolling, and **Secret Box** (Claude uses API keys without seeing them, loaded last so no other mod sees them either; Cockpit's guard kept for risky commands). `v7-mac/tools/rebuild-marketplace.sh` rebuilds the pinned marketplace from the upstream commits and every patch. The shared tools now run on both platforms. Tagged `v7-mac`.
 - **v7.3, both platforms (2026-11-02 to 11-15):** v7-mac's tweaks brought to Windows; the **cctop program built for Windows** (upstream ships none), so every view of its pane has data; Secret Box's commit guard reads a command as the shell would (it refused `cd x && git commit` and Git Bash `/c/` paths, and checked `cd other-repo && git commit` against the wrong repository) and gains **`/secret-box on|off`**, which only you can turn off; **Cockpit's guard starts off** (`/cockpit-guard on` for a session); cctop's skills never offer `cctop install` (it re-sorts the mods' load order). All of it brought to the Mac, with the rebuild script, the marketplace docs and a test that ties them together. See [`v7-win/README.md#v73`](v7-win/README.md#v73-after-the-master-2026-10-21-to-11-03) and [`v7-mac/README.md`](v7-mac/README.md#updating-a-mac-that-already-runs-v7-mac). Tagged `v7.3-win` and `v7.3-mac`.
+- **v7.4, both platforms (2026-11-23):** every pinned mod compared with its upstream. **flightdeck 0.6.2** (more key shapes
+  masked, control bytes stripped from the pane, a quadratic pattern fixed) and **Secret Box 0.5.14** (key bodies and session
+  cookies that leaked are now hidden, `.env` saved at the project root, upstream's rewritten commit guard) are live, with one
+  new Secret Box patch: a commit message that mentions `cd x && git commit` or `git add .env` is text, not commands, and
+  `USERPROFILE` stands in for the `HOME` native Windows lacks. prismantis 0.49, filetree 0.8 and paneline 1.0 are reviewed and
+  held back for you to try, with what each would change. See [`v7-win/README.md#v74`](v7-win/README.md#v74-mods-brought-up-to-date-2026-11-23-claude-code-21330).
+  Tagged `v7.4-win` and `v7.4-mac`.
 
 ## TL;DR
 
@@ -135,7 +142,7 @@ v4-win/                                           ← Firstmate Calm, forked: sa
 v5-win/                                           ← context-bar + usage-meter on one row, status line on one row
 v6-win/                                           ← Mindful-Claude breathing band, glowing with the breath
 v7-win/                                           ← six right-hand panes as tabs: flightdeck, paneline, filetree, Bridge, cockpit, cctop
-  ├── patches/                                    v7's patches, v7.3's, and cctop-windows-build.patch (the cctop program on Windows)
+  ├── patches/                                    v7's patches, v7.3's, v7.4's, and cctop-windows-build.patch (the cctop program on Windows)
   └── marketplace/                                the live marketplace's README (provenance and every local patch, all 16 mods) and manifest
 v7-mac/                                           ← v7 on macOS: Ghostty, fish, eza, the cctop program; the macOS base, mod installer and tests
   └── tools/rebuild-marketplace.sh                the macOS marketplace from the upstream pins and every patch, v7.3's included

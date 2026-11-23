@@ -27,13 +27,13 @@ pin() {
     git -C "$STAGE/$1" archive "$3" | tar -x -C "plugins/$1"
   fi
 }
-pin flightdeck scasella/claude-flightdeck 6150b9f40b0a36e42c22d39f03ddb81aaefe1844
+pin flightdeck scasella/claude-flightdeck 626cc0b46d417f81bbff9f5ba3b49abaf8912a85
 pin filetree data-goblin/claude-code-filetree 44d4a6293d517028abe303b21715b126bf46fbec
 pin prismantis NahumLitvin/prismantis 0d93494caff9c2e31fc9b69261d3e9d329803dab
 pin paneline markneonin/paneline fd20c8cb91f18d2c3cc7c8876232084969ead951
 pin cockpit drkokorev/cockpit-for-claude 8960ed87ed3b39d7236aaa17a1e1d26c7d154461 plugins/cockpit
 pin cctop tomstagl/cctop 6ceafc34a972f4e58d5e53b1c69f80e2a9759d41 plugin
-pin secret-box ray-amjad/claude-code-mods 6db48a3af54f1b681e4d21e6d4f54ff497389fad plugins/secret-box
+pin secret-box ray-amjad/claude-code-mods 5d6bd156c7586c4b030157a1a2e8b7214b238501 plugins/secret-box
 mkdir -p plugins/aurora-bridge && cp -R "$REPO/v2-win/mods/aurora-bridge/." plugins/aurora-bridge/
 cp "$REPO/v7-mac/marketplace/marketplace.json" .claude-plugin/marketplace.json
 cp "$REPO/v7-mac/marketplace/README.md" README.md
@@ -52,16 +52,17 @@ commit "prismantis: promptColor and declined options, 0.25.1-rice.3 (v7-mac patc
 # v7.3 (2026-11-03): made on Windows, shared with the Mac
 git apply "$P7/cockpit-guard-off.patch"
 commit "cockpit: the guard starts off, 1.0.2-rice.2 (v7.3 patch)"
-git apply "$P7/secret-box-guard-switch.patch"
-commit "secret-box: commit guard reads the command as the shell would; /secret-box on|off, 0.5.3-rice.2 (v7.3 patch)"
 git apply "$PM/cctop-skills.patch"
 commit "cctop: skills never offer cctop install, the program is built from the pin, 0.10.0-rice.3 (v7-mac patch)"
+# v7.4 (2026-11-23): flightdeck 0.6.2 and secret-box 0.5.14 are pinned above; v7.3's secret-box patch (on 0.5.3) is retired
+git apply "$P7/secret-box-0.5.14-rice.patch"
+commit "secret-box: git messages are text, USERPROFILE for a missing HOME, /secret-box on|off, 0.5.14-rice.1 (v7.4 patch)"
 
 # each patched file must now be exactly the post-image (the last "index a..b") its patches record
 bad=0
 for f in $(cat "$P3/prismantis-rice.patch" "$P7"/prismantis-rows-copy.patch "$P7"/prismantis-diff-tint.patch "$P7"/paneline-chat-option.patch \
     "$P7"/cockpit-panel-only.patch "$P7"/cctop-rice.patch "$P7"/local-versions.patch "$PM"/cctop-status-line.patch "$PM"/prismantis-prompt-color-declined.patch \
-    "$P7"/cockpit-guard-off.patch "$P7"/secret-box-guard-switch.patch "$PM"/cctop-skills.patch |
+    "$P7"/cockpit-guard-off.patch "$PM"/cctop-skills.patch "$P7"/secret-box-0.5.14-rice.patch |
   awk '/^diff --git/{f=$4; sub(/^b\//,"",f)} /^index /{split($2,a,"\\.\\."); want[f]=a[2]} END{for (f in want) print f "=" want[f]}'); do
   path=${f%=*}; want=${f#*=}
   have=$(git hash-object "$path" | cut -c1-${#want})

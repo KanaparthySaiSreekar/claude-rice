@@ -149,14 +149,66 @@ cargo build --release && copy target\release\cctop.exe %USERPROFILE%\.local\bin\
 `enabledPlugins`. It is skills only (no hooks module), so it is not in the mods' chain and Secret Box is still the innermost mod.
 `v7-mac/tools/rice.mjs apply ember` would move Secret Box back to the end.
 
+## v7.4: mods brought up to date (2026-11-23, Claude Code 2.1.330)
+
+Every pin was compared with its upstream's newest commit. cockpit, cctop, image-view (and the unused token-weather and
+mindful-breath) have no new commits. Two updates are live (in the plugin cache, `claude-mods-local` `62e35a3`), and three are
+reviewed but held back, because each would change how the rice looks or behaves and needs your eye on it first.
+
+| | Before | v7.4 | Patch |
+|---|---|---|---|
+| flightdeck | 0.4.0 (`6150b9f`) | **0.6.2** (`626cc0b`), unpatched: more key shapes masked (AWS ids, Google keys, JWTs, PEM keys, JSON-quoted keys) and in prompts, agent tasks and answers as well as tool inputs; control bytes stripped from what the pane draws; a quadratic masking pattern fixed; the context gauge measures against the compaction window; `paneColumns`; time to first token in the main box | none |
+| Secret Box | 0.5.3 + v7.3's guard and switch | **0.5.14** (`5d6bd15`) + `0.5.14-rice.1`. Upstream since: private-key bodies printed without their BEGIN line and UUID session cookies are hidden (both leaked); the memory guard covers MultiEdit and NotebookEdit; `.env` is saved at the project root (after a `cd` into a bundled folder the key could ship inside the product); the commit guard rewritten (`hooks/commit-guard.js`), which fixes the refusals v7.3's guard was for, so that guard is retired | [`secret-box-0.5.14-rice.patch`](patches/secret-box-0.5.14-rice.patch) |
+| Secret Box: a commit message that mentions git | read as commands: `-m "fix: cd x && git commit"` sent the guard to folders that don't exist, and a message naming `git add .env` (the v7.3 note below) was refused | **text**: a quoted `-m`/`--message`, what `cat`, `echo` or `printf` print inside `-m "$( )"`, and the heredoc of `git commit -F -`; anything in a message that runs (`$( )`, backticks, a `bash -c` there) is still read | same |
+| Secret Box: `~` and `$HOME` | refused: Claude Code on native Windows has no `HOME` | **`USERPROFILE`** stands in where `HOME` is unset | same |
+| Secret Box: `/secret-box on\|off` | v7.3 | the same switch and `enabled` option, ported | same |
+
+Kept from upstream on purpose: a commit in a folder that is no repository yet is refused (the same command may `git init` first,
+then commit a `.env`), and so is `R=$(git rev-parse --show-toplevel); git -C "$R" commit` (a `cd` in between would make "the
+same repository" the wrong one; the refusal says to name the folder).
+
+**Reviewed, not updated (needs you to look):**
+
+- **prismantis** 0.25.1 -> 0.49.4 (330 commits). Upstream now has our `toolOutput: rows`, bubble prompts (its new default),
+  alert colours and prompt and diff colours as options, so the port shrinks to the ember/amber/crimson presets, the `▍` heading
+  bar, `copyFeedback: button` and `declined: quiet`. New defaults to override: `issueHint: true` adds a note to your prompt every
+  tenth turn (set it off), `replyStyle: auto` draws Claude's replies in bubbles too, `folds: closed` folds long code blocks. It
+  is the renderer for the whole chat, so this one should be tried on screen.
+- **filetree** 0.2.26 -> 0.8.5 (403 commits; Windows in its CI; no local patches here). New: search, split preview, diffs,
+  sort headers, protected files (`x`), a treemap, much more. Two things to decide: `work` (on by default) moves the session
+  with `/cd` at the end of a turn into another repo Claude has been working in (the rice should set it off), and it adds a
+  dim "in the file tree:" row of file links under any reply that names files, with no option to turn that off.
+- **paneline** 0.4.1 -> 1.0.1 (89k lines changed, 109 hook files). It now runs `sh -c`, `sqlite3`, `ps`, `lsof` and `rm -f`
+  (none on a native Windows PATH, so most new tabs would come up empty here), writes `.claude/settings.local.json` for its
+  skill toggles, and restyles the chat with no option to leave it to prismantis (our `chat` patch would have to be rewritten).
+  Its new guard is off by default. Held at 0.4.1.
+- Not in v7 (switched off), so not updated: claude-hud (52 commits), skins (34), context-bar and usage-meter (79), firstmate-calm
+  (1 commit to its folder).
+
 ## Is it safe
 
 None of the mods makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's
 reach is in [`marketplace/README.md`](marketplace/README.md)). Processes started: read-only `git` (cockpit, paneline, filetree,
 secret-box), `grep` (paneline; not on Windows PATH, so it fails quietly), `du`/`find` (filetree), Secret Box's wait (`node` or `ping`),
-and `cctop` (the local build since v7.3).
+and `cctop` (the local build since v7.3). v7.4's updates add no process, file or network reach: flightdeck still has none, and
+Secret Box's is upstream's (`git check-ignore`, `.env` at the project root) plus reading `USERPROFILE`.
 
 ## Verified, and not
+
+v7.4, 2026-11-23, Claude Code 2.1.330:
+
+- `claude plugin test`: flightdeck 65/65; secret-box 422/422 (upstream's 380, `rice-guard.test.ts` 26: v7.3's real-session
+  cases run as a Windows session plus the message and `USERPROFILE` cases, `switch.test.ts` 16). `claude plugin validate`: both
+  pass; secret-box's reach is upstream's plus `$.command` (the switch) and `USERPROFILE`.
+- secret-box's `commitBlockReason` against native `git.exe` and throwaway repositories, with `HOME` unset: 11/11 (a staged
+  `.env` refused through `C:/`, `/c/` and `cd /c/...`; clean repos with messages that name other folders, `git add .env`, a
+  heredoc and `-F -` all pass; `git add -A && git commit` with an untracked `.env` refused).
+- `secret-box-0.5.14-rice.patch` applied to a fresh export of upstream `5d6bd15` gives the live mod. `sh
+  v7-mac/tools/rebuild-marketplace.sh` (run here in Git Bash) clones every pin, applies every patch, passes its post-image check,
+  and gives flightdeck and secret-box identical to the live ones. v7-mac's update steps, run on a copy of the marketplace at
+  v7.3 (`85eab70`), do too.
+- The cached copies (`~/.claude/plugins/cache/kasasree-mods/flightdeck/0.6.2`, `secret-box/0.5.14-rice.1`) equal the repo; Secret
+  Box is still the last mod in `enabledPlugins`. Both take effect on the next start. Not seen yet: either one in a real session.
 
 v7.3, 2026-11-15, Claude Code 2.1.325:
 
@@ -187,5 +239,6 @@ Final pass, 2026-10-17:
 ## Layout
 
 `version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tools/background.mjs`, `tests/`, `patches/`
-(v7's, and v7.3's `cockpit-guard-off`, `secret-box-guard-switch`, `cctop-skills-windows`, `cctop-windows-build`), `marketplace/`
-(the live marketplace's README and manifest at `claude-mods-local` `85eab70`), `docs/screenshots/`.
+(v7's, v7.3's `cockpit-guard-off`, `secret-box-guard-switch`, `cctop-skills-windows`, `cctop-windows-build`, and v7.4's
+`secret-box-0.5.14-rice`), `marketplace/` (the live marketplace's README and manifest at `claude-mods-local` `62e35a3`),
+`docs/screenshots/`.
