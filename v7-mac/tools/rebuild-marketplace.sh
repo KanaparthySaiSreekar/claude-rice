@@ -57,12 +57,15 @@ commit "cctop: skills never offer cctop install, the program is built from the p
 # v7.4 (2026-11-23): flightdeck 0.6.2 and secret-box 0.5.14 are pinned above; v7.3's secret-box patch (on 0.5.3) is retired
 git apply "$P7/secret-box-0.5.14-rice.patch"
 commit "secret-box: git messages are text, USERPROFILE for a missing HOME, /secret-box on|off, 0.5.14-rice.1 (v7.4 patch)"
+# v7.5 (2026-11-24): code blocks on a tinted band
+git apply "$P7/prismantis-code-panel.patch"
+commit "prismantis: codeStyle panel (code on a tinted band, its language at the top right), 0.25.1-rice.4 (v7.5 patch)"
 
 # each patched file must now be exactly the post-image (the last "index a..b") its patches record
 bad=0
 for f in $(cat "$P3/prismantis-rice.patch" "$P7"/prismantis-rows-copy.patch "$P7"/prismantis-diff-tint.patch "$P7"/paneline-chat-option.patch \
     "$P7"/cockpit-panel-only.patch "$P7"/cctop-rice.patch "$P7"/local-versions.patch "$PM"/cctop-status-line.patch "$PM"/prismantis-prompt-color-declined.patch \
-    "$P7"/cockpit-guard-off.patch "$PM"/cctop-skills.patch "$P7"/secret-box-0.5.14-rice.patch |
+    "$P7"/cockpit-guard-off.patch "$PM"/cctop-skills.patch "$P7"/secret-box-0.5.14-rice.patch "$P7"/prismantis-code-panel.patch |
   awk '/^diff --git/{f=$4; sub(/^b\//,"",f)} /^index /{split($2,a,"\\.\\."); want[f]=a[2]} END{for (f in want) print f "=" want[f]}'); do
   path=${f%=*}; want=${f#*=}
   have=$(git hash-object "$path" | cut -c1-${#want})

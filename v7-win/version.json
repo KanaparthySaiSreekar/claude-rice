@@ -21,6 +21,7 @@
     "prismantis@kasasree-mods": {
       "theme": "{palette}",
       "headingStyle": "bar",
+      "codeStyle": "panel",
       "promptStyle": "bar",
       "toolStyle": "chat",
       "toolOutput": "rows",

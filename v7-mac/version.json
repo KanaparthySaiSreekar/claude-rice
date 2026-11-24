@@ -23,6 +23,7 @@
     "prismantis@kasasree-mods": {
       "theme": "{palette}",
       "headingStyle": "bar",
+      "codeStyle": "panel",
       "promptStyle": "bubble",
       "promptColor": "{palette:fg}",
       "declined": "quiet",

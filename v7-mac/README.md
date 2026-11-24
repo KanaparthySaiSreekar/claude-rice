@@ -136,6 +136,16 @@ Or rebuild the marketplace whole: move `~/Projects/claude-mods-local` aside, `sh
 can be renamed to `~/Projects/claude-rice`: nothing live runs from it (`mac.mjs` copies the status line into `~/.rice/current/`
 and the hook into `~/.claude/hooks/`), and the tools find the marketplace next to the clone under either name.
 
+**v7.5 (2026-11-24): code blocks on a tinted band.** On a Mac at v7.4, apply the one prismantis patch, then switch it on
+(`version.json` now sets `codeStyle: panel`):
+
+```sh
+R=~/Projects/claude-rice && cd ~/Projects/claude-mods-local
+git apply "$R/v7-win/patches/prismantis-code-panel.patch" && cp "$R/v7-mac/marketplace/README.md" .
+git add -A && git commit -m "v7.5: prismantis 0.25.1-rice.4 (codeStyle panel)"
+cd "$R/v7-mac" && node tools/mods.mjs install && node tools/rice.mjs apply ember && npm test     # then restart Claude Code
+```
+
 ## Use it
 
 ```

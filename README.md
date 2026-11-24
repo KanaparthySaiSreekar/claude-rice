@@ -4,7 +4,7 @@ Everything about ricing Claude Code in one place: the research, every version of
 macOS), the patches to every pinned mod, and the working folder they run from. Formerly `claude-code-mods-research`; renamed
 and converged on 2026-11-15 (GitHub forwards the old name).
 
-- **Running now:** v7.4, the master build ([`v7-win/`](v7-win/) on Windows, [`v7-mac/`](v7-mac/) on a Mac). What I liked and
+- **Running now:** v7.5, the master build ([`v7-win/`](v7-win/) on Windows, [`v7-mac/`](v7-mac/) on a Mac). What I liked and
   didn't in every version: [`preferences.md`](preferences.md).
 - **This folder on Windows** (the marketplace Claude Code loads, the cctop build, backups, rollback):
   [below](#this-folder-on-windows).
@@ -34,6 +34,8 @@ Deep-dive research into **Claude Code mods** and everything the community does t
   `USERPROFILE` stands in for the `HOME` native Windows lacks. prismantis 0.49, filetree 0.8 and paneline 1.0 are reviewed and
   held back for you to try, with what each would change. See [`v7-win/README.md#v74`](v7-win/README.md#v74-mods-brought-up-to-date-2026-11-23-claude-code-21330).
   Tagged `v7.4-win` and `v7.4-mac`.
+- **v7.5, both platforms (2026-11-24):** code blocks in the chat sit on a tinted band with their language dim at the top right,
+  instead of under a `── code` line (prismantis `codeStyle: panel`). See [`v7-win/README.md#v75`](v7-win/README.md#v75-code-blocks-on-a-tinted-band-2026-11-24).
 
 ## TL;DR
 
@@ -142,7 +144,7 @@ v4-win/                                           ← Firstmate Calm, forked: sa
 v5-win/                                           ← context-bar + usage-meter on one row, status line on one row
 v6-win/                                           ← Mindful-Claude breathing band, glowing with the breath
 v7-win/                                           ← six right-hand panes as tabs: flightdeck, paneline, filetree, Bridge, cockpit, cctop
-  ├── patches/                                    v7's patches, v7.3's, v7.4's, and cctop-windows-build.patch (the cctop program on Windows)
+  ├── patches/                                    v7's patches, v7.3's, v7.4's, v7.5's, and cctop-windows-build.patch (the cctop program on Windows)
   └── marketplace/                                the live marketplace's README (provenance and every local patch, all 16 mods) and manifest
 v7-mac/                                           ← v7 on macOS: Ghostty, fish, eza, the cctop program; the macOS base, mod installer and tests
   └── tools/rebuild-marketplace.sh                the macOS marketplace from the upstream pins and every patch, v7.3's included

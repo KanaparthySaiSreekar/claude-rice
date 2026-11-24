@@ -19,7 +19,7 @@ Registered with: `claude plugin marketplace add ~/Projects/claude-mods-local --s
 | cockpit | drkokorev/cockpit-for-claude (`plugins/cockpit`) | `8960ed87ed3b39d7236aaa17a1e1d26c7d154461` | 1.0.2-rice.2 | MIT |
 | paneline | markneonin/paneline | `fd20c8cb91f18d2c3cc7c8876232084969ead951` (v0.4.1) | 0.4.1 | MIT |
 | cctop | tomstagl/cctop (`plugin/`) | `6ceafc34a972f4e58d5e53b1c69f80e2a9759d41` | 0.10.0-rice.3 | MIT |
-| prismantis | NahumLitvin/prismantis | `0d93494caff9c2e31fc9b69261d3e9d329803dab` (v0.25.1) | 0.25.1-rice.3 | MIT |
+| prismantis | NahumLitvin/prismantis | `0d93494caff9c2e31fc9b69261d3e9d329803dab` (v0.25.1) | 0.25.1-rice.4 | MIT |
 | secret-box | ray-amjad/claude-code-mods (`plugins/secret-box`) | `5d6bd156c7586c4b030157a1a2e8b7214b238501` (v0.5.14, since v7.4) | 0.5.14-rice.1 | MIT |
 
 The `cctop` program the cctop pane queries is built from the same pinned commit (`cargo build --release --locked`, no
@@ -33,7 +33,8 @@ prismantis-diff-tint, paneline-chat-option, cockpit-panel-only, cctop-rice, loca
 `v7-win/patches/cockpit-guard-off.patch` and `v7-mac/patches/cctop-skills.patch` (the macOS wording of
 `v7-win/patches/cctop-skills-windows.patch`); then v7.4's (2026-11-23), `v7-win/patches/secret-box-0.5.14-rice.patch`, on
 upstream secret-box 0.5.14. It replaces v7.3's `secret-box-guard-switch.patch`, which was made on 0.5.3 and is kept in
-`v7-win/patches/` as the record of v7.3.
+`v7-win/patches/` as the record of v7.3. Then v7.5's (2026-11-24), `v7-win/patches/prismantis-code-panel.patch`: prismantis's
+`codeStyle: panel` sets code blocks on a tinted band, their language dim at the top right, instead of under a `── code` line.
 
 Most are options whose default is upstream's behaviour, turned on by the version's `version.json`. Three change behaviour
 outright:

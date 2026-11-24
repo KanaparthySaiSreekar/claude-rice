@@ -185,6 +185,16 @@ same repository" the wrong one; the refusal says to name the folder).
 - Not in v7 (switched off), so not updated: claude-hud (52 commits), skins (34), context-bar and usage-meter (79), firstmate-calm
   (1 commit to its folder).
 
+## v7.5: code blocks on a tinted band (2026-11-24)
+
+prismantis put a dim `── language` line over every code block, and `── code` over one that names no language, which read like
+a stray heading. A new option, `codeStyle: panel` (prismantis `0.25.1-rice.4`, `claude-mods-local` `e673505`, patch
+`patches/prismantis-code-panel.patch`), sets the code on a full-width band a step lighter than the terminal (ember `#1B1917`,
+the Bridge's raised colour, on Rio's `#0A0908`), with two cells of padding, the language dim at the top right (nothing for an
+untagged block) and the hover copy button in the band's corner. Highlighting, line numbers and folding are as before, and the
+desktop app keeps its own code view. `codePanelColor` changes the band; `codeStyle: rule` is upstream's look. 4 new tests,
+571/571; the Mac rebuild applies the patch and gives a prismantis identical to the live one.
+
 ## Is it safe
 
 None of the mods makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's
@@ -240,5 +250,6 @@ Final pass, 2026-10-17:
 
 `version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tools/background.mjs`, `tests/`, `patches/`
 (v7's, v7.3's `cockpit-guard-off`, `secret-box-guard-switch`, `cctop-skills-windows`, `cctop-windows-build`, and v7.4's
-`secret-box-0.5.14-rice`), `marketplace/` (the live marketplace's README and manifest at `claude-mods-local` `62e35a3`),
+`secret-box-0.5.14-rice`, v7.5's `prismantis-code-panel`), `marketplace/` (the live marketplace's README and manifest at
+`claude-mods-local` `e673505`),
 `docs/screenshots/`.

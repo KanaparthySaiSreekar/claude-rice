@@ -187,6 +187,16 @@ minified bundle (so `ctx`/`5h`/`wk` labels can't be patched without a rebuild), 
   switch (`/secret-box on|off`, `enabled`) is ported unchanged. Tests: upstream 380 + `tests/rice-guard.test.ts` 26 +
   `tests/switch.test.ts` 16 = 422/422; against native `git.exe` and real repositories with `HOME` unset, 11/11.
 
+### Updates, 2026-11-24
+
+- **prismantis** `codeStyle` (`0.25.1-rice.4`): upstream puts a dim `── language` line over every code block, and `── code` over
+  one that names no language, which read as a stray heading. `panel` (default `rule`, upstream's look) sets the code on a
+  full-width tinted band with two cells of padding, its language dim at the top right (none for an untagged block), and the hover
+  copy button in the band's top-right corner; highlighting, line numbers and folding are unchanged, and the desktop app keeps its
+  own code view. The band is `codePanelColor`, else the preset's: ember `#1b1917` (the Bridge's raised colour), amber `#1b1a14`,
+  crimson `#1c1717`, all a step above the rice's terminal backgrounds; other presets use their rule colour. 4 new tests; suite
+  571/571.
+
 ### Reviewed and rejected
 
 - **blast-radius** (Anthropic sample): shells out to `bash -c` and `sleep`, with no Windows branch. On native Windows `bash`,

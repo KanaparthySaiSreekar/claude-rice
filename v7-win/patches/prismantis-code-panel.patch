@@ -1,0 +1,181 @@
+diff --git a/plugins/prismantis/.claude-plugin/plugin.json b/plugins/prismantis/.claude-plugin/plugin.json
+index 277eed9..4835893 100644
+--- a/plugins/prismantis/.claude-plugin/plugin.json
++++ b/plugins/prismantis/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "prismantis",
+-  "version": "0.25.1-rice.3",
++  "version": "0.25.1-rice.4",
+   "description": "Colorful, themeable rendering for Claude Code replies: tables, headings, code, numbers, paths and links.",
+   "author": {
+     "name": "Nahum Litvin",
+@@ -78,6 +78,19 @@
+         "minimal"
+       ]
+     },
++    "codeStyle": {
++      "type": "string",
++      "title": "Code block style",
++      "description": "rule: a dim \"── language\" line over the code (\"── code\" when the block names none). panel (local addition): the code on a tinted band, its language dim at the top right, no line over it.",
++      "default": "rule",
++      "options": ["rule", "panel"]
++    },
++    "codePanelColor": {
++      "type": "string",
++      "title": "Code panel color",
++      "description": "(local addition) The band behind code in the panel style, as #rrggbb. Empty: the theme's panel color (ember, amber and crimson have one), else its rule color.",
++      "default": ""
++    },
+     "promptStyle": {
+       "type": "string",
+       "title": "Your prompt style",
+diff --git a/plugins/prismantis/hooks/presets.ts b/plugins/prismantis/hooks/presets.ts
+index 15e86cb..257c983 100644
+--- a/plugins/prismantis/hooks/presets.ts
++++ b/plugins/prismantis/hooks/presets.ts
+@@ -135,3 +135,7 @@ export const PRESETS = {
+ 
+ export type PresetName = keyof typeof PRESETS
+ export const PRESET_NAMES = Object.keys(PRESETS) as PresetName[]
++
++// LOCAL PATCH (kasasree-mods): the band codeStyle 'panel' sets code on. Kept apart from PRESETS, whose keys must
++// match catppuccin-mocha's: a little lighter than the rice's terminal background (#0a0908, #0a0a07, #0a0808).
++export const CODE_PANELS: Partial<Record<PresetName, string>> = { ember: '#1b1917', amber: '#1b1a14', crimson: '#1c1717' }
+diff --git a/plugins/prismantis/hooks/render.tsx b/plugins/prismantis/hooks/render.tsx
+index d1585ac..379a82b 100644
+--- a/plugins/prismantis/hooks/render.tsx
++++ b/plugins/prismantis/hooks/render.tsx
+@@ -814,6 +814,26 @@ export const renderBlocks = (el: ElementTable, style: Style, blocks: Block[], co
+         const gutter = String(lines.length).length
+         const button = copy?.(lines.join('\n'), `copy${b}`) ?? null
+         const float = hover ? floating(button, [button]) : null
++        // LOCAL PATCH (kasasree-mods): codeStyle 'panel' draws the code on a full-width tinted band, its language dim
++        // at the top right (an untagged block shows none), the hover copy button in the band's top-right corner.
++        if (style.codeStyle === 'panel' && style.codePanel && !style.nativeCode) {
++          const bg = style.codePanel
++          const body = numbered ? rows.map((row, i) => row.type === 'Text' ? <Box key={`n${i}`} flexDirection="row" backgroundColor={bg}><Text color={t.codeComment} dimColor>{`${String(i + 1).padStart(gutter)}  `}</Text>{row}</Box> : row) : rows
++          const side = [block.lang ? <Text key="lang" color={t.codeComment}>{block.lang}</Text> : null, float ? null : button].filter(Boolean)
++          return (
++            <Box key={key} flexDirection="column" minWidth={float?.minWidth}>
++              {note ? <Text color={t.codeComment}>{note}</Text> : null}
++              <Box flexDirection="column" backgroundColor={bg} paddingX={2} paddingY={1}>
++                {float ? float.element : null}
++                <Box flexDirection="row" justifyContent="space-between" columnGap={2} backgroundColor={bg}>
++                  <Box flexDirection="column" flexShrink={1} backgroundColor={bg}>{body}</Box>
++                  {side.length ? <Box flexDirection="column" flexShrink={0} alignItems="flex-end" backgroundColor={bg}>{side}</Box> : null}
++                </Box>
++                {toggle?.element ?? null}
++              </Box>
++            </Box>
++          )
++        }
+         return (
+           <Box key={key} flexDirection="column" alignSelf="flex-start" minWidth={float?.minWidth}>
+             {note ? <Text color={t.codeComment}>{note}</Text> : null}
+diff --git a/plugins/prismantis/hooks/theme.ts b/plugins/prismantis/hooks/theme.ts
+index b50fda1..f61a217 100644
+--- a/plugins/prismantis/hooks/theme.ts
++++ b/plugins/prismantis/hooks/theme.ts
+@@ -1,7 +1,7 @@
+ import type { PluginOptions } from 'claude-code'
+ 
+ import type { ClipboardBackend } from './clipboard'
+-import { PRESET_NAMES, PRESETS } from './presets'
++import { CODE_PANELS, PRESET_NAMES, PRESETS } from './presets'
+ import type { Shape, Terminal } from './rtl'
+ import { TERMINALS } from './rtl'
+ 
+@@ -23,6 +23,8 @@ export type Style = {
+   taskStyle: 'checks' | 'ticks' | 'box' | 'progress'
+   promptStyle: 'bubble' | 'bar' | 'chevron' | 'off'
+   promptColor?: string
++  codeStyle: 'rule' | 'panel'
++  codePanel?: string
+   declined: 'failed' | 'quiet'
+   clock: Clock
+   toolStyle: 'chat' | 'tree-dim' | 'tree-bold' | 'classic'
+@@ -66,6 +68,13 @@ export const pickTheme = (value: unknown, random = Math.random): string => {
+   return (PRESET_NAMES as readonly unknown[]).includes(name) ? String(name) : 'catppuccin-mocha'
+ }
+ 
++// LOCAL PATCH (kasasree-mods): the panel's band: codePanelColor, else the preset's own panel, else its rule color.
++const codePanelOf = (options: PluginOptions, base: Theme): { codePanel?: string } => {
++  const own = isColor(options.codePanelColor) ? String(options.codePanelColor).trim() : (CODE_PANELS as Record<string, string>)[String(options.theme)]
++  const panel = own ?? (isColor(options.ruleColor) ? String(options.ruleColor).trim() : base.rule)
++  return panel ? { codePanel: panel } : {}
++}
++
+ export const resolveStyle = (options: PluginOptions): Style => {
+   const base: Theme = (PRESETS as Record<string, Theme>)[String(options.theme)] ?? PRESETS['catppuccin-mocha']
+   const fromFields = Object.fromEntries(
+@@ -82,6 +91,9 @@ export const resolveStyle = (options: PluginOptions): Style => {
+     promptStyle: pick(options.promptStyle, ['bubble', 'bar', 'chevron', 'off'] as const, 'bubble'),
+     // LOCAL PATCH (kasasree-mods): promptColor draws your prompts' text and their bubble, bar or chevron in one color.
+     ...(isColor(options.promptColor) ? { promptColor: String(options.promptColor).trim() } : {}),
++    // LOCAL PATCH (kasasree-mods): codeStyle 'panel' sets a code block on a tinted band instead of under a "── lang" rule.
++    codeStyle: pick(options.codeStyle, ['rule', 'panel'] as const, 'rule'),
++    ...codePanelOf(options, base),
+     // LOCAL PATCH (kasasree-mods): declined 'quiet' shows a call you turned down as your choice, not as a failure.
+     declined: pick(options.declined, ['failed', 'quiet'] as const, 'failed'),
+     clock: pick(options.clock, ['off', '24h', '12h'] as const, 'off'),
+diff --git a/plugins/prismantis/tests/kasasree.test.tsx b/plugins/prismantis/tests/kasasree.test.tsx
+index 345c411..a40bf2c 100644
+--- a/plugins/prismantis/tests/kasasree.test.tsx
++++ b/plugins/prismantis/tests/kasasree.test.tsx
+@@ -1,8 +1,9 @@
+-// LOCAL PATCH (kasasree-mods) tests: toolOutput 'rows', copyFeedback 'button' and diffTint 'color'.
++// LOCAL PATCH (kasasree-mods) tests: toolOutput 'rows', copyFeedback 'button', diffTint 'color', codeStyle 'panel'.
+ import type { On } from 'claude-code'
+ import { expect, mock, test } from 'claude-code/testing'
+ 
+ import { contrast, diffTint, fullHue, tint } from '../hooks/render'
++import { PRESETS } from '../hooks/presets'
+ import { resolveStyle } from '../hooks/theme'
+ import { clipboardEnv, recordCopies, recordToasts, startSession } from './clipboard-env'
+ 
+@@ -236,3 +237,44 @@ test('declined left at failed keeps upstream: Chat about this is a failed row wi
+   expect(await out.find({ type: 'Text', text: /doesn't want to proceed/ })).toBeDefined()
+   await out.unmount()
+ })
++
++// LOCAL PATCH (kasasree-mods) tests: codeStyle 'panel' and codePanelColor.
++const answer = (text: string) =>
++  ({ plugin: 'prismantis', component: 'AssistantMessage' as const, props: { text, isFirstOfReply: true }, viewport: { columns: 100, rows: 40 }, surface: 'terminal' as const })
++const WINGET = 'Run this:\n\n```\nwinget upgrade raphamorim.rio GitHub.cli\n```\n'
++const bands = async (ui: { findAll: (q: { type: string }) => Promise<{ props: Record<string, unknown> }[]> }, color: string) =>
++  (await ui.findAll({ type: 'Box' })).filter(b => b.props.backgroundColor === color && b.props.paddingY === 1)
++
++test('codeStyle panel: code sits on the ember band, no "── code" line, an untagged block shows no tag, and the command keeps its colors', { options: { theme: 'ember', codeStyle: 'panel', copyButtonStyle: 'hover' } }, async $ => {
++  const t = PRESETS.ember
++  const ui = await $.ui.mount(answer(WINGET))
++  expect((await bands(ui, '#1b1917')).length).toBe(1)
++  expect(await ui.find({ type: 'Text', text: /^── / })).toBeUndefined()
++  expect(await ui.find({ type: 'Text', text: /^code$/ })).toBeUndefined()
++  expect((await ui.find({ type: 'Text', text: /^winget$/ }))?.props.color).toBe(t.codeCommand)
++  expect((await ui.findAll({ type: 'Button' })).length > 0).toBe(true)
++  await ui.unmount()
++})
++
++test('codeStyle panel: a tagged block names its language, dim, beside the code', { options: { theme: 'ember', codeStyle: 'panel' } }, async $ => {
++  const ui = await $.ui.mount(answer('```powershell\nGet-ChildItem -Force\n```\n\n```ts\nconst a = 1\n```'))
++  expect((await bands(ui, '#1b1917')).length).toBe(2)
++  for (const lang of ['powershell', 'ts']) expect((await ui.find({ type: 'Text', text: new RegExp(`^${lang}$`) }))?.props.color).toBe(PRESETS.ember.codeComment)
++  expect(await ui.find({ type: 'Text', text: /^── / })).toBeUndefined()
++  await ui.unmount()
++})
++
++test('codePanelColor picks the band; a theme without a panel color uses its rule color; the rule style keeps upstream', async () => {
++  expect(resolveStyle({ theme: 'amber', codeStyle: 'panel' }).codePanel).toBe('#1b1a14')
++  expect(resolveStyle({ theme: 'ember', codeStyle: 'panel', codePanelColor: '#222222' }).codePanel).toBe('#222222')
++  expect(resolveStyle({ theme: 'nord', codeStyle: 'panel' }).codePanel).toBe(PRESETS.nord.rule)
++  expect(resolveStyle({ theme: 'ember' }).codeStyle).toBe('rule')
++  expect(resolveStyle({ theme: 'ember', codeStyle: 'boxed' }).codeStyle).toBe('rule')
++})
++
++test('codeStyle left at rule keeps the "── code" line and no band', { options: { theme: 'ember' } }, async $ => {
++  const ui = await $.ui.mount(answer(WINGET))
++  expect(await ui.find({ type: 'Text', text: /^── code$/ })).toBeDefined()
++  expect((await bands(ui, '#1b1917')).length).toBe(0)
++  await ui.unmount()
++})

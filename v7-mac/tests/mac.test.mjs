@@ -170,14 +170,14 @@ test("secret-box loads last, so every other mod sees only placeholders: kept at 
   assert.equal(merged(once, v), once)
 })
 
-test("every patch the rebuild checks exists, and the marketplace README gives each patched mod the version its last patch sets (v7.3: cockpit, cctop; v7.4: secret-box)", () => {
+test("every patch the rebuild checks exists, and the marketplace README gives each patched mod the version its last patch sets (v7.3: cockpit, cctop; v7.4: secret-box; v7.5: prismantis)", () => {
   const repo = path.resolve(import.meta.dirname, "..", "..")
   const sh = fs.readFileSync(path.join(repo, "v7-mac", "tools", "rebuild-marketplace.sh"), "utf8")
   const dirs = { P3: "v3-win/patches", P7: "v7-win/patches", PM: "v7-mac/patches" }
   // the post-image check names every patch, in the order they are applied
   const patches = [...sh.slice(sh.indexOf("bad=0")).matchAll(/"\$(P3|P7|PM)"?\/([\w.-]+\.patch)/g)].map(([, d, f]) => path.join(repo, dirs[d], f))
-  assert.equal(patches.length, 12)
-  for (const name of ["cockpit-guard-off", "secret-box-0.5.14-rice", "cctop-skills"])
+  assert.equal(patches.length, 13)
+  for (const name of ["cockpit-guard-off", "secret-box-0.5.14-rice", "prismantis-code-panel", "cctop-skills"])
     assert.ok([`git apply "$P7/${name}.patch"`, `git apply "$PM/${name}.patch"`].some((line) => sh.includes(line)), `${name} is checked but never applied`)
   const version = {}
   for (const p of patches) {
@@ -195,7 +195,7 @@ test("every patch the rebuild checks exists, and the marketplace README gives ea
     assert.ok(row, `${mod} has no provenance row`)
     assert.equal(row.split("|")[4].trim(), v, `${mod}: the README says ${row.split("|")[4].trim()}, its patches set ${v}`)
   }
-  assert.deepEqual([version.cockpit, version.cctop, version["secret-box"]], ["1.0.2-rice.2", "0.10.0-rice.3", "0.5.14-rice.1"])
+  assert.deepEqual([version.cockpit, version.cctop, version["secret-box"], version.prismantis], ["1.0.2-rice.2", "0.10.0-rice.3", "0.5.14-rice.1", "0.25.1-rice.4"])
   // the pins the rebuild clones match the rows: an update moves both (v7.4: flightdeck, secret-box)
   for (const row of readme.filter((r) => /^\| (flightdeck|secret-box) \|/.test(r))) {
     const [, mod, , pin] = row.split("|").map((c) => c.trim())
