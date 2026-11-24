@@ -49,6 +49,19 @@ test("prismantis draws the chat instead of skins: tool calls as rows on the righ
   assert.equal(o.diffTint, "color")
 })
 
+test("one green and one red everywhere: prismantis diffs, filetree and Bridge use the palette's ok and err (DevDeck's readout green, a retro orange-red)", async () => {
+  const v = resolve(loadSpec(root), "ember")
+  const { getPalette } = await import("../../v2-win/tools/lib/palette.mjs")
+  const p = getPalette(path.resolve(root, "..", "v2-win", "palette", "palettes.json"), "ember")
+  assert.deepEqual([p.semantic.ok, p.semantic.err], ["#7EFFDE", "#FF8D3E"])
+  assert.deepEqual([p.ansi.green, p.ansi.red], [p.semantic.ok, p.semantic.err])
+  const prism = v.options["prismantis@kasasree-mods"], tree = v.options["filetree@kasasree-mods"]
+  assert.deepEqual([prism.diffAddedColor, prism.diffRemovedColor], [p.semantic.ok, p.semantic.err])
+  assert.deepEqual([tree.addColor, tree.removeColor], [p.semantic.ok, p.semantic.err])
+  const bridge = JSON.parse(v.options["aurora-bridge@kasasree-mods"].palette)
+  assert.deepEqual([bridge.ok, bridge.err], [p.semantic.ok, p.semantic.err])
+})
+
 test("cockpit draws only its panel: no band above the prompt, no status line", () => {
   const v = resolve(loadSpec(root), "ember")
   assert.deepEqual(v.options["cockpit@kasasree-mods"], { band: false, statusLine: false })

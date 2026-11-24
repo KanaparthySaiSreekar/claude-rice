@@ -14,7 +14,7 @@
   "options": {
     "aurora-bridge@kasasree-mods": { "openOnStart": true, "palette": "{palette:bridge}" },
     "flightdeck@kasasree-mods": { "openOnStart": true, "statusLine": false, "panels": "main,architect,gate,agents,loops,receipt,log" },
-    "filetree@kasasree-mods": { "start": "on" },
+    "filetree@kasasree-mods": { "start": "on", "addColor": "#7EFFDE", "removeColor": "#FF8D3E" },
     "paneline@kasasree-mods": { "autoOpen": true, "chat": false },
     "cctop@kasasree-mods": { "openOnStart": true, "announce": false },
     "cockpit@kasasree-mods": { "band": false, "statusLine": false },
@@ -27,8 +27,8 @@
       "toolOutput": "rows",
       "copyButtonStyle": "hover",
       "copyFeedback": "button",
-      "diffAddedColor": "#98C25B",
-      "diffRemovedColor": "#E8553C",
+      "diffAddedColor": "#7EFFDE",
+      "diffRemovedColor": "#FF8D3E",
       "diffTint": "color",
       "diagramHints": false
     }

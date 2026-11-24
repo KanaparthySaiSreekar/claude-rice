@@ -38,7 +38,8 @@ default is upstream's behaviour; v7 turns it on. Diffs in [`patches/`](patches/)
 | The chat | skins (v2's renderer) | prismantis in the Ember preset (as v3 had it): `▍` orange headings, an accent bar on your prompts, tool rows dim on the right (`toolStyle: chat`) |
 | prismantis tool output | `full`: what Claude Code shows; `quiet`: plain-words rows, but a shell command still shows its first lines | `toolOutput: rows` (new): nothing under a call that worked, in a group too; a failure keeps its last line, an edit keeps its diff, Ctrl+O on a group shows everything |
 | prismantis copy | a toast, which Claude Code always labels with the mod's name ("prismantis: Copied") | `copyFeedback: button` (new): the button itself reads `✓ copied` for 1.5 s; a failed copy still toasts its reason |
-| prismantis diffs | the Ember preset's mint and red, and the tint behind a changed line mixed from the colour's full hue (any green tints as pure green) | retro green `#98C25B` and the Ember orange-red `#E8553C`, and `diffTint: color` (new): the tint is mixed from those colours themselves, olive `#2E3A1B` and brown-red `#461A12`, code text still at 4.5:1 |
+| prismantis diffs | the Ember preset's mint and red, and the tint behind a changed line mixed from the colour's full hue (any green tints as pure green) | since v7.6, a brightened DevDeck readout green `#7EFFDE` and a bright retro orange `#FF8D3E` (the palette's own green and red), and `diffTint: color` (new): the tint is mixed from those colours themselves, dark teal `#264D43` and rust `#4D2A13`, code text still at 4.5:1 |
+| filetree colours | One Dark green `#98c379` and red `#e06c75` (`#d0605e` for deleted files), hardcoded | `addColor` and `removeColor` options (new, v7.6), set to the palette's green and red |
 | paneline | restyles every message, tool row and the band above the prompt | `chat` option (new), off: only the pane |
 | cockpit | a band above the prompt whenever its panel is not the tab in front, and a `◆ ctx · 5h · tools` status line (both showing `ctx —` until the first reply of a new process) | `band` and `statusLine` options (new), off: only the panel |
 | cctop | opens only on `/cctop`; reads `HOME` (absent on Windows, so a "self-check failed" line every start); a "loaded" line in the transcript every start | `openOnStart` and `announce` options (new), a `USERPROFILE` fallback; the "loaded" line goes to the debug log |
@@ -195,6 +196,37 @@ untagged block) and the hover copy button in the band's corner. Highlighting, li
 desktop app keeps its own code view. `codePanelColor` changes the band; `codeStyle: rule` is upstream's look. 4 new tests,
 571/571; the Mac rebuild applies the patch and gives a prismantis identical to the live one.
 
+## v7.6: DevDeck's green, a retro orange-red (2026-11-24)
+
+Every red and green in the rice is now one green and one red. The green is `#7EFFDE`: the glowing readout of the
+DevDeck widget (`Projects\devdeck`, `--vfd` `#7DF1D3` in `ui/style.css`), raised in OKLCH lightness to the brightest that hue
+allows. The red is a bright retro display orange, `#FF8D3E` (OKLCH hue 52°). It came after three tries, `#FF6A3D`,
+`#FF7B54` and `#FF8547`, each asked to be brighter and more orange. Before, there were five greens and five
+reds: Ember's mint `#8ED69B` and red `#FF4D4D`, the terminal's `#FF5A4F`, v7's diff pair `#98C25B` / `#E8553C`, and filetree's
+One Dark pair.
+
+- **The palette** (`v2-win/palette/palettes.json`, ember): `accent.mint`, `accent.red`, `ansi.green`, `ansi.red`, and the
+  bright pair `#ACFFE8` / `#FFAB76`. `background.mjs ember` rebuilt the Claude Code theme from it: `success`, `error`, the
+  diff backgrounds (`#25322D` / `#38261B`, word `#395C51` / `#673F26`) and the subagent and rainbow colours. It also rebuilt
+  the Windows Terminal scheme, which is where cockpit's and cctop's `'red'` / `'green'` come from, and the status line palette.
+  flightdeck, paneline and cctop's frame use the theme's `success` / `error`, so they follow the theme.
+- **prismantis** diffs and the **Bridge**'s ok/err come from `version.json` and the palette.
+- **filetree** hardcoded its colours, so it gained `addColor` / `removeColor` (`0.2.26-rice.1`, `claude-mods-local` `62fd39d`, patch
+  `patches/filetree-git-colors.patch`, 2 new tests). They cover added and untracked files, `+N`, deleted and conflicted
+  files, and `-N`. Empty means upstream's colours.
+- **The PowerShell profile** was regenerated from the palette: the prompt arrow turns orange-red after a failed command,
+  and strings are green. It was unedited generator output before (checked), and backed up.
+- The fallback palettes built into the Bridge mod and the status line match, so v2's drift tests hold.
+- A v7 test keeps prismantis, filetree, the Bridge and the terminal on the palette's pair.
+
+Not changed: prismantis's Ember preset keeps its mint for strings in code and for `[!TIP]` callouts, and its red for
+`[!CAUTION]`. The red is now a touch more orange than the Ember accent `#FF7A1A`
+(OKLCH hue 52° against 49°). It stands apart from it by being lighter (L 0.755 against 0.724) and softer (chroma 0.165
+against 0.187). v7 9/9, v2 52/52, filetree 66/66.
+
+Like any `rice.mjs apply`, this one wrote `version.json`'s `promptStyle: bar` over the live `bubble`, which was then put back
+by hand. `version.json` still says `bar`.
+
 ## Is it safe
 
 None of the mods makes network requests or model calls (`claude plugin validate` lists every `$.` call; the table with each mod's
@@ -250,6 +282,6 @@ Final pass, 2026-10-17:
 
 `version.json` (what v7 switches), `tools/rice.mjs` (CLI over `v3-win/tools/kit.mjs`), `tools/background.mjs`, `tests/`, `patches/`
 (v7's, v7.3's `cockpit-guard-off`, `secret-box-guard-switch`, `cctop-skills-windows`, `cctop-windows-build`, and v7.4's
-`secret-box-0.5.14-rice`, v7.5's `prismantis-code-panel`), `marketplace/` (the live marketplace's README and manifest at
-`claude-mods-local` `e673505`),
+`secret-box-0.5.14-rice`, v7.5's `prismantis-code-panel`, v7.6's `filetree-git-colors`), `marketplace/` (the live marketplace's README and manifest at
+`claude-mods-local` `62fd39d`),
 `docs/screenshots/`.

@@ -196,6 +196,13 @@ minified bundle (so `ctx`/`5h`/`wk` labels can't be patched without a rebuild), 
   own code view. The band is `codePanelColor`, else the preset's: ember `#1b1917` (the Bridge's raised colour), amber `#1b1a14`,
   crimson `#1c1717`, all a step above the rice's terminal backgrounds; other presets use their rule colour. 4 new tests; suite
   571/571.
+- **filetree** `addColor` / `removeColor` (`0.2.26-rice.1`, its first local patch): upstream hardcodes One Dark's green
+  `#98c379` and red `#e06c75` for `+N` / `-N` and added or untracked files, and `#d0605e` (the theme's `urgent`) for deleted
+  and conflicted ones. Each option takes `#RRGGBB` and replaces that colour on dark terminals; empty (the default) or anything
+  else keeps upstream's colours, and a light terminal keeps its own. v7.6 sets them to the rice's green `#7EFFDE` and orange-red
+  `#FF8D3E`. 2 new tests; suite 66/66. Patch: `v7-win/patches/filetree-git-colors.patch`.
+- **aurora-bridge** built-in Ember default: `ok` / `err` follow the v7.6 palette (`#7EFFDE` / `#FF8D3E`). The rice always sets the
+  `palette` option, so the default only shows without it; the version stays `0.2.0`.
 
 ### Reviewed and rejected
 

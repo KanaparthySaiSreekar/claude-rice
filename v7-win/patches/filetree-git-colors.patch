@@ -1,0 +1,121 @@
+diff --git a/plugins/filetree/.claude-plugin/plugin.json b/plugins/filetree/.claude-plugin/plugin.json
+index b4e3018..403509d 100644
+--- a/plugins/filetree/.claude-plugin/plugin.json
++++ b/plugins/filetree/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "filetree",
+-  "version": "0.2.26",
++  "version": "0.2.26-rice.1",
+   "description": "An IDE-style file tree for Claude Code that shows what Claude is doing and where in files",
+   "types": "./types/index.d.ts",
+   "author": {
+@@ -83,6 +83,18 @@
+       "title": "Open with",
+       "description": "What a double-click or Enter does with a file. Empty: the default app, also inside tmux. editor: use $VISUAL, then $EDITOR, then vi in tmux (Linux/macOS only; otherwise shows a notice). preview: show it in the pane (left goes back; ↗ always opens the default app). Anything else is a command run instead: {path} is the file and {dir} its folder; without {path} the path goes last. Words split on spaces, quotes keep a word whole, and no shell runs it. It should start the viewer and return; on Linux it runs detached.",
+       "default": ""
++    },
++    "addColor": {
++      "type": "string",
++      "title": "Added color",
++      "description": "Local addition (kasasree-mods). #RRGGBB for added and untracked files and the +N line counts. Empty: the built-in green. Dark terminals only; a light terminal keeps its own colors.",
++      "default": ""
++    },
++    "removeColor": {
++      "type": "string",
++      "title": "Removed color",
++      "description": "Local addition (kasasree-mods). #RRGGBB for deleted and conflicted files and the -N line counts. Empty: the built-in red and the theme's urgent color. Dark terminals only; a light terminal keeps its own colors.",
++      "default": ""
+     }
+   },
+   "license": "MIT"
+diff --git a/plugins/filetree/hooks/register.tsx b/plugins/filetree/hooks/register.tsx
+index 52fdfd1..51a3109 100644
+--- a/plugins/filetree/hooks/register.tsx
++++ b/plugins/filetree/hooks/register.tsx
+@@ -83,6 +83,10 @@ let lastPress = { key: '', at: 0 }
+ let noNerd = false
+ let glyphSetting = 'auto'
+ let openWithSetting = ''
++// LOCAL PATCH (kasasree-mods): the addColor / removeColor options, unset unless they are #RRGGBB.
++let addSetting: string | undefined
++let removeSetting: string | undefined
++const hexOption = (v: unknown): string | undefined => (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : undefined)
+ let previewed: { path: string; text: string; note: string } | null = null
+ let previewRows = 20
+ let follow = true
+@@ -1102,6 +1106,9 @@ export const register: Register = (on, options) => {
+   showAge = options?.column === 'age'
+   showHints = options?.hints !== 'off'
+   openWithSetting = typeof options?.open === 'string' ? options.open : ''
++  // LOCAL PATCH (kasasree-mods): addColor / removeColor replace the built-in green and red (dark terminals only).
++  addSetting = hexOption(options?.addColor)
++  removeSetting = hexOption(options?.removeColor)
+   noDock = options?.start === 'off'
+   on('session.start', async ($, e, next) => {
+     await $.command.register({ name: 'filetree', description: 'Show the file tree; args: [path] (no path = cwd)' })
+@@ -1359,9 +1366,10 @@ export const register: Register = (on, options) => {
+     const light = !themeMtime && e.surface !== 'desktop' && lightTerminal
+     const theme: Theme = light ? LIGHT_THEME : ((await $.state.get(THEME)).value ?? DEFAULT_THEME)
+     const tones = light ? LIGHT_TONES : TONES
+-    const gitColors = light ? LIGHT_GIT_COLOR : GIT_COLOR
+-    const addColor = light ? LIGHT_ADD_COLOR : ADD_COLOR
+-    const delColor = light ? LIGHT_DEL_COLOR : DEL_COLOR
++    const gitColors = light ? LIGHT_GIT_COLOR : addSetting ? { ...GIT_COLOR, A: addSetting, '?': addSetting } : GIT_COLOR
++    const addColor = light ? LIGHT_ADD_COLOR : (addSetting ?? ADD_COLOR)
++    const delColor = light ? LIGHT_DEL_COLOR : (removeSetting ?? DEL_COLOR)
++    const urgent = (!light && removeSetting) || theme.urgent
+     const rowColors = { activeBg: theme.selection, hoverBg: light ? LIGHT_HOVER : faint(theme.selection), tones: light ? LIGHT_SHIMMER : SHIMMER }
+     // The desktop tab never hands the wheel or the scrollbar drag to the pane, so
+     // there it draws every row and lets the engine scroll the body.
+@@ -1441,7 +1449,7 @@ export const register: Register = (on, options) => {
+       const out: Seg[] = []
+       if (c[0] > 0) out.push({ t: ` ?:${c[0]}`, c: gitColors['?'] ?? addColor })
+       if (c[1] > 0) out.push({ t: ` M:${c[1]}`, c: gitColors.M ?? '#e5c07b' })
+-      if (c[2] > 0) out.push({ t: ` D:${c[2]}`, c: theme.urgent })
++      if (c[2] > 0) out.push({ t: ` D:${c[2]}`, c: urgent })
+       return out
+     }
+     const rootCounts = t.top ? countSegs(t.counts[t.root]) : []
+@@ -1461,7 +1469,7 @@ export const register: Register = (on, options) => {
+       const own = t.git[n.id]
+       const status = own ?? (underAny(dirname(n.id), untracked, t.root) ? '?' : undefined)
+       const isIgnored = !status && underAny(n.id, ignored, t.root)
+-      const gitColor = status === 'D' || status === 'U' ? theme.urgent : status ? (gitColors[status] ?? theme.muted) : undefined
++      const gitColor = status === 'D' || status === 'U' ? urgent : status ? (gitColors[status] ?? theme.muted) : undefined
+       const isBright = bright.has(n.id)
+       const isDim = !isBright && dimmed.has(n.id)
+       const tone = t.flashTones[n.id] ?? 'orange'
+diff --git a/plugins/filetree/tests/surfaces.test.tsx b/plugins/filetree/tests/surfaces.test.tsx
+index e1fc76e..cca2624 100644
+--- a/plugins/filetree/tests/surfaces.test.tsx
++++ b/plugins/filetree/tests/surfaces.test.tsx
+@@ -1369,3 +1369,28 @@ test('files a Grep or Glob search returns shimmer as reads, relative names resol
+   expect(await texts(ui)).toContain(shimmer('a.ts', 'purple'))
+   await ui.unmount()
+ })
++
++// LOCAL PATCH (kasasree-mods) tests: the addColor and removeColor options.
++for (const colors of [undefined, { addColor: '#7DF1D3', removeColor: '#FF6A3D' }] as const) {
++  test(`git colors: ${colors ? 'addColor and removeColor replace the built-in green and red' : 'left unset, the built-in green and red stay'}`, { timeoutMs: 20_000, options: colors ?? {} }, async ($, on) => {
++    const root = '/home/k/proj'
++    const clock = world(on, {
++      os: 'linux', env: { HOME: '/home/k' }, cwd: root, top: root,
++      dirs: { [root]: [['src', 'dir'], ['notes.md', 'file']], [`${root}/src`]: [['a.ts', 'file']] },
++      status: '## main\0 M src/a.ts\0?? notes.md\0 D gone.ts\0', numstat: '3\t1\tsrc/a.ts\0',
++    }, [])
++    await $.session.start({ cwd: root, surface: 'terminal', isInteractive: true })
++    await clock.settle()
++    const ui = await $.ui.mount({ plugin: 'filetree', surface: 'terminal', component: 'Pane', requestId: 'filetree', props: paneProps(60) })
++    await clock.settle()
++    const shown = await texts(ui)
++    const [add, del, urgent] = colors ? [colors.addColor, colors.removeColor, colors.removeColor] : ['#98c379', '#e06c75', '#d0605e']
++    expect(shown).toContain(`" +3","c":"${add}"`)
++    expect(shown).toContain(`" -1","c":"${del}"`)
++    expect(shown).toContain(`{"t":"notes.md","c":"${add}"`)
++    expect(shown).toContain(`{"color":"${add}"},"children":[" ?:1"]`)
++    expect(shown).toContain(`{"color":"${urgent}"},"children":[" D:1"]`)
++    if (colors) for (const old of ['#98c379', '#e06c75', '#d0605e']) expect(shown).not.toContain(old)
++    await ui.unmount()
++  })
++}
